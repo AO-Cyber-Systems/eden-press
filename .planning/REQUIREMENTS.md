@@ -10,7 +10,7 @@
 ### Conformance (acceptance gate — precedes all engine work)
 
 - [ ] **CONF-01**: A language-neutral golden corpus of Markdown→HTML/CSS cases exists, seeded from Marp's own Jest snapshot fixtures (MIT)
-- [ ] **CONF-02**: A test runner renders each case and compares **DOM-normalized** HTML (ignores cosmetic `<br>`/`<hr>`/whitespace/attr-order)
+- [x] **CONF-02**: A test runner renders each case and compares **DOM-normalized** HTML (ignores cosmetic `<br>`/`<hr>`/whitespace/attr-order)
 - [ ] **CONF-03**: A **CSS-AST diff** comparator exists for theme-CSS output (new tooling; not a DOM diff)
 - [ ] **CONF-04**: The corpus covers the full CommonMark + GFM spec sweep (not only the 32-case parser spike), and is the acceptance gate cited by every engine objective
 
@@ -130,7 +130,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | Requirement | Objective | Status |
 |-------------|-----------|--------|
 | CONF-01 | Objective 0 — Conformance Corpus, Acceptance Gate & Attribution Bootstrap | Pending |
-| CONF-02 | Objective 0 | Pending |
+| CONF-02 | Objective 0 | Complete |
 | CONF-03 | Objective 0 | Pending |
 | CONF-04 | Objective 0 | Pending |
 | LIC-01 | Objective 0 | Complete |
