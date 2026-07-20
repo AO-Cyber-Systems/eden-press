@@ -1,0 +1,24 @@
+# Built binaries / Go build output
+/eden-press
+/eden
+*.exe
+*.test
+*.out
+
+# WebAssembly build artifacts
+*.wasm
+
+# Node tooling used only by the throwaway corpus generator (tools/corpus-gen)
+/node_modules/
+tools/corpus-gen/node_modules/
+
+# Coverage output
+coverage.out
+coverage.txt
+*.cover
+profile.cov
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
