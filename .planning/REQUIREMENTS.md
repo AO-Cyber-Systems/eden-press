@@ -135,7 +135,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | CONF-04 | Objective 0 | Pending |
 | LIC-01 | Objective 0 | Pending |
 | LIC-02 | Objective 0 | Pending |
-| LIC-03 | Objective 0 | Pending |
+| LIC-03 | Objective 0 (enforcement mechanism) + Objective 3 (per-file Marp headers applied, with CORE-01) | Pending |
 | LIC-04 | Objective 0 | Pending |
 | PARSE-01 | Objective 1 — chase/markdown + chase/directive + chase/theme | Pending |
 | PARSE-02 | Objective 1 | Pending |
@@ -183,6 +183,13 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 Objective 8 (Math-Fidelity Hardening + Auto-Fit Resolution) owns no new v1 requirement ID — it
 hardens CORE-08 and CORE-09 (delivered in Objective 3) to production quality.
 
+LIC-03 spans two objectives like CORE-08/09: Objective 0 delivers the ENFORCEMENT MECHANISM
+(the `addlicense -check` CI gate + the Marp-copyright-preserving per-file header template in
+CONTRIBUTING.md + the per-PR NOTICE/header checklist). The actual per-file Marp-preserving MIT
+headers on the 3 vendored themes (default/gaia/uncover) + the browser-fit/polyfill script are
+STAMPED in Objective 3, alongside CORE-01 (the verbatim `go:embed` of those assets) — the
+mechanism exists day-one; the per-file headers land when the assets they annotate arrive.
+
 **Coverage:**
 - v1 requirements: 50 total (corrected from the initial 44 placeholder after full extraction)
 - Mapped to objectives: 50/50 ✓
@@ -191,4 +198,4 @@ hardens CORE-08 and CORE-09 (delivered in Objective 3) to production quality.
 
 ---
 *Requirements defined: 2026-07-20*
-*Last updated: 2026-07-20 after roadmap creation (traceability filled, 100% v1 coverage)*
+*Last updated: 2026-07-20 — LIC-03 traceability annotated as an Obj-0 (mechanism) + Obj-3 (per-file headers) split, mirroring CORE-08/09; 100% v1 coverage unchanged*
