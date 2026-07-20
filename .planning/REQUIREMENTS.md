@@ -125,13 +125,70 @@ Deferred differentiators (architecture in v1 must not preclude them).
 
 ## Traceability
 
-Populated during roadmap creation (each requirement maps to exactly one objective).
+Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
+
+| Requirement | Objective | Status |
+|-------------|-----------|--------|
+| CONF-01 | Objective 0 — Conformance Corpus, Acceptance Gate & Attribution Bootstrap | Pending |
+| CONF-02 | Objective 0 | Pending |
+| CONF-03 | Objective 0 | Pending |
+| CONF-04 | Objective 0 | Pending |
+| LIC-01 | Objective 0 | Pending |
+| LIC-02 | Objective 0 | Pending |
+| LIC-03 | Objective 0 | Pending |
+| LIC-04 | Objective 0 | Pending |
+| PARSE-01 | Objective 1 — chase/markdown + chase/directive + chase/theme | Pending |
+| PARSE-02 | Objective 1 | Pending |
+| PARSE-03 | Objective 1 | Pending |
+| PARSE-04 | Objective 1 | Pending |
+| PARSE-05 | Objective 1 | Pending |
+| PARSE-06 | Objective 1 | Pending |
+| PARSE-07 | Objective 1 | Pending |
+| THEME-01 | Objective 1 | Pending |
+| THEME-02 | Objective 1 | Pending |
+| THEME-03 | Objective 1 | Pending |
+| THEME-04 | Objective 1 | Pending |
+| MODEL-01 | Objective 2 — chase/model + chase/profile + profiles/slides | Pending |
+| MODEL-02 | Objective 2 | Pending |
+| MODEL-03 | Objective 2 | Pending |
+| MODEL-04 | Objective 2 | Pending |
+| CORE-01 | Objective 3 — press/ Batteries + Public API | Pending |
+| CORE-02 | Objective 3 | Pending |
+| CORE-03 | Objective 3 | Pending |
+| CORE-04 | Objective 3 | Pending |
+| CORE-05 | Objective 3 | Pending |
+| CORE-06 | Objective 3 | Pending |
+| CORE-07 | Objective 3 | Pending |
+| CORE-08 | Objective 3 (hardened further in Objective 8) | Pending |
+| CORE-09 | Objective 3 (hardened further in Objective 8) | Pending |
+| API-01 | Objective 3 | Pending |
+| API-02 | Objective 3 | Pending |
+| API-03 | Objective 3 | Pending |
+| CLI-01 | Objective 4 — CLI (cmd/eden-press) | Pending |
+| CLI-02 | Objective 4 | Pending |
+| CLI-03 | Objective 4 | Pending |
+| CLI-04 | Objective 4 | Pending |
+| CLI-05 | Objective 4 | Pending |
+| CLI-06 | Objective 4 | Pending |
+| EXP-01 | Objective 5 — convert/pdf + convert/png (chromedp) | Pending |
+| EXP-02 | Objective 5 | Pending |
+| EXP-04 | Objective 5 | Pending |
+| EXP-03 | Objective 6 — convert/pptx (native OOXML) | Pending |
+| DART-01 | Objective 7 — Dart/Flutter Binding | Pending |
+| DART-02 | Objective 7 | Pending |
+| DART-03 | Objective 7 | Pending |
+| DART-04 | Objective 7 | Pending |
+| DART-05 | Objective 7 | Pending |
+
+Objective 8 (Math-Fidelity Hardening + Auto-Fit Resolution) owns no new v1 requirement ID — it
+hardens CORE-08 and CORE-09 (delivered in Objective 3) to production quality.
 
 **Coverage:**
-- v1 requirements: 44 total
-- Mapped to objectives: (pending roadmap)
-- Unmapped: (pending roadmap)
+- v1 requirements: 50 total (corrected from the initial 44 placeholder after full extraction)
+- Mapped to objectives: 50/50 ✓
+- Unmapped: 0 ✓
+- v2 requirements (PROF-01..03, BRAND-01, SAFE-01, REPRO-01, EXP2-01, HL-01, GM2-01): intentionally not mapped — deferred, architecture must not preclude them
 
 ---
 *Requirements defined: 2026-07-20*
-*Last updated: 2026-07-20 after initialization*
+*Last updated: 2026-07-20 after roadmap creation (traceability filled, 100% v1 coverage)*

@@ -1,0 +1,172 @@
+# Roadmap: Eden Press
+
+## Overview
+
+Eden Press ships as a strict build-order: prove the acceptance gate first (Objective 0), then
+build the framework layer bottom-up (`chase/markdown`+`directive`+`theme` in Objective 1,
+`chase/model`+`chase/profile`+`profiles/slides` in Objective 2 — kept deliberately separate so
+"structured document model" and "output-profile abstraction" are first-class deliverables, not
+prose folded into "port Marpit"). Objective 3 turns that framework into the importable
+`press.Render()` public API with all Marp-Core batteries wired in, and is the one gate every
+downstream consumer (CLI, exporters, Dart) depends on. From there the graph fans out into four
+genuinely independent workstreams that all depend on Objective 3 alone and not on each other —
+the CLI (4), chromedp-based PDF/PNG export (5), the Chrome-free native-OOXML PPTX exporter (6),
+and the Dart/Flutter binding (7) — eligible for parallel execution via `/devflow:workstreams`.
+Objective 8 closes the roadmap as a deliberate last-by-necessity hardening pass: math-fidelity
+tuning and auto-fit resolution have nothing to tune until the rest of the pipeline renders
+something real.
+
+## Objectives
+
+**Objective Numbering:**
+- Integer objectives (1, 2, 3): Planned milestone work
+- Decimal objectives (2.1, 2.2): Urgent insertions (marked with INSERTED)
+
+- [ ] **Objective 0: Conformance Corpus, Acceptance Gate & Attribution Bootstrap** - Golden corpus (Marp's own MIT fixtures + full CommonMark/GFM sweep), DOM-normalized HTML diff runner, new CSS-AST diff tooling, upstream-drift CI check, and day-one LICENSE/NOTICE/attribution.
+- [ ] **Objective 1: chase/markdown + chase/directive + chase/theme (Marpit-in-Go)** - Directive resolution, slide-splitting, background-image syntax, inline-SVG mode, and the theme-CSS scoping pipeline with its own tested selector-rewriter.
+- [ ] **Objective 2: chase/model + chase/profile + profiles/slides** - The structured JSON document model and output-profile interface as first-class packages, with `profiles/slides` as profile #1.
+- [ ] **Objective 3: press/ Batteries + Public API** - Embedded themes, GFM/slug/sanitize/emoji/highlight/math batteries, and the stable `press.Render()` API with a CI-enforced zero-chromedp boundary.
+- [ ] **Objective 4: CLI (cmd/eden-press)** - `eden-press` convert/watch/serve/preview, theme loading, config file + stdin input.
+- [ ] **Objective 5: convert/pdf + convert/png (chromedp raster export)** - PDF and PNG/JPEG export via headless Chrome, robust Chrome discovery, deterministic/CI-hardened export.
+- [ ] **Objective 6: convert/pptx (native OOXML)** - Hand-rolled, Chrome-free, editable-text-box PPTX export consuming the docmodel directly — sibling to Objective 5, not sequential after it.
+- [ ] **Objective 7: Dart/Flutter Binding (bind/capi + bind/dart)** - One Go core exposed via C-ABI, built three ways (Android `.so`, iOS `.a`, Web `.wasm`), gated only on Objective 3's API stability.
+- [ ] **Objective 8: Math-Fidelity Hardening + Auto-Fit Resolution** - The five math-converter root-cause fixes, a concrete MathML fallback-trigger rule, bundled STIX Two Math, and the final auto-fit mechanism decision.
+
+## Objective Details
+
+### Objective 0: Conformance Corpus, Acceptance Gate & Attribution Bootstrap
+**Goal**: Establish the acceptance gate every other objective is validated against, and get licensing/attribution right from day one — before any vendored asset or engine code exists.
+**Depends on**: Nothing (first objective)
+**Requirements**: CONF-01, CONF-02, CONF-03, CONF-04, LIC-01, LIC-02, LIC-03, LIC-04
+**Success Criteria** (what must be TRUE):
+  1. A golden corpus of Markdown→HTML/CSS cases exists in-repo, seeded from Marp's own MIT-licensed Jest fixtures plus the full CommonMark (~600 examples) and GFM (~672 examples) spec sweeps, with pass/fail tracked per spec section (not just an aggregate percentage).
+  2. The test runner renders every case and compares DOM-normalized HTML via an explicit, narrow allow-list of cosmetic differences (`<br>` vs `<br/>`, whitespace, attribute order) — proven not to mask real bugs by a negative test (a deliberately broken `<pre>`/code-span case is still caught).
+  3. A CSS-AST diff comparator (new tooling, not a repurposed HTML diff) exists and can detect an intentionally-broken theme-CSS output as a failing case.
+  4. `LICENSE` (MIT), `NOTICE`/`CREDITS` (crediting Marpit/Marp Core/Marp CLI + goldmark/chroma/latex2mathml/go-latex/latex with their licenses), and README "inspired by, not affiliated/endorsed" language exist in-repo, with a standing per-PR checklist requiring a NOTICE update any time a new vendored/verbatim asset is added.
+  5. A scheduled CI job exists that checks for drift against Marp's latest upstream tag (a mechanism, not a manual reminder).
+**Plans**: TBD
+
+### Objective 1: chase/markdown + chase/directive + chase/theme (Marpit-in-Go)
+**Goal**: Reimplement Marpit's actual value-add — the directive system, slide-splitting, background-image syntax, inline-SVG mode, and the theme-CSS scoping pipeline — as goldmark extensions plus a standalone CSS-scoping engine, validated against Objective 0's corpus.
+**Depends on**: Objective 0
+**Requirements**: PARSE-01, PARSE-02, PARSE-03, PARSE-04, PARSE-05, PARSE-06, PARSE-07, THEME-01, THEME-02, THEME-03, THEME-04
+**Success Criteria** (what must be TRUE):
+  1. Markdown is parsed via goldmark's explicit two-phase `Parser().Parse()` + `Renderer().Render()` call (never the one-shot `Convert()`), so the finalized, post-transform AST is inspectable — proven by a test that hooks the AST between phases.
+  2. Global, local, and spot directives (both YAML front-matter and HTML-comment syntax) resolve with correct carry-forward state across a multi-slide deck, matching Objective 0's corpus.
+  3. A deck splits into `<section>`-wrapped slides on `---`/`headingDivider` (with the setext-H2 trap resolved correctly), `![bg ...]` syntax resolves to CSS backgrounds or the advanced-background SVG layer, and inline-SVG mode (`<svg><foreignObject><section>`) renders correctly both as an HTML string AND rasterized (not string-diff alone).
+  4. Theme CSS runs through the full ordered scoping pipeline (meta parse → `:root` remap/specificity fix-up → selector-scope → `@import`/`@import-theme` resolve → render-time pagination/background injection) and passes Objective 0's CSS-AST diff gate for all 3 bundled themes plus a synthetic theme stress-testing `:is()`/`:where()`/native CSS nesting.
+  5. The selector-rewriter exists as its own independently unit-tested subsystem (dedicated test suite, not folded into theme-loading integration tests) — reflecting that it has no upstream Go analogue.
+**Plans**: TBD
+
+> **Planning note (internal parallelism):** `chase/directive` (pure carry-forward state machine, zero goldmark import) and `chase/theme` (CSS `Stylesheet` model over `tdewolff/parse/v2/css`, zero dependency on the Markdown/AST side) share no dependency edge and can be planned/executed as separate jobs within this objective; `chase/markdown` (goldmark Extenders wiring directive resolution, slide-splitting, `![bg]`, inline-SVG) depends on `chase/directive`'s output via `parser.Context` and should be sequenced after it.
+
+### Objective 2: chase/model + chase/profile + profiles/slides
+**Goal**: Ship the structured document model and the output-profile abstraction as first-class packages from day one — the single most consequential architectural decision in the whole project, since retrofitting either after a v1 profile hardens means a rewrite, not an extension.
+**Depends on**: Objective 1
+**Requirements**: MODEL-01, MODEL-02, MODEL-03, MODEL-04
+**Success Criteria** (what must be TRUE):
+  1. A structured `Document{Meta, Sections, Outline}` model is built by a direct recursive walk of the exact same finalized AST that produces HTML — not a second parse, not reverse-engineered from rendered HTML — proven by a test that only touches the docmodel builder and confirms HTML output is byte-identical before/after.
+  2. One call to the shared entrypoint returns both rendered HTML+CSS and the JSON-serializable Model from a single parse pass (one parse, two sinks), not two separate render calls.
+  3. `chase/profile` exists as its own package exposing a `Profile` interface (boundary detection, container wrapping, size table, pagination rules, profile-only directives) validated bottom-up — it is exactly what `profiles/slides` needs, not a speculative superset built before a second profile exists to test it against.
+  4. `profiles/slides` is the only registered `profile.Profile` implementation, fully reproduces Marp-compatible slide behavior (16:9 default, `section` container, `paginate` semantics) against Objective 0's corpus, and neither `chase/model` nor `chase/theme` contains slide-specific naming or hardcoded assumptions (`Slide` type names, a hardcoded `section` selector) — grep-verifiable, confirming the anti-pattern research flags most strongly was avoided.
+**Plans**: TBD
+
+> **Decision gate to resolve in this objective:** `chase/*` internal vs. exported Go — decide and document explicitly whether `chase/` gets an `internal/` prefix (forcing every consumer through `press/`) or stays independently importable for advanced consumers (e.g. a future `profiles/paged` built by someone other than Eden Press). Apply the decision consistently before Objective 3 builds the public API on top of it.
+
+### Objective 3: press/ Batteries + Public API
+**Goal**: Deliver the Marp-Core-equivalent batteries and the stable, importable `press.Render()` API — the point at which Eden Press becomes embeddable in any Go service with zero Chrome dependency, and the gate every downstream consumer (CLI, exporters, Dart) waits on.
+**Depends on**: Objective 2
+**Requirements**: CORE-01, CORE-02, CORE-03, CORE-04, CORE-05, CORE-06, CORE-07, CORE-08, CORE-09, API-01, API-02, API-03
+**Success Criteria** (what must be TRUE):
+  1. `press.Render(md, opts)` returns `{HTML, CSS, Model, Comments, Meta}` for a deck exercising all 3 bundled themes (default/gaia/uncover, embedded verbatim via `go:embed` with preserved MIT headers), `size`/`math` global directives, GFM tables + strikethrough (rendered as `<s>` to match Marp) + hard-breaks, heading slugs, native shortcode/unicode emoji, chroma-highlighted code styled correctly by the bundled themes' `.hljs-*`-shaped CSS, and math (`$…$`/`$$…$$`) rendered as MathML with construct-detection routing heavy constructs (`\tag`, `\label`, complex `aligned`) to the `codeberg.org/go-latex/latex` SVG/PNG fallback, plus emitted auto-fit markers (`<!--fit-->`).
+  2. `go list -deps ./press/...` contains no `chromedp` — enforced as an automated CI check, not a documented promise.
+  3. HTML sanitization matches Marp's `xss` allow-list *behaviorally* (strip-vs-escape semantics documented and deliberately chosen, not assumed identical) via an adversarial round-trip test suite, explicitly including the GFM disallowed-raw-HTML-tag filter (`<script>`, `<iframe>`, `<style>`, `<textarea>`, etc.) that goldmark's GFM extension does not provide automatically, and the always-on directive/comment-parsing code path is validated as its own trust boundary.
+  4. `Options`/`Output` types are documented and stable enough that a consumer only ever imports `press/` — never reaches into `chase/`/`profiles/` directly — to render a complete deck; this is the explicit gate at which Objective 7 (Dart binding) may begin.
+**Plans**: TBD
+
+> **Decision gate (baseline, hardened in Objective 8):** a first-pass acceptable MathML-quality threshold before auto-invoking the SVG/PNG fallback is decided here; the full converter-hardening pass and final fallback-trigger rule land in Objective 8.
+
+### Objective 4: CLI (cmd/eden-press)
+**Goal**: Ship the `eden-press` command-line tool as a thin, standard-Go consumer of `press/`.
+**Depends on**: Objective 3
+**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05, CLI-06
+**Success Criteria** (what must be TRUE):
+  1. `eden-press <in.md>` produces zero-JS static `bare`-style HTML output by default.
+  2. Watch mode (`fsnotify`, non-recursive directory walk with atomic-save-safe filtering) rebuilds output automatically when the source file changes.
+  3. Server mode serves local files with live-reload on request, and preview mode opens the rendered output in the user's default browser.
+  4. `--theme`/`--theme-set` flags load custom themes, a YAML/JSON/TOML config file (via koanf) can supply the same options, and stdin (`-`) works as an input source.
+**Plans**: TBD
+
+### Objective 5: convert/pdf + convert/png (chromedp raster export)
+**Goal**: Deliver PDF and PNG/JPEG export via headless Chrome, isolated as the only Chrome-touching code in the module, with CI-hardened determinism.
+**Depends on**: Objective 3
+**Requirements**: EXP-01, EXP-02, EXP-04
+**Success Criteria** (what must be TRUE):
+  1. A rendered deck exports to PDF via `chromedp`'s `Page.PrintToPDF` (invoked inside an `ActionFunc`) with fixed viewport, pinned timezone/locale, and animations disabled for deterministic output.
+  2. The same deck exports to per-slide PNG/JPEG via chromedp screenshots.
+  3. Chrome discovery falls back correctly: system Chrome → `--browser-path`/`CHROME_PATH` env var → a documented pinned-download path — tested in CI against a container with no system Chrome pre-installed; STIX Two Math font-provisioning is documented as a required export-environment asset.
+  4. CI runs export tests against a pinned `chromedp/headless-shell` version with `--disable-dev-shm-usage`, non-root execution, and a unique `--user-data-dir` per run, and PDF export specifically (not just PNG) is re-validated whenever the pinned Chrome version bumps.
+  5. `go list -deps` on `chase/`, `press/`, and `profiles/` still shows zero `chromedp` after this objective adds `convert/` — the CI check from Objective 3 remains green.
+**Plans**: TBD
+
+### Objective 6: convert/pptx (native OOXML)
+**Goal**: Deliver editable-text-box PPTX export directly from the structured document model, with no Chrome dependency at all — a sibling workstream to Objective 5, not sequential after it.
+**Depends on**: Objective 3
+**Requirements**: EXP-03
+**Success Criteria** (what must be TRUE):
+  1. A `.pptx` file is generated directly from `chase/model` (via `press.Output.Model`) — not from rendered HTML, and with zero `chromedp`/browser process invoked anywhere in the code path.
+  2. Text content renders as real, editable OOXML text-box shapes (`<p:sp>` with actual text runs) — not one screenshot image dropped per slide.
+  3. Generated PPTX position/size values are programmatically verified against expected EMU conversions via a dedicated, independently unit-tested EMU-conversion utility, including at least one grouped-shape (`chOff`/`chExt`) case.
+  4. The generated file opens correctly in PowerPoint/LibreOffice with elements in their expected positions, verified on both a 16:9 and a 4:3 slide size.
+**Plans**: TBD
+
+> **Decision gate (must be confirmed before this objective's design doc is written):** hand-rolled OOXML (stdlib `archive/zip` + `encoding/xml`) is the confirmed approach — `unioffice` and any of its forks are explicitly rejected (AGPLv3/commercial-license-key requirement, incompatible with Eden Press's MIT/embeddable positioning). Re-confirm at planning time that no new permissive Go PPTX library has emerged since the research date.
+
+### Objective 7: Dart/Flutter Binding (bind/capi + bind/dart)
+**Goal**: Expose `press.Render()` to Flutter clients via a single Go core compiled three ways, gated only on Objective 3's public API being stable — not on the CLI or any exporter existing.
+**Depends on**: Objective 3
+**Requirements**: DART-01, DART-02, DART-03, DART-04, DART-05
+**Success Criteria** (what must be TRUE):
+  1. A single Go C-ABI core (`PressRender`/`PressFree`, JSON-in/JSON-out — not mirrored Dart/Go structs) builds three ways: `-buildmode=c-shared` (Android `.so`), `-buildmode=c-archive` (iOS `.a`), and `GOOS=js GOARCH=wasm` (Web) — with no `gomobile bind` anywhere in the build pipeline.
+  2. Android and iOS builds are verified independently in CI as two separately-toolchained pipelines, specifically including a run on an Apple-Silicon runner with Android NDK also present (the confirmed toolchain-panic case) — both succeed.
+  3. The Flutter package renders a deck's math via `flutter_math_fork` and code highlighting via `highlighting`/`flutter_highlighting` — no JavaScript anywhere in the Dart rendering surface.
+  4. A shared subset of Objective 0's conformance corpus runs against the compiled capi/wasm artifact through the same JSON entrypoint the Dart code uses (not just the Go-native test run) and passes.
+**Plans**: TBD
+
+> **Decision gate (resolve before writing any WASM-specific code):** standard Go vs. TinyGo for the WASM target — decide based on a compatibility audit of goldmark, `yaml.v3` front-matter parsing, and the JSON-AST emitter against TinyGo's partial reflection/`encoding/json` support (a functional-correctness risk, not merely a binary-size/perf tradeoff). If TinyGo is chosen, pin its bundled `wasm_exec.js` to the exact compiler version.
+
+### Objective 8: Math-Fidelity Hardening + Auto-Fit Resolution
+**Goal**: Close the gap between "math renders without crashing" (Objective 3's baseline) and "math renders at KaTeX-parity quality with a concrete, tested fallback rule" — and resolve the one remaining browser-side-JS holdout (auto-fit). Last by necessity, not by low priority: there is nothing to tune until the rest of the pipeline renders something real.
+**Depends on**: Objective 3, Objective 7
+**Requirements**: None new — this objective hardens CORE-08 and CORE-09 (delivered in Objective 3) to production quality; it owns no v1 requirement IDs of its own.
+**Success Criteria** (what must be TRUE):
+  1. All 8 previously-wrong math-spike cases (big-operator limit stacking, `\binom`/`pmatrix` shared-fence bug, `\sqrt[n]` argument parsing, `aligned`→`mtable` conversion, `mathvariant`→Unicode-codepoint mapping) render at KaTeX-parity quality and are promoted into the permanent conformance-corpus regression set — not left as spike-scratch artifacts.
+  2. A concrete, testable fallback-trigger detector correctly auto-routes `\tag`/`\label`/complex-multi-column-`aligned` constructs to the `go-latex/latex` SVG/PNG path, covered by a corpus test (not manual inspection) — reflecting the permanent Chromium MathML-Core structural ceiling (no `<mlabeledtr>`, limited `<mtable>` attributes), not a bug awaiting a fix.
+  3. STIX Two Math is bundled from the STIX-fonts-project's own OTF/WOFF2 release files (never a Google Fonts CDN copy, which has been reported to strip MATH-table data), and a CI smoke test renders+pixel-checks a known formula to confirm MATH-table presence — catching tofu regressions before production.
+  4. The auto-fit mechanism is resolved per the decision gate below and implemented with no remaining silent viewer-side JavaScript dependency.
+**Plans**: TBD
+
+> **Decision gates:** (1) the concrete MathML fallback-trigger rule — which exact TeX constructs (confirmed candidates: `\tag`, `\label`, complex multi-column `aligned`) auto-route to the SVG/PNG fallback, as a testable detection function, not a vague heuristic; (2) the final auto-fit mechanism — native Flutter `TextPainter` fit (client-side, Objective 7's binding) vs. a CSS-only `cqw`/SVG-text spike for browser/PDF output (Objective 5's export path) vs. dropping auto-fit entirely if neither pixel-matches acceptably.
+
+## Progress
+
+**Execution Order:**
+Objectives execute in numeric order for dependency-respecting sequential runs: 0 → 1 → 2 → 3 → {4, 5, 6, 7 in parallel} → 8
+
+**Parallel workstreams (via `/devflow:workstreams`):** Objectives 4, 5, 6, and 7 all depend on Objective 3 alone (not on each other) and can execute concurrently in separate git worktrees. Objective 8 is the join point — it waits on both Objective 3 and Objective 7.
+
+| Objective | Jobs Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 0/TBD | Not started | - |
+| 1. chase/markdown + chase/directive + chase/theme | 0/TBD | Not started | - |
+| 2. chase/model + chase/profile + profiles/slides | 0/TBD | Not started | - |
+| 3. press/ Batteries + Public API | 0/TBD | Not started | - |
+| 4. CLI (cmd/eden-press) | 0/TBD | Not started | - |
+| 5. convert/pdf + convert/png (chromedp) | 0/TBD | Not started | - |
+| 6. convert/pptx (native OOXML) | 0/TBD | Not started | - |
+| 7. Dart/Flutter Binding | 0/TBD | Not started | - |
+| 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
+
+---
+*Roadmap created: 2026-07-20*
+*Depth: comprehensive (9 objectives)*
