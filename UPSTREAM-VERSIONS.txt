@@ -1,0 +1,7 @@
+# Pinned upstream Marp release tags mined for Eden Press's conformance corpus + attribution.
+# Format (space-separated, one repo per line): <owner/repo> <tag>
+# Read by .github/workflows/upstream-drift.yml, which files a deduplicated `upstream-drift`
+# issue when a repo publishes a newer release. Re-confirmed 2026-07-20 (matched latest).
+marp-team/marpit v3.2.2
+marp-team/marp-core v4.4.0
+marp-team/marp-cli v4.5.0
