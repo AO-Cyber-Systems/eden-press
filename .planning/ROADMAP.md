@@ -44,7 +44,13 @@ something real.
   3. A CSS-AST diff comparator (new tooling, not a repurposed HTML diff) exists and can detect an intentionally-broken theme-CSS output as a failing case.
   4. `LICENSE` (MIT), `NOTICE`/`CREDITS` (crediting Marpit/Marp Core/Marp CLI + goldmark/chroma/latex2mathml/go-latex/latex with their licenses), and README "inspired by, not affiliated/endorsed" language exist in-repo, with a standing per-PR checklist requiring a NOTICE update any time a new vendored/verbatim asset is added.
   5. A scheduled CI job exists that checks for drift against Marp's latest upstream tag (a mechanism, not a manual reminder).
-**Plans**: TBD
+**Plans**: 6 TRDs in 3 waves
+- [ ] 00-01-TRD.md — Repo scaffolding, go.mod, LICENSE/NOTICE/README, attribution + drift CI (LIC-01..04) [wave 1]
+- [ ] 00-02-TRD.md — Corpus format + DOM-normalized HTML diff runner + negative test (CONF-02) [wave 2]
+- [ ] 00-03-TRD.md — CSS-AST diff spike: normalized model + grammar-stream builder (CONF-03) [wave 2]
+- [ ] 00-04-TRD.md — CommonMark + GFM full spec sweep, per-section pass/fail (CONF-04) [wave 3]
+- [ ] 00-05-TRD.md — Marp golden-corpus extraction via npm oracle + corpus runner (CONF-01) [wave 3]
+- [ ] 00-06-TRD.md — CSS-AST diff comparator + theme negative/order tests (CONF-03) [wave 3]
 
 ### Objective 1: chase/markdown + chase/directive + chase/theme (Marpit-in-Go)
 **Goal**: Reimplement Marpit's actual value-add — the directive system, slide-splitting, background-image syntax, inline-SVG mode, and the theme-CSS scoping pipeline — as goldmark extensions plus a standalone CSS-scoping engine, validated against Objective 0's corpus.
@@ -157,7 +163,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 
 | Objective | Jobs Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 0/TBD | Not started | - |
+| 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 0/6 | Not started | - |
 | 1. chase/markdown + chase/directive + chase/theme | 0/TBD | Not started | - |
 | 2. chase/model + chase/profile + profiles/slides | 0/TBD | Not started | - |
 | 3. press/ Batteries + Public API | 0/TBD | Not started | - |
