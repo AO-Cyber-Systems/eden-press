@@ -55,16 +55,23 @@ Corpus / specification data sources
 
 CommonMark specification (https://github.com/commonmark/commonmark-spec)
 License: CC-BY-SA 4.0 (spec prose) / MIT (test tooling)
-  - Vendored as spec.json for the CommonMark acceptance sweep.
-  - TODO(00-04): record the exact pinned spec tag and example count when the
-    spec.json is vendored (research pin: tag 0.31.2, ~657 examples).
+  - Vendored as conformance/spec/commonmark/spec.json for the CommonMark
+    acceptance sweep (CONF-04): tag 0.31.2 (commit 9103e341a973013013bb1a80
+    e13567007c5cef6f), generated via the official `test/spec_tests.py
+    --dump-tests` script. Measured: 652 examples.
 
 GitHub Flavored Markdown / cmark-gfm (https://github.com/github/cmark-gfm)
 License: BSD-2-Clause + MIT (per upstream)
-  - Vendored as spec.json (+ extensions.json) for the GFM acceptance sweep.
-  - TODO(00-04): record the exact pinned source (live master branch) and
-    example counts when vendored (research pin: ~650 core + ~30 extension
-    examples; the frozen 0.29.0.gfm.13 tag is deliberately NOT the source).
+  - Vendored as conformance/spec/gfm/{spec.json,extensions.json} for the GFM
+    acceptance sweep (CONF-04): live master branch @ 499789b493 (2026-07-13),
+    generated via the same official `test/spec_tests.py --dump-tests` script
+    (forked from commonmark-spec's own tooling). Measured: 670 examples in
+    test/spec.txt (CommonMark-synced mirror) + 30 examples in
+    test/extensions.txt (GFM-only additions: tables, strikethrough,
+    autolinks, disallowed-raw-HTML tag filter, footnotes, task lists).
+    Deliberately the live split-file source, NOT the frozen 2019
+    0.29.0.gfm.13 combined snapshot behind the public gfm.github.io page.
+    See conformance/spec/VERSIONS.txt for the full pin record.
 
 Marp-derived golden corpus
   - Golden Markdown->HTML/CSS cases rendered from Marpit / Marp Core MIT test

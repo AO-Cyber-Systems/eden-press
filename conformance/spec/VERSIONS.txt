@@ -1,0 +1,27 @@
+# Conformance spec suites — pinned sources + measured counts (CONF-04)
+#
+# These are the ACTUAL measured example counts from the vendored spec.json files,
+# not the "~657"/"~672" approximations found in older docs (00-RESEARCH.md). If a
+# regeneration ever produces a different count, this file (and NOTICE) must be
+# updated in the same change — conformance/runner/spec_test.go asserts these
+# counts to guard against a truncated/corrupt vendor.
+
+commonmark-spec  tag 0.31.2  (commit 9103e341a973013013bb1a80e13567007c5cef6f)
+  -> conformance/spec/commonmark/spec.json   652 examples
+
+cmark-gfm  master @ 499789b493  (2026-07-13)
+  -> conformance/spec/gfm/spec.json          670 examples  (test/spec.txt — CommonMark-synced mirror + inline "(extension)" sections)
+  -> conformance/spec/gfm/extensions.json     30 examples  (test/extensions.txt — GFM-only additions)
+
+Total vendored examples: 652 + 670 + 30 = 1352
+
+Generated 2026-07-20 via commonmark-spec's and cmark-gfm's own official
+`test/spec_tests.py --dump-tests` extraction script (see README.md in this
+directory for the exact commands). Deliberately NOT the frozen 2019
+`0.29.0.gfm.13` combined snapshot (the basis of the public gfm.github.io page,
+measured at 650 combined examples) — cmark-gfm's live master `test/spec.txt` +
+`test/extensions.txt` split is actively synced with upstream CommonMark via
+`make update-spec` and is the correct ongoing source (00-RESEARCH.md Pattern 2).
+
+Re-vendor these three files (and update this file + NOTICE) whenever the
+CommonMark or cmark-gfm pins above are bumped.
