@@ -1,0 +1,13 @@
+{
+  "name": "eden-press-corpus-gen",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling (not shipped). Generates the Marp golden conformance corpus (CONF-01) by rendering representative Markdown through the real @marp-team/marp-core npm package — the oracle. Regenerate with `npm ci && node gen.mjs`. Output: conformance/corpus/cases/<id>/{input.md,options.json,expected.html,expected.css}.",
+  "scripts": {
+    "gen": "node gen.mjs"
+  },
+  "dependencies": {
+    "@marp-team/marp-core": "^4.1.0"
+  }
+}

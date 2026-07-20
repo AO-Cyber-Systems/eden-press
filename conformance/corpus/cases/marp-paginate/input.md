@@ -1,0 +1,9 @@
+---
+paginate: true
+---
+
+# One
+
+---
+
+# Two
