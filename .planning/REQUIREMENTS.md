@@ -82,10 +82,10 @@
 
 ### Licensing & attribution (early, first-class)
 
-- [ ] **LIC-01**: `LICENSE` (MIT) for Eden Press
-- [ ] **LIC-02**: `NOTICE`/`CREDITS` crediting Marpit, Marp Core, Marp CLI + deps (goldmark, chroma, latex2mathml, go-latex/latex) with licenses
-- [ ] **LIC-03**: Per-file MIT headers preserving the original Marp copyright on verbatim-reused assets (3 themes + browser fit/polyfill script)
-- [ ] **LIC-04**: README acknowledgment ("inspired by & Markdown-compatible with Marp") + explicit "not affiliated with / endorsed by the Marp team"
+- [x] **LIC-01**: `LICENSE` (MIT) for Eden Press
+- [x] **LIC-02**: `NOTICE`/`CREDITS` crediting Marpit, Marp Core, Marp CLI + deps (goldmark, chroma, latex2mathml, go-latex/latex) with licenses
+- [x] **LIC-03**: Per-file MIT headers preserving the original Marp copyright on verbatim-reused assets (3 themes + browser fit/polyfill script)
+- [x] **LIC-04**: README acknowledgment ("inspired by & Markdown-compatible with Marp") + explicit "not affiliated with / endorsed by the Marp team"
 
 ## v2 Requirements
 
@@ -133,10 +133,10 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | CONF-02 | Objective 0 | Pending |
 | CONF-03 | Objective 0 | Pending |
 | CONF-04 | Objective 0 | Pending |
-| LIC-01 | Objective 0 | Pending |
-| LIC-02 | Objective 0 | Pending |
-| LIC-03 | Objective 0 (enforcement mechanism) + Objective 3 (per-file Marp headers applied, with CORE-01) | Pending |
-| LIC-04 | Objective 0 | Pending |
+| LIC-01 | Objective 0 | Complete |
+| LIC-02 | Objective 0 | Complete |
+| LIC-03 | Objective 0 (enforcement mechanism) + Objective 3 (per-file Marp headers applied, with CORE-01) | Complete |
+| LIC-04 | Objective 0 | Complete |
 | PARSE-01 | Objective 1 — chase/markdown + chase/directive + chase/theme | Pending |
 | PARSE-02 | Objective 1 | Pending |
 | PARSE-03 | Objective 1 | Pending |
