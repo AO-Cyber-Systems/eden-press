@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Objective: 0 of 9 (Conformance Corpus, Acceptance Gate & Attribution Bootstrap)
-Job: Not yet planned
-Status: Ready to plan
-Last activity: 2026-07-20 — ROADMAP.md and STATE.md created; REQUIREMENTS.md traceability filled (50/50 v1 requirements mapped, 100% coverage)
+Job: 1 of 6 complete (00-01 Repository Scaffolding + Attribution Bootstrap executed; Wave 1 done)
+Status: Executing — Wave 1 root delivered; 00-02..00-06 unblocked (share authoritative go.mod/go.sum, additive-only)
+Last activity: 2026-07-20 — 00-01-TRD executed: buildable Go module + LICENSE/NOTICE/README + addlicense header gate + scheduled Marp upstream-drift CI; LIC-01..04 satisfied
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] ~2% (1/6 TRDs of Objective 0)
 
 ## Accumulated Context
 

@@ -45,7 +45,7 @@ something real.
   4. `LICENSE` (MIT), `NOTICE`/`CREDITS` (crediting Marpit/Marp Core/Marp CLI + goldmark/chroma/latex2mathml/go-latex/latex with their licenses), and README "inspired by, not affiliated/endorsed" language exist in-repo, with a standing per-PR checklist requiring a NOTICE update any time a new vendored/verbatim asset is added.
   5. A scheduled CI job exists that checks for drift against Marp's latest upstream tag (a mechanism, not a manual reminder).
 **Plans**: 6 TRDs in 3 waves
-- [ ] 00-01-TRD.md — Repo scaffolding, go.mod, LICENSE/NOTICE/README, attribution + drift CI (LIC-01..04) [wave 1]
+- [x] 00-01-TRD.md — Repo scaffolding, go.mod, LICENSE/NOTICE/README, attribution + drift CI (LIC-01..04) [wave 1]
 - [ ] 00-02-TRD.md — Corpus format + DOM-normalized HTML diff runner + negative test (CONF-02) [wave 2]
 - [ ] 00-03-TRD.md — CSS-AST diff spike: normalized model + grammar-stream builder (CONF-03) [wave 2]
 - [ ] 00-04-TRD.md — CommonMark + GFM full spec sweep, per-section pass/fail (CONF-04) [wave 3]
@@ -163,7 +163,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 
 | Objective | Jobs Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 0/6 | Not started | - |
+| 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 1/6 | In progress | - |
 | 1. chase/markdown + chase/directive + chase/theme | 0/TBD | Not started | - |
 | 2. chase/model + chase/profile + profiles/slides | 0/TBD | Not started | - |
 | 3. press/ Batteries + Public API | 0/TBD | Not started | - |
