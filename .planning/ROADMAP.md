@@ -22,7 +22,7 @@ something real.
 - Integer objectives (1, 2, 3): Planned milestone work
 - Decimal objectives (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Objective 0: Conformance Corpus, Acceptance Gate & Attribution Bootstrap** - Golden corpus (Marp's own MIT fixtures + full CommonMark/GFM sweep), DOM-normalized HTML diff runner, new CSS-AST diff tooling, upstream-drift CI check, and day-one LICENSE/NOTICE/attribution.
+- [x] **Objective 0: Conformance Corpus, Acceptance Gate & Attribution Bootstrap** - Golden corpus (Marp's own MIT fixtures + full CommonMark/GFM sweep), DOM-normalized HTML diff runner, new CSS-AST diff tooling, upstream-drift CI check, and day-one LICENSE/NOTICE/attribution. (completed 2026-07-20)
 - [ ] **Objective 1: chase/markdown + chase/directive + chase/theme (Marpit-in-Go)** - Directive resolution, slide-splitting, background-image syntax, inline-SVG mode, and the theme-CSS scoping pipeline with its own tested selector-rewriter.
 - [ ] **Objective 2: chase/model + chase/profile + profiles/slides** - The structured JSON document model and output-profile interface as first-class packages, with `profiles/slides` as profile #1.
 - [ ] **Objective 3: press/ Batteries + Public API** - Embedded themes, GFM/slug/sanitize/emoji/highlight/math batteries, and the stable `press.Render()` API with a CI-enforced zero-chromedp boundary.
@@ -47,10 +47,10 @@ something real.
 **Plans**: 6 TRDs in 3 waves
 - [x] 00-01-TRD.md — Repo scaffolding, go.mod, LICENSE/NOTICE/README, attribution + drift CI (LIC-01..04) [wave 1]
 - [x] 00-02-TRD.md — Corpus format + DOM-normalized HTML diff runner + negative test (CONF-02) [wave 2]
-- [ ] 00-03-TRD.md — CSS-AST diff spike: normalized model + grammar-stream builder (CONF-03) [wave 2]
-- [ ] 00-04-TRD.md — CommonMark + GFM full spec sweep, per-section pass/fail (CONF-04) [wave 3]
-- [ ] 00-05-TRD.md — Marp golden-corpus extraction via npm oracle + corpus runner (CONF-01) [wave 3]
-- [ ] 00-06-TRD.md — CSS-AST diff comparator + theme negative/order tests (CONF-03) [wave 3]
+- [x] 00-03-TRD.md — CSS-AST diff spike: normalized model + grammar-stream builder (CONF-03) [wave 2]
+- [x] 00-04-TRD.md — CommonMark + GFM full spec sweep, per-section pass/fail (CONF-04) [wave 3]
+- [x] 00-05-TRD.md — Marp golden-corpus extraction via npm oracle + corpus runner (CONF-01) [wave 3]
+- [x] 00-06-TRD.md — CSS-AST diff comparator + theme negative/order tests (CONF-03) [wave 3]
 
 ### Objective 1: chase/markdown + chase/directive + chase/theme (Marpit-in-Go)
 **Goal**: Reimplement Marpit's actual value-add — the directive system, slide-splitting, background-image syntax, inline-SVG mode, and the theme-CSS scoping pipeline — as goldmark extensions plus a standalone CSS-scoping engine, validated against Objective 0's corpus.
@@ -163,7 +163,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 
 | Objective | Jobs Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 1/6 | In progress | - |
+| 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 6/6 | Complete    | 2026-07-20 |
 | 1. chase/markdown + chase/directive + chase/theme | 0/TBD | Not started | - |
 | 2. chase/model + chase/profile + profiles/slides | 0/TBD | Not started | - |
 | 3. press/ Batteries + Public API | 0/TBD | Not started | - |
