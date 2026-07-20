@@ -46,7 +46,7 @@ something real.
   5. A scheduled CI job exists that checks for drift against Marp's latest upstream tag (a mechanism, not a manual reminder).
 **Plans**: 6 TRDs in 3 waves
 - [x] 00-01-TRD.md — Repo scaffolding, go.mod, LICENSE/NOTICE/README, attribution + drift CI (LIC-01..04) [wave 1]
-- [ ] 00-02-TRD.md — Corpus format + DOM-normalized HTML diff runner + negative test (CONF-02) [wave 2]
+- [x] 00-02-TRD.md — Corpus format + DOM-normalized HTML diff runner + negative test (CONF-02) [wave 2]
 - [ ] 00-03-TRD.md — CSS-AST diff spike: normalized model + grammar-stream builder (CONF-03) [wave 2]
 - [ ] 00-04-TRD.md — CommonMark + GFM full spec sweep, per-section pass/fail (CONF-04) [wave 3]
 - [ ] 00-05-TRD.md — Marp golden-corpus extraction via npm oracle + corpus runner (CONF-01) [wave 3]
