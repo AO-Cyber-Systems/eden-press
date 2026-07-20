@@ -55,4 +55,8 @@ jobs:
         run: go install github.com/google/addlicense@latest
 
       - name: Check license headers
-        run: addlicense -l mit -s -c "AO Cyber Systems" -check .
+        # conformance/corpus/cases/** is Marp-derived golden data (rendered through
+        # @marp-team/marp-core), NOT Eden Press source — it must NOT carry our
+        # copyright header; its provenance is recorded in NOTICE. node_modules is
+        # dev-only tooling deps. Everything else must have the MIT header.
+        run: addlicense -l mit -s -c "AO Cyber Systems" -ignore 'conformance/corpus/cases/**' -ignore '**/node_modules/**' -check .
