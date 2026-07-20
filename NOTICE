@@ -1,0 +1,81 @@
+Eden Press
+Copyright (c) 2026 AO Cyber Systems
+
+This product includes, is inspired by, or credits software developed as part of
+the following third-party projects. Eden Press is a clean-room reimplementation
+in Go and is NOT affiliated with, endorsed by, or sponsored by the Marp team.
+
+================================================================================
+Marp projects (Markdown presentation ecosystem)
+================================================================================
+
+Marpit (https://github.com/marp-team/marpit)
+Copyright (c) 2018- Marp team (marp-team@marp.app)
+License: MIT
+
+Marp Core (https://github.com/marp-team/marp-core)
+Copyright (c) 2018 Marp team (marp-team@marp.app)
+License: MIT
+  - The bundled themes (default, gaia, uncover) and the browser fit/polyfill
+    script are reused VERBATIM under their original MIT license and copyright
+    when they land (Objective 3). Each such file preserves the original Marp
+    copyright in its per-file header; see themes/ and CONTRIBUTING.md.
+
+Marp CLI (https://github.com/marp-team/marp-cli)
+Copyright (c) 2018 Marp team (marp-team@marp.app)
+License: MIT
+
+================================================================================
+Go / rendering dependencies
+================================================================================
+
+goldmark (https://github.com/yuin/goldmark)
+License: MIT
+  - CommonMark/GFM Markdown parser under test; also the reference for the
+    spec-sweep test shape (mirrored, not imported).
+
+chroma (https://github.com/alecthomas/chroma)
+License: MIT
+  - Syntax highlighting for fenced code blocks.
+
+tdewolff/parse (https://github.com/tdewolff/parse)
+License: MIT
+  - CSS tokenizing / grammar-stream parsing for the theme-CSS engine and the
+    CSS-AST diff comparator.
+
+latex2mathml (https://github.com/roniemartinez/latex2mathml)
+License: [verify exact license in the math objective — out of scope for Objective 0]
+
+go-latex/latex (https://codeberg.org/go-latex/latex)
+License: [verify exact license in the math objective — out of scope for Objective 0]
+
+================================================================================
+Corpus / specification data sources
+================================================================================
+
+CommonMark specification (https://github.com/commonmark/commonmark-spec)
+License: CC-BY-SA 4.0 (spec prose) / MIT (test tooling)
+  - Vendored as spec.json for the CommonMark acceptance sweep.
+  - TODO(00-04): record the exact pinned spec tag and example count when the
+    spec.json is vendored (research pin: tag 0.31.2, ~657 examples).
+
+GitHub Flavored Markdown / cmark-gfm (https://github.com/github/cmark-gfm)
+License: BSD-2-Clause + MIT (per upstream)
+  - Vendored as spec.json (+ extensions.json) for the GFM acceptance sweep.
+  - TODO(00-04): record the exact pinned source (live master branch) and
+    example counts when vendored (research pin: ~650 core + ~30 extension
+    examples; the frozen 0.29.0.gfm.13 tag is deliberately NOT the source).
+
+Marp-derived golden corpus
+  - Golden Markdown->HTML/CSS cases rendered from Marpit / Marp Core MIT test
+    suites via a throwaway Node harness (tools/corpus-gen), used as ground truth.
+  - TODO(00-05): record the exact @marp-team/marpit and @marp-team/marp-core
+    tags mined and the generated case count when the corpus is produced
+    (research pin: marpit v3.2.2, marp-core v4.4.0).
+
+Note: license verification for latex2mathml and go-latex/latex is explicitly
+deferred to the math objective per the LIC-02 requirement text; the math stack
+was already vetted in prior project research and is cross-referenced here rather
+than re-verified. Whenever a new vendored/verbatim asset is added, this NOTICE
+must be updated with its source, license, and copyright (enforced by the per-PR
+checklist in .github/PULL_REQUEST_TEMPLATE.md and CONTRIBUTING.md).

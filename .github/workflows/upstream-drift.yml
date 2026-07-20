@@ -1,0 +1,64 @@
+# Copyright (c) 2026 AO Cyber Systems
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+name: Check Marp upstream drift
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # weekly, Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: compare pinned vs latest
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: [marp-team/marpit, marp-team/marp-core, marp-team/marp-cli]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare pinned vs latest release
+        run: |
+          set -euo pipefail
+          LATEST=$(gh release view --repo "${{ matrix.repo }}" --json tagName --jq '.tagName')
+          PINNED=$(grep "${{ matrix.repo }}" UPSTREAM-VERSIONS.txt | grep -v '^#' | cut -d' ' -f2)
+          echo "repo=${{ matrix.repo }} pinned=$PINNED latest=$LATEST"
+          if [ "$LATEST" != "$PINNED" ]; then
+            TITLE="Upstream drift: ${{ matrix.repo }} released $LATEST (pinned: $PINNED)"
+            EXISTING=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[].number')
+            if [ -z "$EXISTING" ]; then
+              gh issue create --title "$TITLE" --label upstream-drift \
+                --body "Conformance corpus / attribution was mined from ${{ matrix.repo }} @ \`$PINNED\`. Latest release is \`$LATEST\`. Review for spec/theme changes and update UPSTREAM-VERSIONS.txt (and NOTICE, if a vendored asset changed) accordingly."
+            else
+              echo "Deduplicated: issue already open (#$EXISTING) for $TITLE"
+            fi
+          else
+            echo "No drift for ${{ matrix.repo }}."
+          fi
