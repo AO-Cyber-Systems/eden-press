@@ -23,11 +23,14 @@
 package chase
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
 	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus"
+	"github.com/AO-Cyber-Systems/eden-press/conformance/htmldiff"
 )
 
 // multiSlideMD is a hand-built, two-slide deck with front matter -- the
@@ -148,5 +151,64 @@ func TestRenderCSSIsProfileParameterizedAndScoped(t *testing.T) {
 	const wantScopedRule = `div.marpit > svg > foreignObject > section {`
 	if !strings.Contains(out.CSS, wantScopedRule) {
 		t.Fatalf("CSS missing profile-scoped rule %q, got:\n%s", wantScopedRule, out.CSS)
+	}
+}
+
+// corpusSmokeCases is a small, representative subset of the Objective-1
+// Marpit-mechanic corpus (conformance/runner/chase_corpus_test.go's own
+// marpitMechanicCases PASS-required set) -- slide-split, directive
+// carry-forward (paginate), and header/footer, none of which needs an
+// Objective-3 "battery". This is a smoke check, not the full corpus gate
+// (that stays in conformance/).
+var corpusSmokeCases = map[string]bool{
+	"marp-basic":         true,
+	"marp-slide-split":   true,
+	"marp-paginate":      true,
+	"marp-header-footer": true,
+}
+
+// TestRenderCorpusSmoke covers Test-list case 6: running a representative
+// subset of the chase Marp corpus through chase.Render on a SINGLE call
+// per case must (a) reproduce the Objective-1-blessed HTML byte-for-
+// structure (htmldiff.Equal against expected.html -- no regression from
+// adding the model/CSS sinks) AND (b) simultaneously yield non-empty CSS
+// and a populated *model.Document -- i.e. the SAME Render call that
+// produces the corpus-correct HTML also produces the model, proving one
+// parse feeds both sinks even for real corpus decks, not just the
+// hand-built multiSlideMD fixture above.
+func TestRenderCorpusSmoke(t *testing.T) {
+	root := filepath.Join("..", "conformance", "corpus", "cases")
+	cases, err := corpus.LoadCases(root)
+	if err != nil {
+		t.Fatalf("load corpus %q: %v", root, err)
+	}
+
+	tested := 0
+	for _, c := range cases {
+		if !corpusSmokeCases[c.ID] {
+			continue
+		}
+		tested++
+
+		out, err := Render(c.InputMD)
+		if err != nil {
+			t.Errorf("case %q: Render: %v", c.ID, err)
+			continue
+		}
+
+		if eq, diff := htmldiff.Equal(c.ExpectedHTML, out.HTML); !eq {
+			t.Errorf("case %q: HTML sink diverges from corpus expectation (regression):\n%s", c.ID, diff)
+		}
+
+		if out.CSS == "" {
+			t.Errorf("case %q: CSS is empty from the same Render call that produced the HTML sink", c.ID)
+		}
+		if out.Model == nil || len(out.Model.Sections) == 0 {
+			t.Errorf("case %q: Model sink is empty from the same Render call that produced the HTML sink (Model: %+v)", c.ID, out.Model)
+		}
+	}
+
+	if tested != len(corpusSmokeCases) {
+		t.Fatalf("expected to exercise %d corpus smoke cases, found %d on disk under %q", len(corpusSmokeCases), tested, root)
 	}
 }
