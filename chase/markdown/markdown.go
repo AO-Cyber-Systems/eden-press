@@ -41,6 +41,7 @@ package markdown
 import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/util"
 )
 
@@ -81,6 +82,14 @@ func (e *ext) Extend(m goldmark.Markdown) {
 			util.Prioritized(newSlideSplitTransformer(), 200),
 		),
 	)
-	// NodeRenderers (.marpit/<section> render-time wrapping) are added by
-	// Task 3 of this TRD, below this line, as that file lands.
+	m.Renderer().AddOptions(
+		// Registered at priority 0 -- lower than goldmark's default
+		// html.NewRenderer() (renderer.DefaultRenderer, 1000) -- so our
+		// Document/Section/Comment funcs win; every other NodeKind we
+		// never register a func for still falls through to the default
+		// renderer.
+		renderer.WithNodeRenderers(
+			util.Prioritized(NewNodeRenderer(), 0),
+		),
+	)
 }
