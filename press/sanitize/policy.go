@@ -129,6 +129,12 @@ func Policy() *bluemonday.Policy {
 		"msub", "msup", "msubsup", "mfrac", "mover", "munder", "munderover",
 	}
 	p.AllowElements(mathElements...)
+	// Most MathML leaf elements (<mi>x</mi>, <mo>+</mo>, <mn>1</mn>,
+	// <mrow>...) commonly carry NO attributes at all. bluemonday only
+	// keeps a zero-attribute tag if the element is explicitly marked
+	// AllowNoAttrs -- AllowElements alone is not sufficient for the
+	// attribute-less case (see sanitize.go's allowNoAttrs gate).
+	p.AllowNoAttrs().OnElements(mathElements...)
 	p.AllowAttrs(
 		"xmlns", "display", "displaystyle", "scriptlevel", "mathvariant",
 		"mathsize", "stretchy", "accent", "fence", "form", "largeop",
@@ -187,7 +193,11 @@ var (
 // regression proof.
 func Sanitize(html string) string {
 	out := Policy().Sanitize(html)
-	out = reForeignObjectTag.ReplaceAllString(out, "<$1foreignObject")
+	// NOTE: "${1}", not "$1foreignObject" -- Go's regexp ReplaceAllString
+	// treats "$1f..." as a reference to a (nonexistent) submatch NAMED
+	// "1foreignObject", silently substituting empty string. The braced
+	// form disambiguates the group boundary.
+	out = reForeignObjectTag.ReplaceAllString(out, "<${1}foreignObject")
 	out = reViewBoxAttr.ReplaceAllString(out, "viewBox=")
 	return out
 }
