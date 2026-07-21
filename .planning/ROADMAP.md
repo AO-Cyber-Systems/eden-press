@@ -27,7 +27,7 @@ something real.
 - [x] **Objective 2: chase/model + chase/profile + profiles/slides** - The structured JSON document model and output-profile interface as first-class packages, with `profiles/slides` as profile #1. (completed 2026-07-21)
 - [x] **Objective 3: press/ Batteries + Public API** - Embedded themes, GFM/slug/sanitize/emoji/highlight/math batteries, and the stable `press.Render()` API with a CI-enforced zero-chromedp boundary. (9/9 TRDs complete — 03-09 capstone: press.Render one-parse-two-sinks compose + no-chromedp gate.)
 - [ ] **Objective 4: CLI (cmd/eden-press)** - `eden-press` convert/watch/serve/preview, theme loading, config file + stdin input.
-- [ ] **Objective 5: convert/pdf + convert/png (chromedp raster export)** - PDF and PNG/JPEG export via headless Chrome, robust Chrome discovery, deterministic/CI-hardened export.
+- [ ] **Objective 5: convert/pdf + convert/png (chromedp raster export)** - PDF and PNG/JPEG export via headless Chrome, robust Chrome discovery, deterministic/CI-hardened export. (1/5 TRDs complete — 05-01: convert/ bootstrap, chromedp provisioned + no-chromedp gate stays green, Chrome discovery chain + one-browser-many-tabs Session.)
 - [ ] **Objective 6: convert/pptx (native OOXML)** - Hand-rolled, Chrome-free, editable-text-box PPTX export consuming the docmodel directly — sibling to Objective 5, not sequential after it.
 - [ ] **Objective 7: Dart/Flutter Binding (bind/capi + bind/dart)** - One Go core exposed via C-ABI, built three ways (Android `.so`, iOS `.a`, Web `.wasm`), gated only on Objective 3's API stability.
 - [ ] **Objective 8: Math-Fidelity Hardening + Auto-Fit Resolution** - The five math-converter root-cause fixes, a concrete MathML fallback-trigger rule, bundled STIX Two Math, and the final auto-fit mechanism decision.
@@ -145,7 +145,7 @@ something real.
   4. CI runs export tests against a pinned `chromedp/headless-shell` version with `--disable-dev-shm-usage`, non-root execution, and a unique `--user-data-dir` per run, and PDF export specifically (not just PNG) is re-validated whenever the pinned Chrome version bumps.
   5. `go list -deps` on `chase/`, `press/`, and `profiles/` still shows zero `chromedp` after this objective adds `convert/` — the CI check from Objective 3 remains green.
 **Plans**: 5 TRDs in 4 waves
-- [ ] 05-01-TRD.md — convert bootstrap (chromedp provisioned, gate stays green) + Chrome discovery chain + one-browser-many-tabs Session (EXP-04) [wave 1]
+- [x] 05-01-TRD.md — convert bootstrap (chromedp provisioned, gate stays green) + Chrome discovery chain + one-browser-many-tabs Session (EXP-04) [wave 1]
 - [ ] 05-02-TRD.md — shared determinism recipe (fixed viewport/UTC/locale/animation-kill) + SetDocumentContent loader + STIX Two Math font provisioning (EXP-04) [wave 2]
 - [ ] 05-03-TRD.md — convert/pdf: PrintToPDF via ActionFunc + CSS @page sizing + print-backgrounds + inline-SVG PDF smoke (EXP-01) [wave 3]
 - [ ] 05-04-TRD.md — convert/png: per-slide screenshots (PNG/JPEG) viewport-pinned + inline-SVG capture smoke (EXP-02) [wave 3]
