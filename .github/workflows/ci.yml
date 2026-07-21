@@ -65,3 +65,11 @@ jobs:
         # so they are excluded from the AO-Cyber header assertion. Everything else
         # must have the MIT header.
         run: addlicense -l mit -s -c "AO Cyber Systems" -ignore 'conformance/corpus/cases/**' -ignore '**/node_modules/**' -ignore 'themes/**' -check .
+
+      - name: Check no chromedp (API-02)
+        # OBJECTIVE.md success criterion 2 + the Objective-7-begin gate: the
+        # public render path (press/) and everything it composes (chase/,
+        # profiles/) must stay pure-Go with NO headless-browser dependency, so
+        # a consumer that imports only press/ never pulls in chromedp. This
+        # mechanically enforces that boundary on every push/PR.
+        run: make check-no-chromedp
