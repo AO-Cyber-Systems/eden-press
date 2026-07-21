@@ -127,9 +127,9 @@ something real.
 **Plans**: 8 TRDs in 5 waves
 - [x] 04-01-TRD.md — press.Options.ThemeCSS additive extension + BrowserFitJS re-export (Wave-0 enabler for CLI-05) [wave 1]
 - [x] 04-02-TRD.md — cobra skeleton + go.mod deps + flag→Options surface + stdin/file input [wave 1]
-- [ ] 04-03-TRD.md — htmldoc bare-style zero-JS assembly + convert pipeline (CLI-01) [wave 2]
+- [x] 04-03-TRD.md — htmldoc bare-style zero-JS assembly + convert pipeline (CLI-01) [wave 2]
 - [x] 04-04-TRD.md — koanf config loading: .marprc.* + precedence flags>env>file (CLI-06) [wave 2]
-- [ ] 04-05-TRD.md — --theme/--theme-set loading into press.Options.ThemeCSS (CLI-05) [wave 2]
+- [x] 04-05-TRD.md — --theme/--theme-set loading into press.Options.ThemeCSS (CLI-05) [wave 2]
 - [ ] 04-06-TRD.md — watch mode: scoped fsnotify + debounce + SSE reload channel (CLI-02) [wave 3]
 - [ ] 04-07-TRD.md — serve mode: static + convert-on-request + traversal guard + reuse SSE (CLI-03) [wave 4]
 - [ ] 04-08-TRD.md — preview (pkg/browser) + integration test + CLI-imports CI gate (CLI-04) [wave 5]
@@ -146,7 +146,7 @@ something real.
   5. `go list -deps` on `chase/`, `press/`, and `profiles/` still shows zero `chromedp` after this objective adds `convert/` — the CI check from Objective 3 remains green.
 **Plans**: 5 TRDs in 4 waves
 - [x] 05-01-TRD.md — convert bootstrap (chromedp provisioned, gate stays green) + Chrome discovery chain + one-browser-many-tabs Session (EXP-04) [wave 1]
-- [ ] 05-02-TRD.md — shared determinism recipe (fixed viewport/UTC/locale/animation-kill) + SetDocumentContent loader + STIX Two Math font provisioning (EXP-04) [wave 2]
+- [x] 05-02-TRD.md — shared determinism recipe (fixed viewport/UTC/locale/animation-kill) + SetDocumentContent loader + STIX Two Math font provisioning (EXP-04) [wave 2]
 - [ ] 05-03-TRD.md — convert/pdf: PrintToPDF via ActionFunc + CSS @page sizing + print-backgrounds + inline-SVG PDF smoke (EXP-01) [wave 3]
 - [ ] 05-04-TRD.md — convert/png: per-slide screenshots (PNG/JPEG) viewport-pinned + inline-SVG capture smoke (EXP-02) [wave 3]
 - [ ] 05-05-TRD.md — CI hardening capstone: no-system-Chrome pinned headless-shell container + PDF re-validation process + no-chromedp/addlicense gates stay green (EXP-04) [wave 4]
@@ -180,7 +180,7 @@ something real.
   4. A shared subset of Objective 0's conformance corpus runs against the compiled capi/wasm artifact through the same JSON entrypoint the Dart code uses (not just the Go-native test run) and passes.
 **Plans**: 5 TRDs in 3 waves
 - [x] 07-01-TRD.md — DART-01: C-ABI core — RenderJSON pure-Go JSON boundary + cgo PressRender/PressFree [wave 1]
-- [ ] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2]
+- [x] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2]
 - [x] 07-03-TRD.md — DART-02: native builds — Android c-shared .so/ABI, iOS c-archive→xcframework + two-pipeline CI [wave 2]
 - [ ] 07-04-TRD.md — DART-05: boundary conformance — corpus subset through compiled wasm + host capi via same JSON entrypoint [wave 3]
 - [ ] 07-05-TRD.md — DART-04: JS-free Dart surface — flutter_math_fork + flutter_highlighting; consumes Obj6/06-01 schema-v2 [wave 3]
@@ -213,10 +213,10 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
-| 4. CLI (cmd/eden-press) | 2/8 | In Progress | - |
-| 5. convert/pdf + convert/png (chromedp) | 1/5 | In Progress | - |
-| 6. convert/pptx (native OOXML) | 2/5 | In progress | 06-03: 2026-07-21 |
-| 7. Dart/Flutter Binding | 1/5 | In Progress | - |
+| 4. CLI (cmd/eden-press) | 5/8 | In Progress | - |
+| 5. convert/pdf + convert/png (chromedp) | 2/5 | In Progress | - |
+| 6. convert/pptx (native OOXML) | 3/5 | In Progress | - |
+| 7. Dart/Flutter Binding | 3/5 | In Progress | - |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
 
 ---
