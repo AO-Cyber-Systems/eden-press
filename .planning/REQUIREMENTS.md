@@ -68,7 +68,7 @@
 ### Export (`convert/`)
 
 - [ ] **EXP-01**: PDF via `chromedp` `Page.printToPDF`
-- [ ] **EXP-02**: PNG/JPEG per-slide via `chromedp` screenshots
+- [x] **EXP-02**: PNG/JPEG per-slide via `chromedp` screenshots
 - [ ] **EXP-03**: PPTX via a **hand-rolled OOXML writer** (`archive/zip` + `encoding/xml`; reject `unioffice` — licensing + network check-in), consuming the docmodel directly (no Chrome), targeting **editable** text boxes
 - [ ] **EXP-04**: Robust headless-Chrome discovery (`--browser-path`, known paths) and a MATH-font provisioning note (bundle official STIX Two Math OTF)
 
@@ -171,7 +171,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | CLI-05 | Objective 4 | Pending |
 | CLI-06 | Objective 4 | Pending |
 | EXP-01 | Objective 5 — convert/pdf + convert/png (chromedp) | Pending |
-| EXP-02 | Objective 5 | Pending |
+| EXP-02 | Objective 5 | Complete |
 | EXP-04 | Objective 5 | Pending |
 | EXP-03 | Objective 6 — convert/pptx (native OOXML) | Pending |
 | DART-01 | Objective 7 — Dart/Flutter Binding | Pending |
