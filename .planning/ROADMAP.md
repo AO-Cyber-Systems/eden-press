@@ -179,7 +179,7 @@ something real.
   3. The Flutter package renders a deck's math via `flutter_math_fork` and code highlighting via `highlighting`/`flutter_highlighting` — no JavaScript anywhere in the Dart rendering surface.
   4. A shared subset of Objective 0's conformance corpus runs against the compiled capi/wasm artifact through the same JSON entrypoint the Dart code uses (not just the Go-native test run) and passes.
 **Plans**: 5 TRDs in 3 waves
-- [ ] 07-01-TRD.md — DART-01: C-ABI core — RenderJSON pure-Go JSON boundary + cgo PressRender/PressFree [wave 1]
+- [x] 07-01-TRD.md — DART-01: C-ABI core — RenderJSON pure-Go JSON boundary + cgo PressRender/PressFree [wave 1]
 - [ ] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2]
 - [ ] 07-03-TRD.md — DART-02: native builds — Android c-shared .so/ABI, iOS c-archive→xcframework + two-pipeline CI [wave 2]
 - [ ] 07-04-TRD.md — DART-05: boundary conformance — corpus subset through compiled wasm + host capi via same JSON entrypoint [wave 3]
@@ -216,7 +216,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 4. CLI (cmd/eden-press) | 0/8 | Planned     | - |
 | 5. convert/pdf + convert/png (chromedp) | 0/5 | Planned     | - |
 | 6. convert/pptx (native OOXML) | 0/5 | Planned     | - |
-| 7. Dart/Flutter Binding | 0/5 | Planned     | - |
+| 7. Dart/Flutter Binding | 1/5 | In Progress | 2026-07-21 |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
 
 ---

@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Render Marp-compatible documents from Markdown inside a Go service or CLI with no JavaScript runtime, no Node, and no browser for HTML/structured output — while emitting the document as structured data, not just HTML.
-**Current focus:** Objective 3 — press/ Batteries + Public API — COMPLETE (9/9 TRDs; press.Render public API shipped, CI-enforced zero-chromedp boundary); Objective 4 (CLI) / Objective 7 (Dart binding) next
+**Current focus:** Objective 7 — Dart/Flutter Binding — IN PROGRESS (1/5 TRDs; 07-01 DART-01 C-ABI core executed on this worktree). Objective 3 (press/ Batteries + Public API) COMPLETE (9/9 TRDs; press.Render public API + CI-enforced zero-chromedp boundary). Objective 4 (CLI) also in flight.
 
 ## Current Position
 
