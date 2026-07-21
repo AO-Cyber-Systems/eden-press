@@ -131,7 +131,7 @@ something real.
 - [x] 04-04-TRD.md — koanf config loading: .marprc.* + precedence flags>env>file (CLI-06) [wave 2]
 - [x] 04-05-TRD.md — --theme/--theme-set loading into press.Options.ThemeCSS (CLI-05) [wave 2]
 - [x] 04-06-TRD.md — watch mode: scoped fsnotify + debounce + SSE reload channel (CLI-02) [wave 3] — commits da9ab7b/ec6df0a (reload Hub), 99c912b/2d48136 (runWatch)
-- [ ] 04-07-TRD.md — serve mode: static + convert-on-request + traversal guard + reuse SSE (CLI-03) [wave 4]
+- [x] 04-07-TRD.md — serve mode: static + convert-on-request + traversal guard + reuse SSE (CLI-03) [wave 4] — commit 65ad5a5
 - [ ] 04-08-TRD.md — preview (pkg/browser) + integration test + CLI-imports CI gate (CLI-04) [wave 5]
 
 ### Objective 5: convert/pdf + convert/png (chromedp raster export)
