@@ -95,12 +95,20 @@ func emojiOption() goldmark.Option {
 
 // emojiOptionWithTwemoji is emojiOption's configurable twin: cfg overrides
 // the twemoji CDN/base + file extension (Marp's base/ext contract), e.g. for
-// self-hosted or air-gapped twemoji assets.
+// self-hosted or air-gapped twemoji assets. It bundles BOTH CORE-06 halves
+// into the one goldmark.Option: goldmark-emoji's Twemoji shortcode rendering
+// (reused verbatim) PLUS unicodeEmojiExtender (emoji_unicode.go), the
+// bespoke unicode-literal InlineParser that emits the SAME east.Emoji AST
+// node goldmark-emoji's renderer already handles. The unicode-literal parser
+// is unaffected by cfg -- it only supplies the AST node; the resulting
+// markup (and thus cfg) is entirely goldmark-emoji's emojiHTMLRenderer's
+// concern, shared identically by both origins.
 func emojiOptionWithTwemoji(cfg TwemojiOptions) goldmark.Option {
 	return goldmark.WithExtensions(
 		emoji.New(
 			emoji.WithRenderingMethod(emoji.Twemoji),
 			emoji.WithTwemojiTemplate(cfg.twemojiTemplate()),
 		),
+		unicodeEmojiExtender{},
 	)
 }

@@ -27,6 +27,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yuin/goldmark-emoji/definition"
+
 	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
 )
 
@@ -110,5 +112,82 @@ func TestEmojiBaseExt(t *testing.T) {
 	}
 	if strings.Contains(html, "jsdelivr") || strings.Contains(html, "twemoji@latest") {
 		t.Fatalf("default twemoji CDN leaked through despite custom base/ext; got %q", html)
+	}
+}
+
+// TestEmojiUnicode is Test-list case 2: the same engine renders a LITERAL
+// unicode emoji (U+1F604, the SAME rune :smile: resolves to) typed directly
+// in prose to the SAME shape of twemoji <img> as the shortcode -- proving
+// both origins share one render path (goldmark-emoji's emojiHTMLRenderer),
+// not two.
+func TestEmojiUnicode(t *testing.T) {
+	shortcodeHTML := renderEmoji(t, ":smile:")
+	unicodeHTML := renderEmoji(t, "Hello \U0001F604 world")
+
+	shortcodeImg := extractImgTag(t, shortcodeHTML)
+	unicodeImg := extractImgTag(t, unicodeHTML)
+
+	if shortcodeImg != unicodeImg {
+		t.Fatalf("shortcode and literal-unicode emoji rendered differently (two render paths, not one):\nshortcode: %s\nunicode:   %s", shortcodeImg, unicodeImg)
+	}
+	if !strings.Contains(unicodeHTML, "Hello") || !strings.Contains(unicodeHTML, "world") {
+		t.Fatalf("surrounding prose text was not preserved around the literal emoji; got %q", unicodeHTML)
+	}
+}
+
+// TestEmojiMixed is Test-list case 3: a mixed line renders BOTH a shortcode
+// and a literal-unicode emoji as <img> tags and preserves the surrounding
+// text -- ":tada:" and its literal unicode twin "\U0001F389" (party popper)
+// must render byte-identically, since both resolve through the same
+// *definition.Emoji entry and the same NodeRenderer.
+func TestEmojiMixed(t *testing.T) {
+	html := renderEmoji(t, "hi :tada: \U0001F389 there")
+
+	if n := strings.Count(html, "<img"); n != 2 {
+		t.Fatalf("expected exactly 2 <img> tags (shortcode tada + literal tada), got %d: %q", n, html)
+	}
+
+	hiIdx := strings.Index(html, "hi")
+	firstImgIdx := strings.Index(html, "<img")
+	thereIdx := strings.LastIndex(html, "there")
+	secondImgIdx := strings.LastIndex(html, "<img")
+
+	if hiIdx < 0 || firstImgIdx < 0 || thereIdx < 0 || secondImgIdx < 0 {
+		t.Fatalf("expected \"hi\", \"there\" and two <img> tags all present; got %q", html)
+	}
+	if !(hiIdx < firstImgIdx && firstImgIdx < secondImgIdx && secondImgIdx < thereIdx) {
+		t.Fatalf("surrounding text ordering not preserved (want hi < img1 < img2 < there); got %q", html)
+	}
+
+	firstImg := extractImgTagFrom(t, html, firstImgIdx)
+	secondImg := extractImgTagFrom(t, html, secondImgIdx)
+	if firstImg != secondImg {
+		t.Fatalf(":tada: shortcode and literal party-popper emoji did not render identically:\n%s\n%s", firstImg, secondImg)
+	}
+}
+
+// TestEmojiReverseIndex is Test-list case 5: a unit test isolated from
+// rendering. The rune -> *definition.Emoji reverse index built from
+// definition.Github() maps U+1F604's rune sequence to the SAME entry
+// definition.Github().Get("smile") resolves to (lookup correctness).
+func TestEmojiReverseIndex(t *testing.T) {
+	index, maxRunes := buildUnicodeEmojiIndex()
+
+	if maxRunes < 1 {
+		t.Fatalf("buildUnicodeEmojiIndex reported maxRunes=%d, want >= 1", maxRunes)
+	}
+
+	key := string([]rune{0x1F604}) // the literal rune :smile: resolves to (😄)
+	entry, ok := index[key]
+	if !ok {
+		t.Fatalf("reverse index has no entry for U+1F604 (😄)")
+	}
+
+	want, ok := definition.Github().Get("smile")
+	if !ok {
+		t.Fatalf("definition.Github() has no \"smile\" entry (test setup broken)")
+	}
+	if entry != want {
+		t.Fatalf("reverse index entry for 😄 is not the same *definition.Emoji that Github().Get(\"smile\") resolves to")
 	}
 }
