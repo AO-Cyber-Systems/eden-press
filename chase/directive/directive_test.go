@@ -200,3 +200,135 @@ func TestSpotKeyMapsToBaseLocalDirective(t *testing.T) {
 		t.Fatalf("expected a bare underscore (empty base) to not be a spot key")
 	}
 }
+
+// --- Task 3: carry-forward cursor state machine ---
+// (PARSE-02/PARSE-07 semantics). Test-list cases 6, 7, 9.
+
+// Test-list case 6: local carry-forward -- class: a on slide 1 persists to
+// slide 2; overridden by class: b on slide 3.
+func TestCarryForwardLocalPersistsAcrossSlides(t *testing.T) {
+	events := []Event{
+		{Kind: SlideOpen},
+		{Kind: DirectiveCommentEvent, Key: "class", Raw: "a"},
+		{Kind: SlideClose},
+		{Kind: SlideOpen},
+		{Kind: SlideClose},
+		{Kind: SlideOpen},
+		{Kind: DirectiveCommentEvent, Key: "class", Raw: "b"},
+		{Kind: SlideClose},
+	}
+	slides := Resolve(events, nil)
+	if len(slides) != 3 {
+		t.Fatalf("expected 3 slides, got %d (%#v)", len(slides), slides)
+	}
+	if slides[0]["class"] != "a" {
+		t.Fatalf("slide 1 class = %#v, want \"a\"", slides[0]["class"])
+	}
+	if slides[1]["class"] != "a" {
+		t.Fatalf("slide 2 class should carry forward, got %#v, want \"a\"", slides[1]["class"])
+	}
+	if slides[2]["class"] != "b" {
+		t.Fatalf("slide 3 class should be overridden, got %#v, want \"b\"", slides[2]["class"])
+	}
+}
+
+// Test-list case 7: spot -- _class: lead applies only to the current slide;
+// slide+1 has no class from it (spot reset). Mirrors
+// conformance/corpus/cases/marp-class-spot/input.md.
+func TestCarryForwardSpotResetsEverySlide(t *testing.T) {
+	events := []Event{
+		{Kind: SlideOpen},
+		{Kind: DirectiveCommentEvent, Key: "_class", Raw: "lead"},
+		{Kind: SlideClose},
+		{Kind: SlideOpen},
+		{Kind: SlideClose},
+	}
+	slides := Resolve(events, nil)
+	if len(slides) != 2 {
+		t.Fatalf("expected 2 slides, got %d (%#v)", len(slides), slides)
+	}
+	if slides[0]["class"] != "lead" {
+		t.Fatalf("slide 1 class = %#v, want \"lead\"", slides[0]["class"])
+	}
+	if _, ok := slides[1]["class"]; ok {
+		t.Fatalf("slide 2 should have no class (spot reset), got %#v", slides[1]["class"])
+	}
+}
+
+// Test-list case 9: global stamped on every slide identically after the
+// local/spot loop.
+func TestCarryForwardGlobalsStampedOnEverySlide(t *testing.T) {
+	themeExists := func(name string) bool { return name == "gaia" }
+	events := []Event{
+		{Kind: DirectiveCommentEvent, Key: "theme", Raw: "gaia"}, // front-matter-like, pre-slide
+		{Kind: SlideOpen},
+		{Kind: SlideClose},
+		{Kind: SlideOpen},
+		{Kind: DirectiveCommentEvent, Key: "class", Raw: "b"},
+		{Kind: SlideClose},
+	}
+	slides := Resolve(events, themeExists)
+	if len(slides) != 2 {
+		t.Fatalf("expected 2 slides, got %d (%#v)", len(slides), slides)
+	}
+	for i, s := range slides {
+		if s["theme"] != "gaia" {
+			t.Fatalf("slide %d theme = %#v, want \"gaia\" (global must stamp every slide)", i+1, s["theme"])
+		}
+	}
+}
+
+// Extra corpus-mirroring coverage: a front-matter `paginate: true` (a LOCAL
+// directive) applies to every slide, since it is seeded into cursor.local
+// before the first slide open. Mirrors
+// conformance/corpus/cases/marp-paginate/input.md.
+func TestCarryForwardFrontMatterPaginateAppliesToAllSlides(t *testing.T) {
+	events := []Event{
+		{Kind: DirectiveCommentEvent, Key: "paginate", Raw: "true"},
+		{Kind: SlideOpen},
+		{Kind: SlideClose},
+		{Kind: SlideOpen},
+		{Kind: SlideClose},
+	}
+	slides := Resolve(events, nil)
+	for i, s := range slides {
+		if b, ok := s["paginate"].(bool); !ok || !b {
+			t.Fatalf("slide %d paginate = %#v, want true", i+1, s["paginate"])
+		}
+	}
+}
+
+// Extra corpus-mirroring coverage: front-matter header/footer (LOCAL
+// directives) apply to the single slide. Mirrors
+// conformance/corpus/cases/marp-header-footer/input.md.
+func TestCarryForwardFrontMatterHeaderFooterAppliesToSlide(t *testing.T) {
+	events := []Event{
+		{Kind: DirectiveCommentEvent, Key: "header", Raw: "Eden Press"},
+		{Kind: DirectiveCommentEvent, Key: "footer", Raw: "CONFIDENTIAL"},
+		{Kind: SlideOpen},
+		{Kind: SlideClose},
+	}
+	slides := Resolve(events, nil)
+	if len(slides) != 1 {
+		t.Fatalf("expected 1 slide, got %d", len(slides))
+	}
+	if slides[0]["header"] != "Eden Press" || slides[0]["footer"] != "CONFIDENTIAL" {
+		t.Fatalf("got %#v", slides[0])
+	}
+}
+
+// EventsFromKV coverage: a parsed comment's ordered kv pairs convert to an
+// ordered DirectiveCommentEvent slice.
+func TestEventsFromKVPreservesOrder(t *testing.T) {
+	kvs := []KV{{Key: "class", Val: "a"}, {Key: "_class", Val: "lead"}}
+	events := EventsFromKV(kvs)
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+	if events[0].Kind != DirectiveCommentEvent || events[0].Key != "class" || events[0].Raw != "a" {
+		t.Fatalf("event 0 = %#v", events[0])
+	}
+	if events[1].Kind != DirectiveCommentEvent || events[1].Key != "_class" || events[1].Raw != "lead" {
+		t.Fatalf("event 1 = %#v", events[1])
+	}
+}
