@@ -26,37 +26,46 @@ import "github.com/AO-Cyber-Systems/eden-press/chase/theme/selector"
 
 // pass_root.go wires chase/theme/selector's (01-01, locked) two ":root"
 // rewrite steps into this package's Pass pipeline: MarkRoot (the add-time
-// ":root" -> "section:marpit-root" sentinel rewrite, run once at Tier-1
+// ":root" -> "<unit>:marpit-root" sentinel rewrite, run once at Tier-1
 // Load, and AGAIN at Tier-2 Pack over the freshly-injected scaffold/
 // advanced-background CSS — 01-RESEARCH.md's ":root is replaced twice"
 // requirement) and IncreasingSpecificity (the final ":marpit-root" ->
-// ":where(section):not([\20 root])" specificity-trick rewrite, which
+// ":where(<unit>):not([\20 root])" specificity-trick rewrite, which
 // pack.go's Pack sequences strictly AFTER selector-scoping — see this
 // TRD's anti_patterns and RESEARCH Pitfall 1).
+//
+// Both passes now take the caller-supplied unit-element ident (TRD 02-03,
+// MODEL-04's de-hardcoding move) and are therefore constructor FUNCTIONS
+// rather than fixed package-level Pass values.
 
-// rootMarkPass is a Pass that rewrites every ":root"/"section:root"
-// occurrence across sheet.Rules to the "section:marpit-root" sentinel via
-// selector.MarkRoot. Used both by theme.go's Load (Tier-1, first pass) and
-// pack.go's Pack (Tier-2, second pass, over injected CSS).
-var rootMarkPass = Pass{
-	Name: "root-mark",
-	Run: func(sheet *Stylesheet) error {
-		sheet.Rules = markRootAll(sheet.Rules)
-		return nil
-	},
+// rootMarkPass returns a Pass that rewrites every ":root"/"<unit>:root"
+// occurrence across sheet.Rules to the "<unit>:marpit-root" sentinel via
+// selector.MarkRoot. Used both by theme.go's Load (Tier-1, first pass)
+// and pack.go's Pack (Tier-2, second pass, over injected CSS).
+func rootMarkPass(unit string) Pass {
+	return Pass{
+		Name: "root-mark",
+		Run: func(sheet *Stylesheet) error {
+			sheet.Rules = markRootAll(sheet.Rules, unit)
+			return nil
+		},
+	}
 }
 
-// specificityPass is a Pass that rewrites every ":marpit-root" sentinel
-// across sheet.Rules to the final ":where(section):not([\20 root])"
-// specificity-trick sequence via selector.IncreasingSpecificity. pack.go's
-// Pack MUST sequence this strictly after its scope-prefix pass (Prepend +
-// Replace) — see this file's package doc and root.go's own doc comment.
-var specificityPass = Pass{
-	Name: "increasing-specificity",
-	Run: func(sheet *Stylesheet) error {
-		sheet.Rules = increasingSpecificityAll(sheet.Rules)
-		return nil
-	},
+// specificityPass returns a Pass that rewrites every ":marpit-root"
+// sentinel across sheet.Rules to the final
+// ":where(<unit>):not([\20 root])" specificity-trick sequence via
+// selector.IncreasingSpecificity. pack.go's Pack MUST sequence this
+// strictly after its scope-prefix pass (Prepend + Replace) — see this
+// file's package doc and root.go's own doc comment.
+func specificityPass(unit string) Pass {
+	return Pass{
+		Name: "increasing-specificity",
+		Run: func(sheet *Stylesheet) error {
+			sheet.Rules = increasingSpecificityAll(sheet.Rules, unit)
+			return nil
+		},
+	}
 }
 
 // markRootAll applies selector.MarkRoot to every rule's SelectorTokens,
@@ -64,12 +73,12 @@ var specificityPass = Pass{
 // has already run — see pass_nesting.go — since a flat rule list has none
 // by construction, but this keeps the helper correct if ever invoked
 // before flattening).
-func markRootAll(rules []Rule) []Rule {
+func markRootAll(rules []Rule, unit string) []Rule {
 	out := make([]Rule, len(rules))
 	for i, r := range rules {
-		r.SelectorTokens = selector.MarkRoot(r.SelectorTokens)
+		r.SelectorTokens = selector.MarkRoot(r.SelectorTokens, unit)
 		if len(r.Children) > 0 {
-			r.Children = markRootAll(r.Children)
+			r.Children = markRootAll(r.Children, unit)
 		}
 		out[i] = r
 	}
@@ -79,12 +88,12 @@ func markRootAll(rules []Rule) []Rule {
 // increasingSpecificityAll applies selector.IncreasingSpecificity to every
 // rule's SelectorTokens, recursing into Children defensively (see
 // markRootAll's doc for why).
-func increasingSpecificityAll(rules []Rule) []Rule {
+func increasingSpecificityAll(rules []Rule, unit string) []Rule {
 	out := make([]Rule, len(rules))
 	for i, r := range rules {
-		r.SelectorTokens = selector.IncreasingSpecificity(r.SelectorTokens)
+		r.SelectorTokens = selector.IncreasingSpecificity(r.SelectorTokens, unit)
 		if len(r.Children) > 0 {
-			r.Children = increasingSpecificityAll(r.Children)
+			r.Children = increasingSpecificityAll(r.Children, unit)
 		}
 		out[i] = r
 	}

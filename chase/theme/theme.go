@@ -29,10 +29,12 @@ package theme
 // section_size, import/parse (record-only)]. This package realizes it as:
 // meta + structural parse (theme.ParseTheme, already implemented by
 // 01-03/meta.go — @theme's required-ness is enforced there), then
-// RunPasses(passNesting, rootMarkPass) — nesting down-leveling
-// (pass_nesting.go) followed by the add-time ":root" -> "section:marpit-
+// RunPasses(passNesting, rootMarkPass(unit)) — nesting down-leveling
+// (pass_nesting.go) followed by the add-time ":root" -> "<unit>:marpit-
 // root" sentinel rewrite (pass_root.go, wrapping chase/theme/selector's
-// locked MarkRoot).
+// locked MarkRoot). unit and sizeFallback are caller-supplied (TRD 02-03,
+// MODEL-04's de-hardcoding move — see profiles/slides, which supplies
+// both today); chase/theme has no default of its own.
 //
 // "section_size" has no Tier-1-specific MUTATION of its own: Meta's
 // @size table is already fully resolved (read-only, via Meta.ResolveSize)
@@ -51,14 +53,15 @@ type Theme struct {
 }
 
 // Load runs Tier-1 over a theme's raw CSS text: ParseTheme (requires and
-// records @theme/@size/@auto-scaling metadata — THEME-02) followed by the
-// nesting-down-level and add-time-root-mark passes.
-func Load(cssText string) (*Theme, error) {
-	sheet, err := ParseTheme(cssText)
+// records @theme/@size/@auto-scaling metadata — THEME-02, resolving a
+// bare @size keyword against sizeFallback) followed by the
+// nesting-down-level and add-time-root-mark (scoped to unit) passes.
+func Load(cssText, unit string, sizeFallback map[string]Size) (*Theme, error) {
+	sheet, err := ParseTheme(cssText, sizeFallback)
 	if err != nil {
 		return nil, err
 	}
-	if err := RunPasses(&sheet, passNesting, rootMarkPass); err != nil {
+	if err := RunPasses(&sheet, passNesting, rootMarkPass(unit)); err != nil {
 		return nil, err
 	}
 	return &Theme{Name: sheet.Meta.Name, Sheet: sheet}, nil
@@ -66,17 +69,17 @@ func Load(cssText string) (*Theme, error) {
 
 // loadPlain runs the same nesting-down-level + add-time-root-mark passes
 // as Load, but over plain, meta-less CSS text via the structural-only
-// Parse (not ParseTheme) — used by pack.go to bring the embedded
-// ScaffoldCSS/AdvancedBackgroundCSS blocks (scaffold.go) into the same
-// Rule/Stylesheet shape as any real theme, without requiring a bogus
-// "@theme" header on static, non-theme CSS that was never authored as one
-// (see scaffold.go's doc).
-func loadPlain(cssText string) (Stylesheet, error) {
+// Parse (not ParseTheme) — used by pack.go to bring a caller-supplied
+// scaffold/advanced-background CSS block into the same Rule/Stylesheet
+// shape as any real theme, without requiring a bogus "@theme" header on
+// static, non-theme CSS that was never authored as one (see scaffold.go's
+// doc).
+func loadPlain(cssText, unit string) (Stylesheet, error) {
 	sheet, err := Parse(cssText)
 	if err != nil {
 		return Stylesheet{}, err
 	}
-	if err := RunPasses(&sheet, passNesting, rootMarkPass); err != nil {
+	if err := RunPasses(&sheet, passNesting, rootMarkPass(unit)); err != nil {
 		return Stylesheet{}, err
 	}
 	return sheet, nil

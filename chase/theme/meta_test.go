@@ -33,7 +33,7 @@ import "testing"
 // TestParseMetaThemeName covers Test-list case 5: `@theme stress` present.
 func TestParseMetaThemeName(t *testing.T) {
 	css := "/**\n * @theme stress\n */\nsection { color: red; }"
-	m, err := ParseMeta(css)
+	m, err := ParseMeta(css, testSizeFallback)
 	if err != nil {
 		t.Fatalf("ParseMeta returned error: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestParseMetaThemeName(t *testing.T) {
 // defaulted (THEME-02's acceptance point).
 func TestParseMetaMissingThemeErrors(t *testing.T) {
 	css := "/**\n * @size 16:9 1280px 720px\n */\nsection {}"
-	if _, err := ParseMeta(css); err == nil {
+	if _, err := ParseMeta(css, testSizeFallback); err == nil {
 		t.Fatal("ParseMeta with no @theme = nil error, want an error")
 	}
 }
@@ -55,7 +55,7 @@ func TestParseMetaMissingThemeErrors(t *testing.T) {
 // TestParseMetaNoCommentAtAllErrors covers the same acceptance point for a
 // CSS string with no leading comment whatsoever.
 func TestParseMetaNoCommentAtAllErrors(t *testing.T) {
-	if _, err := ParseMeta(`section { color: red; }`); err == nil {
+	if _, err := ParseMeta(`section { color: red; }`, testSizeFallback); err == nil {
 		t.Fatal("ParseMeta with no leading comment = nil error, want an error")
 	}
 }
@@ -69,7 +69,7 @@ func TestParseMetaSizeTable(t *testing.T) {
 		" * @size 16:9 1280px 720px\n" +
 		" * @size 4:3 960px 720px\n" +
 		" */\n"
-	m, err := ParseMeta(css)
+	m, err := ParseMeta(css, testSizeFallback)
 	if err != nil {
 		t.Fatalf("ParseMeta returned error: %v", err)
 	}
@@ -82,13 +82,13 @@ func TestParseMetaSizeTable(t *testing.T) {
 	if got := m.Sizes["4:3"]; got != (Size{Name: "4:3", WidthPx: 960, HeightPx: 720}) {
 		t.Fatalf("Sizes[4:3] = %+v, want {4:3 960 720}", got)
 	}
-	if w, h := m.ResolveSize(""); w != 1280 || h != 720 {
+	if w, h := m.ResolveSize("", testDefaultSize); w != 1280 || h != 720 {
 		t.Fatalf(`ResolveSize("") = (%d,%d), want (1280,720)`, w, h)
 	}
-	if w, h := m.ResolveSize("4:3"); w != 960 || h != 720 {
+	if w, h := m.ResolveSize("4:3", testDefaultSize); w != 960 || h != 720 {
 		t.Fatalf(`ResolveSize("4:3") = (%d,%d), want (960,720)`, w, h)
 	}
-	if w, h := m.ResolveSize("missing"); w != 1280 || h != 720 {
+	if w, h := m.ResolveSize("missing", testDefaultSize); w != 1280 || h != 720 {
 		t.Fatalf(`ResolveSize("missing") = (%d,%d), want default (1280,720)`, w, h)
 	}
 }
@@ -96,7 +96,7 @@ func TestParseMetaSizeTable(t *testing.T) {
 // TestParseMetaAutoScaling covers Test-list case 8: `@auto-scaling true`.
 func TestParseMetaAutoScaling(t *testing.T) {
 	css := "/**\n * @theme stress\n * @auto-scaling true\n */\n"
-	m, err := ParseMeta(css)
+	m, err := ParseMeta(css, testSizeFallback)
 	if err != nil {
 		t.Fatalf("ParseMeta returned error: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestParseMetaAutoScaling(t *testing.T) {
 // via the well-known-keyword fallback table (see the TRD's Task 3 recovery
 // note on tolerating the comment styles the corpus themes use).
 func TestParseMetaStressThemeBareSize(t *testing.T) {
-	m, err := ParseMeta(stressThemeCSS)
+	m, err := ParseMeta(stressThemeCSS, testSizeFallback)
 	if err != nil {
 		t.Fatalf("ParseMeta returned error: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestParseMetaStressThemeBareSize(t *testing.T) {
 // Parse (structural Rules/Atoms) and ParseMeta (identity Meta) into one
 // fully-populated Stylesheet.
 func TestParseThemeIntegration(t *testing.T) {
-	sheet, err := ParseTheme(stressThemeCSS)
+	sheet, err := ParseTheme(stressThemeCSS, testSizeFallback)
 	if err != nil {
 		t.Fatalf("ParseTheme returned error: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestParseThemeIntegration(t *testing.T) {
 // required-@theme error even when the structural Parse itself would
 // otherwise succeed cleanly (plain, theme-less CSS).
 func TestParseThemeMissingMetaErrors(t *testing.T) {
-	if _, err := ParseTheme(`section { color: red; }`); err == nil {
+	if _, err := ParseTheme(`section { color: red; }`, testSizeFallback); err == nil {
 		t.Fatal("ParseTheme with no @theme = nil error, want an error")
 	}
 }

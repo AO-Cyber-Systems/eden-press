@@ -188,7 +188,7 @@ func scoped(t *testing.T, sel string, container, slide []css.Token) string {
 	if len(compounds) != 1 {
 		t.Fatalf("SplitList(%q) = %d compounds, want 1", sel, len(compounds))
 	}
-	prepended := Prepend(compounds[0])
+	prepended := Prepend(compounds[0], "section")
 	replaced := Replace(prepended, container, slide)
 	return String(replaced)
 }
@@ -197,7 +197,7 @@ func scoped(t *testing.T, sel string, container, slide []css.Token) string {
 // chain.
 func TestScopePrependReplace_InlineSVGChain(t *testing.T) {
 	const want = "div.marpit > svg > foreignObject > section"
-	got := scoped(t, "section", InlineSVGContainerChain(), SlideChain())
+	got := scoped(t, "section", InlineSVGContainerChain(), UnitChain("section"))
 	if got != want {
 		t.Errorf("scoped(%q) = %q, want %q", "section", got, want)
 	}
@@ -206,7 +206,7 @@ func TestScopePrependReplace_InlineSVGChain(t *testing.T) {
 // Test-list case 2: "section" scopes to the non-SVG combinator chain.
 func TestScopePrependReplace_NonSVGChain(t *testing.T) {
 	const want = "div.marpit > section"
-	got := scoped(t, "section", NonSVGContainerChain(), SlideChain())
+	got := scoped(t, "section", NonSVGContainerChain(), UnitChain("section"))
 	if got != want {
 		t.Errorf("scoped(%q) = %q, want %q", "section", got, want)
 	}
@@ -219,7 +219,7 @@ func TestScopePrependReplace_NonSVGChain(t *testing.T) {
 // literally starts with "section").
 func TestScopePrependReplace_DescendantSelectorIsSpaced(t *testing.T) {
 	const want = "div.marpit > svg > foreignObject > section h1"
-	got := scoped(t, "h1", InlineSVGContainerChain(), SlideChain())
+	got := scoped(t, "h1", InlineSVGContainerChain(), UnitChain("section"))
 	if got != want {
 		t.Errorf("scoped(%q) = %q, want %q", "h1", got, want)
 	}
@@ -233,8 +233,8 @@ func TestPrepend_AlreadyPlaceholderedIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseSelectorTokens: %v", err)
 	}
-	once := Prepend(SplitList(tokens)[0])
-	twice := Prepend(once)
+	once := Prepend(SplitList(tokens)[0], "section")
+	twice := Prepend(once, "section")
 	if String(twice) != String(once) {
 		t.Errorf("Prepend(Prepend(x)) = %q, want unchanged %q", String(twice), String(once))
 	}
@@ -250,7 +250,7 @@ func TestMarkRoot_BareRootBecomesSentinel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseSelectorTokens: %v", err)
 	}
-	got := String(MarkRoot(tokens))
+	got := String(MarkRoot(tokens, "section"))
 	if got != want {
 		t.Errorf("MarkRoot(%q) = %q, want %q", ":root", got, want)
 	}
@@ -284,10 +284,10 @@ func TestIncreasingSpecificity_AfterScopePrefix(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseSelectorTokens: %v", err)
 			}
-			marked := MarkRoot(tokens)
-			prepended := Prepend(marked)
-			replaced := Replace(prepended, tt.container, SlideChain())
-			got := String(IncreasingSpecificity(replaced))
+			marked := MarkRoot(tokens, "section")
+			prepended := Prepend(marked, "section")
+			replaced := Replace(prepended, tt.container, UnitChain("section"))
+			got := String(IncreasingSpecificity(replaced, "section"))
 			if got != tt.want {
 				t.Errorf("full :root pipeline (%s) = %q, want %q", tt.name, got, tt.want)
 			}
@@ -304,11 +304,11 @@ func TestIncreasingSpecificity_WrongOrderDiffersFromCorrect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseSelectorTokens: %v", err)
 	}
-	marked := MarkRoot(tokens)
-	prepended := Prepend(marked)
+	marked := MarkRoot(tokens, "section")
+	prepended := Prepend(marked, "section")
 
-	wrongOrder := String(Replace(IncreasingSpecificity(prepended), InlineSVGContainerChain(), SlideChain()))
-	correctOrder := String(IncreasingSpecificity(Replace(prepended, InlineSVGContainerChain(), SlideChain())))
+	wrongOrder := String(Replace(IncreasingSpecificity(prepended, "section"), InlineSVGContainerChain(), UnitChain("section")))
+	correctOrder := String(IncreasingSpecificity(Replace(prepended, InlineSVGContainerChain(), UnitChain("section")), "section"))
 
 	if wrongOrder == correctOrder {
 		t.Fatalf("expected wrong-order pipeline to differ from correct-order pipeline, both produced %q", wrongOrder)
@@ -335,9 +335,9 @@ func TestIncreasingSpecificity_NestedMarker(t *testing.T) {
 	if len(compounds) != 1 {
 		t.Fatalf("SplitList(%q) = %d compounds, want 1", sel, len(compounds))
 	}
-	marked := MarkRoot(compounds[0])
-	prepended := Prepend(marked)
-	replaced := Replace(prepended, NonSVGContainerChain(), SlideChain())
+	marked := MarkRoot(compounds[0], "section")
+	prepended := Prepend(marked, "section")
+	replaced := Replace(prepended, NonSVGContainerChain(), UnitChain("section"))
 
 	var foundDepth = -1
 	Walk(replaced, func(tok css.Token, index int, depth int) bool {
@@ -352,7 +352,7 @@ func TestIncreasingSpecificity_NestedMarker(t *testing.T) {
 		t.Fatalf("expected the :marpit-root marker to be found nested at depth >= 2 (inside :where(:is(...))), got depth %d", foundDepth)
 	}
 
-	got := String(IncreasingSpecificity(replaced))
+	got := String(IncreasingSpecificity(replaced, "section"))
 	if got != want {
 		t.Errorf("nested-marker pipeline = %q, want %q", got, want)
 	}
@@ -381,7 +381,7 @@ func scopeList(t *testing.T, sel string) string {
 	compounds := SplitList(tokens)
 	scoped := make([][]css.Token, len(compounds))
 	for i, c := range compounds {
-		scoped[i] = Replace(Prepend(c), InlineSVGContainerChain(), SlideChain())
+		scoped[i] = Replace(Prepend(c, "section"), InlineSVGContainerChain(), UnitChain("section"))
 	}
 	return JoinList(scoped)
 }

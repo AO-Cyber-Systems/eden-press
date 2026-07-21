@@ -43,25 +43,21 @@ import (
 var metaLineRE = regexp.MustCompile(`(?mi)^[*!\s]*@([\w-]+)\s+(.+)$`)
 
 // sizeLineRE parses one @size metadata value's full form: `<name> <W>px
-// <H>px` (Test-list case 7, e.g. "16:9 1280px 720px"). A bare `<name>`
-// alone (no explicit pixel dimensions) does not match this and falls
-// through to bareSizeFallback in parseSizeValue.
+// <H>px` (Test-list case 7). A bare `<name>` alone (no explicit pixel
+// dimensions) does not match this and falls through to the caller-supplied
+// sizeFallback table in parseSizeValue.
 var sizeLineRE = regexp.MustCompile(`^(\S+)\s+(\d+(?:\.\d+)?)px\s+(\d+(?:\.\d+)?)px$`)
-
-// bareSizeFallback resolves the well-known @size keyword shorthands used by
-// the corpus/stress-theme fixtures when no explicit pixel dimensions are
-// given (e.g. 01-RESEARCH.md's stress theme header: `@size 4:3` alone, with
-// no "<W>px <H>px" suffix) — see the TRD Task 3 recovery note: "keep the
-// parser tolerant of the comment styles the corpus themes use."
-var bareSizeFallback = map[string]Size{
-	"4:3":  {Name: "4:3", WidthPx: 960, HeightPx: 720},
-	"16:9": {Name: "16:9", WidthPx: 1280, HeightPx: 720},
-}
 
 // ParseMeta extracts a theme's identity metadata from its LEADING CSS
 // comment block: `@theme <name>` (REQUIRED — THEME-02's acceptance point,
 // see Meta's doc), `@size <name> <W>px <H>px` (repeatable, building the
 // named size table), and `@auto-scaling <value>` (captured verbatim).
+// sizeFallback resolves a bare `@size <name>` line (no explicit pixel
+// dimensions — e.g. a corpus/stress-theme fixture's shorthand keyword) —
+// see parseSizeValue; the caller (ultimately, the active Profile — see
+// chase/profile) supplies this table, since chase/theme has no
+// profile-specific size keywords of its own (TRD 02-03, MODEL-04's
+// de-hardcoding move).
 //
 // Scope note: postcss/meta.js's `css.walkComments` scans EVERY comment
 // anywhere in the document; ParseMeta deliberately scans only the LEADING
@@ -73,7 +69,7 @@ var bareSizeFallback = map[string]Size{
 //
 // Returns an error if no @theme name is present, or if an @size line's
 // value can't be parsed — never silently defaulting or dropping either.
-func ParseMeta(cssText string) (Meta, error) {
+func ParseMeta(cssText string, sizeFallback map[string]Size) (Meta, error) {
 	raw := leadingComment(cssText)
 
 	m := Meta{Raw: raw, Sizes: map[string]Size{}}
@@ -85,7 +81,7 @@ func ParseMeta(cssText string) (Meta, error) {
 		case "theme":
 			m.Name = value
 		case "size":
-			sz, err := parseSizeValue(value)
+			sz, err := parseSizeValue(value, sizeFallback)
 			if err != nil {
 				return Meta{}, fmt.Errorf("theme: invalid @size %q: %w", value, err)
 			}
@@ -127,10 +123,10 @@ func leadingComment(cssText string) string {
 // parseSizeValue parses one @size metadata value into a Size.
 //
 // The full form is `<name> <W>px <H>px` (Test-list case 7). A bare `<name>`
-// alone — no explicit pixel dimensions, e.g. the RESEARCH stress theme's
-// `@size 4:3` — resolves via bareSizeFallback's small built-in table of
-// well-known keyword shorthands (see that var's doc).
-func parseSizeValue(value string) (Size, error) {
+// alone — no explicit pixel dimensions, e.g. a stress-theme fixture's bare
+// keyword shorthand — resolves via the caller-supplied sizeFallback table
+// (see ParseMeta's doc).
+func parseSizeValue(value string, sizeFallback map[string]Size) (Size, error) {
 	if m := sizeLineRE.FindStringSubmatch(value); m != nil {
 		w, wErr := strconv.ParseFloat(m[2], 64)
 		h, hErr := strconv.ParseFloat(m[3], 64)
@@ -141,11 +137,11 @@ func parseSizeValue(value string) (Size, error) {
 	}
 
 	name := strings.TrimSpace(value)
-	if sz, ok := bareSizeFallback[name]; ok {
+	if sz, ok := sizeFallback[name]; ok {
 		return sz, nil
 	}
 	return Size{}, fmt.Errorf(
-		`unrecognized @size format (want "<name> <W>px <H>px", or one of the built-in keywords 4:3/16:9)`,
+		`unrecognized @size format (want "<name> <W>px <H>px", or a name recognized by the active profile's size-fallback table)`,
 	)
 }
 
@@ -153,14 +149,15 @@ func parseSizeValue(value string) (Size, error) {
 // Stylesheet: structural Rules/Atoms via Parse, plus identity Meta via
 // ParseMeta. It returns an error if EITHER the structural parse fails OR
 // @theme metadata is missing (see ParseMeta's doc) — a theme CSS string
-// isn't a valid chase theme without both.
-func ParseTheme(cssText string) (Stylesheet, error) {
+// isn't a valid chase theme without both. sizeFallback is threaded
+// through to ParseMeta (see its doc).
+func ParseTheme(cssText string, sizeFallback map[string]Size) (Stylesheet, error) {
 	sheet, err := Parse(cssText)
 	if err != nil {
 		return Stylesheet{}, err
 	}
 
-	meta, err := ParseMeta(cssText)
+	meta, err := ParseMeta(cssText, sizeFallback)
 	if err != nil {
 		return Stylesheet{}, err
 	}

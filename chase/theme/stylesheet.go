@@ -119,8 +119,8 @@ func (r Rule) String() string {
 }
 
 // Size is a single named slide-size entry declared via a theme's
-// `@size <name> <W>px <H>px` metadata line (e.g. Name="16:9", WidthPx=1280,
-// HeightPx=720).
+// `@size <name> <W>px <H>px` metadata line -- a name paired with its own
+// width/height in pixels.
 type Size struct {
 	Name     string
 	WidthPx  int
@@ -134,10 +134,11 @@ type Size struct {
 // theme CSS string with no `@theme` metadata as an error, never silently
 // defaulting it (see meta.go's ParseMeta). Sizes is the named-size table
 // built from (possibly repeated) `@size` lines; ResolveSize derives the
-// active slide dimensions from it, falling back to the 1280x720 default.
-// AutoScaling is the raw `@auto-scaling` value, captured verbatim (no
-// coercion — that is a rendering-layer concern, out of this TRD's scope).
-// Raw is the theme's original leading comment text, kept for diagnostics.
+// active slide dimensions from it, falling back to a caller-supplied
+// default size. AutoScaling is the raw `@auto-scaling` value, captured
+// verbatim (no coercion — that is a rendering-layer concern, out of this
+// TRD's scope). Raw is the theme's original leading comment text, kept
+// for diagnostics.
 type Meta struct {
 	Name        string
 	Sizes       map[string]Size
@@ -145,28 +146,19 @@ type Meta struct {
 	Raw         string
 }
 
-// defaultWidthPx and defaultHeightPx are the scaffold theme's default slide
-// dimensions (see 01-RESEARCH.md's "Scaffold theme CSS": `section { width:
-// 1280px; height: 720px; ... }`), used by ResolveSize whenever a requested
-// (or absent) size name has no corresponding @size entry.
-const (
-	defaultWidthPx  = 1280
-	defaultHeightPx = 720
-)
-
 // ResolveSize returns the active slide's pixel dimensions for the named
 // size. If name is empty, or no @size entry with that name was parsed, it
-// returns the scaffold-theme default of 1280x720 — this default is never
-// silently wrong for a theme with no @size metadata at all, since every
-// bundled/scaffold theme is expected to render at 1280x720 unless it
-// explicitly declares otherwise (see 01-RESEARCH.md, Inline-SVG Mode).
-func (m Meta) ResolveSize(name string) (widthPx, heightPx int) {
+// returns fallback's pixel dimensions — this default is caller-supplied
+// (originating in the active Profile, e.g. profiles/slides) rather than
+// hardcoded here, so chase/theme carries no profile-specific size
+// assumption of its own (TRD 02-03, MODEL-04's de-hardcoding move).
+func (m Meta) ResolveSize(name string, fallback Size) (widthPx, heightPx int) {
 	if name != "" {
 		if sz, ok := m.Sizes[name]; ok {
 			return sz.WidthPx, sz.HeightPx
 		}
 	}
-	return defaultWidthPx, defaultHeightPx
+	return fallback.WidthPx, fallback.HeightPx
 }
 
 // AtRule is a RECORDED (not resolved) at-rule statement or block header,

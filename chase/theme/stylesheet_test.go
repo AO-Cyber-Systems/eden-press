@@ -159,20 +159,33 @@ func TestModelAtRuleString(t *testing.T) {
 	}
 }
 
-// TestModelMetaResolveSizeDefault exercises Meta.ResolveSize's 1280x720
-// default fallback, both when no @size table exists at all and when a name
-// isn't found in a populated table.
+// testDefaultSize and testSizeFallback are TEST-ONLY fixtures standing in
+// for a Profile's size defaults (see chase/profile, profiles/slides) --
+// duplicated locally here rather than importing profiles/slides, so
+// chase/theme's own tests exercise the same de-hardcoded signatures a real
+// caller supplies (TRD 02-03, MODEL-04) without pulling a package that
+// itself imports chase/theme into chase/theme's test binary.
+var testDefaultSize = Size{Name: "16:9", WidthPx: 1280, HeightPx: 720}
+
+var testSizeFallback = map[string]Size{
+	"16:9": testDefaultSize,
+	"4:3":  {Name: "4:3", WidthPx: 960, HeightPx: 720},
+}
+
+// TestModelMetaResolveSizeDefault exercises Meta.ResolveSize's caller-
+// supplied-default fallback, both when no @size table exists at all and
+// when a name isn't found in a populated table.
 func TestModelMetaResolveSizeDefault(t *testing.T) {
 	var m Meta
-	if w, h := m.ResolveSize(""); w != 1280 || h != 720 {
+	if w, h := m.ResolveSize("", testDefaultSize); w != 1280 || h != 720 {
 		t.Fatalf("ResolveSize(\"\") on empty Meta = (%d,%d), want (1280,720)", w, h)
 	}
 
 	m.Sizes = map[string]Size{"16:9": {Name: "16:9", WidthPx: 1280, HeightPx: 720}}
-	if w, h := m.ResolveSize("missing"); w != 1280 || h != 720 {
+	if w, h := m.ResolveSize("missing", testDefaultSize); w != 1280 || h != 720 {
 		t.Fatalf("ResolveSize(\"missing\") = (%d,%d), want default (1280,720)", w, h)
 	}
-	if w, h := m.ResolveSize("16:9"); w != 1280 || h != 720 {
+	if w, h := m.ResolveSize("16:9", testDefaultSize); w != 1280 || h != 720 {
 		t.Fatalf("ResolveSize(\"16:9\") = (%d,%d), want (1280,720)", w, h)
 	}
 }

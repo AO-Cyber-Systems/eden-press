@@ -28,18 +28,20 @@ import "github.com/tdewolff/parse/v2/css"
 // postcss/pseudo_selector/{prepend,replace}.js): (1) Prepend injects a
 // placeholder container/slide chain (":marpit-container > :marpit-slide")
 // in front of every compound selector; (2) Replace later substitutes that
-// placeholder with the REAL element chain — "div.marpit > svg >
-// foreignObject > section" in inline-SVG render mode, "div.marpit >
-// section" otherwise. Splitting scoping into these two steps (rather than
-// prepending the real chain directly) is what lets root.go's
-// IncreasingSpecificity run strictly AFTER Replace and still find the
-// marker adjacent to the real "section" element (see root.go).
+// placeholder with the REAL element chain — e.g. "div.marpit > svg >
+// foreignObject > <unit>" in inline-SVG render mode, "div.marpit > <unit>"
+// otherwise, where <unit> is the caller-supplied unit-element ident
+// (relocated to profiles/slides, TRD 02-03, MODEL-04 — chase/theme no
+// longer hardcodes which element it scopes theme rules onto). Splitting
+// scoping into these two steps (rather than prepending the real chain
+// directly) is what lets root.go's IncreasingSpecificity run strictly
+// AFTER Replace and still find the marker adjacent to the real unit
+// element (see root.go).
 
 var (
 	placeholderChain = mustParseTokens(":marpit-container > :marpit-slide")
 	inlineSVGChain   = mustParseTokens("div.marpit > svg > foreignObject")
 	nonSVGChain      = mustParseTokens("div.marpit")
-	slideChain       = mustParseTokens("section")
 )
 
 // InlineSVGContainerChain returns the container-chain tokens for
@@ -50,29 +52,34 @@ func InlineSVGContainerChain() []css.Token { return inlineSVGChain }
 // non-SVG render mode: "div.marpit".
 func NonSVGContainerChain() []css.Token { return nonSVGChain }
 
-// SlideChain returns the slide-element tokens: "section", the element
-// both render modes scope theme rules onto.
-func SlideChain() []css.Token { return slideChain }
+// UnitChain returns the unit-element tokens for the given caller-supplied
+// unit ident (e.g. profiles/slides supplies its own unit ident) — the
+// element every render mode scopes theme rules onto. Replaces the old,
+// hardcoded fixed-ident helper this package used to expose (TRD 02-03):
+// chase/theme has no opinion of its own about which element that is.
+func UnitChain(unit string) []css.Token { return mustParseTokens(unit) }
 
 // Prepend injects the placeholder container/slide chain in front of a
 // single compound selector (one entry from SplitList), never descending
-// into a FunctionToken's arguments.
+// into a FunctionToken's arguments. unit is the caller-supplied
+// unit-element ident (e.g. section for slides).
 //
 // Three cases, mirroring prepend.js exactly:
 //  1. compound already starts with the ":marpit-container" placeholder —
 //     idempotent no-op (test-list case 9, Prepend-level reading).
-//  2. compound's FIRST token is literally the ident "section" — FUSED:
-//     the placeholder replaces "section" itself (they become the SAME
+//  2. compound's FIRST token is literally the unit ident — FUSED: the
+//     placeholder replaces the unit element itself (they become the SAME
 //     element), and the rest of the compound (e.g. a trailing
 //     ":where(.lead)" or "[data-x=...]") is appended directly with no
 //     separator. This is also why root.go's MarkRoot emits the literal
-//     text "section:marpit-root" — so a :root rule fuses here exactly
-//     like a literal "section" rule does.
+//     text "<unit>:marpit-root" — so a :root rule fuses here exactly
+//     like a literal unit-element rule does.
 //  3. Any other compound (a bare tag like "h1", a class, a pseudo-class,
-//     an :is()/:where() call, ...) — SPACED: the placeholder is prepended
-//     as an ancestor via the descendant combinator, since the rule
-//     targets a DESCENDANT of the slide element, not the slide itself.
-func Prepend(compound []css.Token) []css.Token {
+//     an :is()/:where() call, ...) — SPACED: the placeholder is
+//     prepended as an ancestor via the descendant combinator, since the
+//     rule targets a DESCENDANT of the unit element, not the unit
+//     element itself.
+func Prepend(compound []css.Token, unit string) []css.Token {
 	if len(compound) == 0 {
 		return compound
 	}
@@ -80,7 +87,7 @@ func Prepend(compound []css.Token) []css.Token {
 		return compound
 	}
 
-	if compound[0].TokenType == css.IdentToken && string(compound[0].Data) == "section" {
+	if compound[0].TokenType == css.IdentToken && string(compound[0].Data) == unit {
 		rest := compound[1:]
 		out := make([]css.Token, 0, len(placeholderChain)+len(rest))
 		out = append(out, placeholderChain...)
