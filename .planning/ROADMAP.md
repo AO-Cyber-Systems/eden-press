@@ -128,7 +128,7 @@ something real.
 - [x] 04-01-TRD.md — press.Options.ThemeCSS additive extension + BrowserFitJS re-export (Wave-0 enabler for CLI-05) [wave 1]
 - [x] 04-02-TRD.md — cobra skeleton + go.mod deps + flag→Options surface + stdin/file input [wave 1]
 - [ ] 04-03-TRD.md — htmldoc bare-style zero-JS assembly + convert pipeline (CLI-01) [wave 2]
-- [ ] 04-04-TRD.md — koanf config loading: .marprc.* + precedence flags>env>file (CLI-06) [wave 2]
+- [x] 04-04-TRD.md — koanf config loading: .marprc.* + precedence flags>env>file (CLI-06) [wave 2]
 - [ ] 04-05-TRD.md — --theme/--theme-set loading into press.Options.ThemeCSS (CLI-05) [wave 2]
 - [ ] 04-06-TRD.md — watch mode: scoped fsnotify + debounce + SSE reload channel (CLI-02) [wave 3]
 - [ ] 04-07-TRD.md — serve mode: static + convert-on-request + traversal guard + reuse SSE (CLI-03) [wave 4]
