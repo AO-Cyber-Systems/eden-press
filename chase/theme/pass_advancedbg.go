@@ -24,52 +24,50 @@ package theme
 
 // pass_advancedbg.go implements Tier-2's advanced-background injection
 // step (RESEARCH's Tier-2 order item 8, "inlineSVGOpts.enabled &&
-// advancedBackground"): scaffold.go's AdvancedBackgroundCSS static rule
-// block (pre-parsed once into advancedBackgroundRules below) is appended
+// advancedBackground"): the caller-supplied advanced-background CSS rule
+// block (TRD 02-03 relocated the static text itself to profiles/slides;
+// chase/theme now receives it pre-parsed via mustLoadPlainRules, passed
+// in at ThemeSet construction — see pack.go's NewThemeSet) is appended
 // whenever inline-SVG rendering is enabled.
 //
-// KNOWN, DOCUMENTED GAP (see this TRD's error_recovery: "if the stress
-// theme/scaffold gate doesn't need a case, leave it as a documented
-// TODO... don't silently pass"): one rule in AdvancedBackgroundCSS uses
-// the chase/theme/selector container placeholder (":marpit-container")
-// ALONE — "`:marpit-container > svg[data-marpit-svg] >
-// foreignObject[...]`" — rather than paired with the ":marpit-slide"
-// placeholder scope.go's Prepend/Replace expect together (see scope.go's
-// 5-token findPlaceholder). 01-01's locked selector.Replace therefore
-// leaves that ONE rule's container placeholder un-substituted; deferred
-// deliberately rather than modifying the 01-01-owned selector package to
-// special-case a container-only placeholder it was never designed to
-// handle. Neither Pack(stress) nor Pack(scaffold) — this TRD's
-// must_haves gate — exercises that one rule's selector, so it does not
-// block this TRD; a real render pipeline would need a small additional
-// container-only substitution step in a later objective.
-
-// advancedBackgroundRules is scaffold.go's AdvancedBackgroundCSS,
-// pre-parsed once (nesting-flattened + root-marked, neither of which
-// applies to this static block, via loadPlain) — safe to share across
-// Pack calls since every pipeline Pass builds fresh output slices rather
-// than mutating a Rule's SelectorTokens/Declarations in place.
-var advancedBackgroundRules = mustLoadPlainRules(AdvancedBackgroundCSS)
+// KNOWN, DOCUMENTED GAP (see 01-04-TRD.md's error_recovery: "if the
+// stress theme/scaffold gate doesn't need a case, leave it as a
+// documented TODO... don't silently pass"): one rule in the
+// advanced-background CSS uses the chase/theme/selector container
+// placeholder (":marpit-container") ALONE — "`:marpit-container >
+// svg[data-marpit-svg] > foreignObject[...]`" — rather than paired with
+// the ":marpit-slide" placeholder scope.go's Prepend/Replace expect
+// together (see scope.go's 5-token findPlaceholder). 01-01's locked
+// selector.Replace therefore leaves that ONE rule's container placeholder
+// un-substituted; deferred deliberately rather than modifying the
+// 01-01-owned selector package to special-case a container-only
+// placeholder it was never designed to handle. Neither Pack(stress) nor
+// Pack(scaffold) — the Objective-1 must_haves gate — exercises that one
+// rule's selector, so it does not block this TRD; a real render pipeline
+// would need a small additional container-only substitution step in a
+// later objective.
 
 // mustLoadPlainRules loads plain (meta-less) static CSS text via
-// loadPlain and panics if it fails to parse — used only for this
-// package's own embedded, package-authored CSS constants (scaffold.go),
-// never for untrusted input.
-func mustLoadPlainRules(cssText string) []Rule {
-	sheet, err := loadPlain(cssText)
+// loadPlain and panics if it fails to parse — used only for a caller's
+// own embedded, package-authored CSS constants (e.g. profiles/slides'
+// scaffold/advanced-background CSS), never for untrusted input.
+func mustLoadPlainRules(cssText, unit string) []Rule {
+	sheet, err := loadPlain(cssText, unit)
 	if err != nil {
 		panic("theme: embedded static CSS failed to parse: " + err.Error())
 	}
 	return sheet.Rules
 }
 
-// advancedBackgroundPass returns a Pass that appends
-// advancedBackgroundRules to the current sheet's Rules.
-func advancedBackgroundPass() Pass {
+// advancedBackgroundPass returns a Pass that appends rules (the
+// caller-supplied advanced-background CSS, pre-parsed once via
+// mustLoadPlainRules at ThemeSet construction — see pack.go's
+// NewThemeSet) to the current sheet's Rules.
+func advancedBackgroundPass(rules []Rule) Pass {
 	return Pass{
 		Name: "advanced-background",
 		Run: func(sheet *Stylesheet) error {
-			sheet.Rules = append(sheet.Rules, advancedBackgroundRules...)
+			sheet.Rules = append(sheet.Rules, rules...)
 			return nil
 		},
 	}

@@ -101,8 +101,9 @@ func flattenRule(r Rule) ([]Rule, error) {
 
 // expandNestedSelector down-levels a single nested ruleset's selector list
 // (childTokens, e.g. "& h1, & h2") against its parent's selector list
-// (parentTokens, e.g. "section"), producing the flat, comma-joined
-// replacement selector token list (e.g. "section h1, section h2").
+// (parentTokens, e.g. a bare unit-element compound), producing the flat,
+// comma-joined replacement selector token list (e.g. "<parent> h1,
+// <parent> h2").
 //
 // Both lists are split into their top-level comma-separated compounds via
 // chase/theme/selector.SplitList (depth-aware — never splits inside a

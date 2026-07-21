@@ -43,6 +43,95 @@ import (
 // redeclared, since this pipeline exercises the SAME fixtures 01-03's
 // structural Parse tests already cover, one layer down (nesting-down-
 // level, root-mark, scope, Pack), not a different synthetic theme.
+//
+// testScaffoldCSS / testAdvancedBackgroundCSS are TEST-ONLY, byte-for-byte
+// copies of profiles/slides' ScaffoldCSS / AdvancedBackgroundCSS constants
+// (TRD 02-03, MODEL-04's de-hardcoding move) — duplicated locally, rather
+// than importing profiles/slides, so chase/theme's own test suite stays a
+// true dependency leaf (no test-only import of a package that itself
+// imports chase/theme). testSizeFallback/testDefaultSize live in
+// stylesheet_test.go, likewise a local stand-in for a Profile's size table.
+const testScaffoldCSS = `
+section {
+  width: 1280px;
+  height: 720px;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  scroll-snap-align: center center;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+section::after {
+  bottom: 0;
+  content: attr(data-marpit-pagination);
+  padding: inherit;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
+section:not([data-marpit-pagination])::after {
+  display: none;
+}
+:where(h1) {
+  font-size: 2em;
+  margin-block: 0.67em;
+}
+video::-webkit-media-controls {
+  will-change: transform;
+}
+`
+
+const testAdvancedBackgroundCSS = `
+section[data-marpit-advanced-background="background"] {
+  columns: initial !important;
+  display: block !important;
+  padding: 0 !important;
+}
+section[data-marpit-advanced-background="background"]::before,
+section[data-marpit-advanced-background="background"]::after,
+section[data-marpit-advanced-background="content"]::before,
+section[data-marpit-advanced-background="content"]::after {
+  display: none !important;
+}
+section[data-marpit-advanced-background="background"] > div[data-marpit-advanced-background-container] {
+  all: initial;
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+section[data-marpit-advanced-background="background"] > div[data-marpit-advanced-background-container][data-marpit-advanced-background-direction="vertical"] {
+  flex-direction: column;
+}
+section[data-marpit-advanced-background="background"][data-marpit-advanced-background-split] > div[data-marpit-advanced-background-container] {
+  width: var(--marpit-advanced-background-split, 50%);
+}
+section[data-marpit-advanced-background="background"][data-marpit-advanced-background-split="right"] > div[data-marpit-advanced-background-container] {
+  margin-left: calc(100% - var(--marpit-advanced-background-split, 50%));
+}
+section[data-marpit-advanced-background="background"] > div[data-marpit-advanced-background-container] > figure {
+  all: initial;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  flex: auto;
+  margin: 0;
+}
+section[data-marpit-advanced-background="content"],
+section[data-marpit-advanced-background="pseudo"] {
+  background: transparent !important;
+}
+section[data-marpit-advanced-background="pseudo"],
+:marpit-container > svg[data-marpit-svg] > foreignObject[data-marpit-advanced-background="pseudo"] {
+  pointer-events: none !important;
+}
+section[data-marpit-advanced-background-split] {
+  width: 100%;
+  height: 100%;
+}
+`
 
 // findRuleByProperty returns the first Rule in rules carrying a
 // declaration named prop, and reports whether one was found — used
@@ -134,7 +223,7 @@ func TestNestingIsPseudoClassSelectorPassesThrough(t *testing.T) {
 // present after Load, and the stress theme's nesting/passthrough shapes
 // all load successfully together.
 func TestThemeLoadMarksRootSentinelTier1(t *testing.T) {
-	th, err := Load(stressThemeCSS)
+	th, err := Load(stressThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -151,34 +240,36 @@ func TestThemeLoadMarksRootSentinelTier1(t *testing.T) {
 }
 
 // TestScaffoldEmbeddedTextMatchesResearchVerbatim covers Test-list case 8
-// at the Task-1 (embedding) level: scaffold.go's ScaffoldCSS and
-// AdvancedBackgroundCSS constants parse cleanly (structurally valid CSS,
-// no @theme header required) and carry the exact rule shapes
-// 01-RESEARCH.md records. The full "prepended for the stress theme,
-// skipped for the scaffold theme itself" pipeline behavior is covered at
-// the Task-2/Pack level (see TestPackScaffoldPrependedForStressTheme and
+// at the Task-1 (embedding) level: the scaffold/advanced-background CSS
+// text (testScaffoldCSS/testAdvancedBackgroundCSS — byte-identical local
+// copies of profiles/slides' ScaffoldCSS/AdvancedBackgroundCSS, TRD 02-03)
+// parses cleanly (structurally valid CSS, no @theme header required) and
+// carries the exact rule shapes 01-RESEARCH.md records. The full
+// "prepended for the stress theme, skipped for the scaffold theme itself"
+// pipeline behavior is covered at the Task-2/Pack level (see
+// TestPackScaffoldPrependedForStressTheme and
 // TestPackSkipsScaffoldForScaffoldThemeItself).
 func TestScaffoldEmbeddedTextMatchesResearchVerbatim(t *testing.T) {
-	scaffoldSheet, err := Parse(ScaffoldCSS)
+	scaffoldSheet, err := Parse(testScaffoldCSS)
 	if err != nil {
-		t.Fatalf("Parse(ScaffoldCSS): %v", err)
+		t.Fatalf("Parse(testScaffoldCSS): %v", err)
 	}
 	if len(scaffoldSheet.Rules) != 5 {
-		t.Fatalf("len(ScaffoldCSS rules) = %d, want 5", len(scaffoldSheet.Rules))
+		t.Fatalf("len(testScaffoldCSS rules) = %d, want 5", len(scaffoldSheet.Rules))
 	}
 	if _, ok := findRuleByProperty(scaffoldSheet.Rules, "scroll-snap-align"); !ok {
-		t.Fatalf("ScaffoldCSS missing the base section reset rule")
+		t.Fatalf("testScaffoldCSS missing the base section reset rule")
 	}
 	if _, ok := findRuleByProperty(scaffoldSheet.Rules, "will-change"); !ok {
-		t.Fatalf("ScaffoldCSS missing the video::-webkit-media-controls rule")
+		t.Fatalf("testScaffoldCSS missing the video::-webkit-media-controls rule")
 	}
 
-	advBgSheet, err := Parse(AdvancedBackgroundCSS)
+	advBgSheet, err := Parse(testAdvancedBackgroundCSS)
 	if err != nil {
-		t.Fatalf("Parse(AdvancedBackgroundCSS): %v", err)
+		t.Fatalf("Parse(testAdvancedBackgroundCSS): %v", err)
 	}
 	if len(advBgSheet.Rules) != 10 {
-		t.Fatalf("len(AdvancedBackgroundCSS rules) = %d, want 10", len(advBgSheet.Rules))
+		t.Fatalf("len(testAdvancedBackgroundCSS rules) = %d, want 10", len(advBgSheet.Rules))
 	}
 }
 
@@ -199,11 +290,11 @@ h1 { color: red; }
 // inline-SVG render mode — both the packed theme's own rule and the
 // prepended scaffold's own "section" rule.
 func TestPackScopesEverySelectorInlineSVG(t *testing.T) {
-	th, err := Load(miniThemeCSS)
+	th, err := Load(miniThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 	ts.Add(th)
 
 	out, err := ts.Pack("mini", PackOptions{InlineSVG: true})
@@ -226,11 +317,11 @@ func TestPackScopesEverySelectorInlineSVG(t *testing.T) {
 // fully-boosted selector, never the raw ":marpit-root" sentinel or an
 // un-replaced container placeholder.
 func TestRootIncreasingSpecificityRunsAfterScoping(t *testing.T) {
-	th, err := Load(stressThemeCSS)
+	th, err := Load(stressThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 	ts.Add(th)
 
 	out, err := ts.Pack("stress", PackOptions{InlineSVG: false})
@@ -278,16 +369,16 @@ const importCyclicThemeCSS = `/**
 // its own and its imported base theme's rules), and a self-referential
 // @import-theme ERRORS via cycle detection rather than recursing forever.
 func TestImportThemeResolvesRecursivelyAndDetectsCycle(t *testing.T) {
-	baseTh, err := Load(importBaseThemeCSS)
+	baseTh, err := Load(importBaseThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load(base): %v", err)
 	}
-	childTh, err := Load(importChildThemeCSS)
+	childTh, err := Load(importChildThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load(child): %v", err)
 	}
 
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 	ts.Add(baseTh)
 	ts.Add(childTh)
 
@@ -302,7 +393,7 @@ func TestImportThemeResolvesRecursivelyAndDetectsCycle(t *testing.T) {
 		t.Fatalf("Pack(child) missing its own rule; got:\n%s", out)
 	}
 
-	cyclicTh, err := Load(importCyclicThemeCSS)
+	cyclicTh, err := Load(importCyclicThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load(cyclic): %v", err)
 	}
@@ -318,11 +409,11 @@ func TestImportThemeResolvesRecursivelyAndDetectsCycle(t *testing.T) {
 // prepended for an ordinary theme, but Pack never double-prepends it when
 // the theme being packed IS the scaffold theme itself.
 func TestPackScaffoldPrependedForStressTheme(t *testing.T) {
-	th, err := Load(stressThemeCSS)
+	th, err := Load(stressThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 	ts.Add(th)
 
 	out, err := ts.Pack("stress", PackOptions{})
@@ -335,7 +426,7 @@ func TestPackScaffoldPrependedForStressTheme(t *testing.T) {
 }
 
 func TestPackSkipsScaffoldForScaffoldThemeItself(t *testing.T) {
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 
 	out, err := ts.Pack(ScaffoldThemeName, PackOptions{})
 	if err != nil {
@@ -351,11 +442,11 @@ func TestPackSkipsScaffoldForScaffoldThemeItself(t *testing.T) {
 // the advanced-background static CSS block is injected verbatim when
 // inline-SVG rendering is enabled, and omitted entirely otherwise.
 func TestAdvancedBgInjectedMatchesResearchVerbatim(t *testing.T) {
-	th, err := Load(miniThemeCSS)
+	th, err := Load(miniThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 	ts.Add(th)
 
 	svgOut, err := ts.Pack("mini", PackOptions{InlineSVG: true})
@@ -394,11 +485,11 @@ func TestPaginationNeutralizesNonDefaultAfterContent(t *testing.T) {
  */
 section::after { content: "custom"; color: red; }
 `
-	th, err := Load(authoredCSS)
+	th, err := Load(authoredCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 	ts.Add(th)
 
 	out, err := ts.Pack("paginated", PackOptions{})
@@ -473,11 +564,11 @@ div.marpit > section video::-webkit-media-controls { will-change: transform; }`
 // format-insensitive, order-sensitive AST diff, not a brittle string
 // compare.
 func TestPackFullPipelineStressThemeMatchesFixtureViaCSSDiff(t *testing.T) {
-	th, err := Load(stressThemeCSS)
+	th, err := Load(stressThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 	ts.Add(th)
 
 	out, err := ts.Pack("stress", PackOptions{InlineSVG: true})
@@ -494,7 +585,7 @@ func TestPackFullPipelineStressThemeMatchesFixtureViaCSSDiff(t *testing.T) {
 // Test-list case 10 (scaffold theme half): Pack(scaffold) equals the
 // hand-verified expected fixture via cssdiff.Equal.
 func TestPackFullPipelineScaffoldThemeMatchesFixtureViaCSSDiff(t *testing.T) {
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 
 	out, err := ts.Pack(ScaffoldThemeName, PackOptions{InlineSVG: false})
 	if err != nil {

@@ -48,11 +48,11 @@ import (
 // (chase/theme/pack_test.go) via cssdiff.Equal's format-insensitive,
 // order-sensitive CSS-AST diff.
 func TestObjective1ThemeCSSDiffGateStress(t *testing.T) {
-	th, err := Load(stressThemeCSS)
+	th, err := Load(stressThemeCSS, "section", testSizeFallback)
 	if err != nil {
 		t.Fatalf("Load(stressThemeCSS): %v", err)
 	}
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 	ts.Add(th)
 
 	out, err := ts.Pack("stress", PackOptions{InlineSVG: true})
@@ -70,7 +70,7 @@ func TestObjective1ThemeCSSDiffGateStress(t *testing.T) {
 // PackOptions{InlineSVG: false}) must equal expectedScaffoldPackedCSS
 // (chase/theme/pack_test.go) via cssdiff.Equal.
 func TestObjective1ThemeCSSDiffGateScaffold(t *testing.T) {
-	ts := NewThemeSet()
+	ts := NewThemeSet("section", testScaffoldCSS, testAdvancedBackgroundCSS)
 
 	out, err := ts.Pack(ScaffoldThemeName, PackOptions{InlineSVG: false})
 	if err != nil {

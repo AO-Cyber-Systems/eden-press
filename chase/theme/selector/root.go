@@ -36,40 +36,28 @@ import "github.com/tdewolff/parse/v2/css"
 // (RESEARCH Pitfall 1): IncreasingSpecificity MUST run after Replace, or
 // the specificity trick ends up scoped to the WRONG (placeholder, not
 // real) element.
-
-// sectionMarkerTokens is the literal fused replacement MarkRoot inserts
-// for a ":root"/"section:root" occurrence: the text "section:marpit-root".
-// Emitting a LITERAL leading "section" ident (not just a bare
-// ":marpit-root" pseudo-class) is deliberate: it makes scope.go's Prepend
-// treat a :root rule EXACTLY like a literal "section" rule (the fused,
-// same-element branch), rather than nesting it as a descendant — a
-// :root-authored rule must apply to the SAME element as a plain "section"
-// rule, not one of its children.
-var sectionMarkerTokens = mustParseTokens("section:marpit-root")
-
-// rootRewriteTokens is the literal specificity-trick token sequence
-// IncreasingSpecificity substitutes for the ":marpit-root" sentinel,
-// applied only AFTER scope-prefixing:
-// `:where(section):not([\20 root])`.
 //
-// `:where()` contributes ZERO specificity while still always matching
-// every "section" element; `:not([\20 root])` contributes exactly one
-// attribute-selector specificity unit (0-1-0), outranking a plain
-// "section" rule (0-0-1) — but `[\20 root]` is a CSS-escaped attribute
-// selector for an attribute literally named "<SPACE>root", which is
-// impossible to author in HTML, so the :not() always matches too. The
-// escape must be emitted verbatim as token text, never "normalized"
-// away (01-RESEARCH.md error_recovery).
-var rootRewriteTokens = mustParseTokens(`:where(section):not([\20 root])`)
+// Both MarkRoot and IncreasingSpecificity take the caller-supplied
+// unit-element ident (TRD 02-03, MODEL-04's de-hardcoding move) rather
+// than assuming a fixed element — the sentinel/rewrite text they emit is
+// built from that ident at call time, not held as a fixed package-level
+// value.
 
-// MarkRoot rewrites every ":root" (or fused "section:root") occurrence in
-// tokens to the literal text "section:marpit-root" — the add-time
-// sentinel step. Unlike scope.go's Prepend, MarkRoot scans the ENTIRE
-// flat token stream, including tokens nested inside a FunctionToken's
-// arguments (`:is(:root, h1)`), because a real gaia-theme selector can
-// carry the marker nested inside `:where(:is(...))` (test-list case 7)
-// and it must still be found here so it survives to be scope-prefixed
-// and later rewritten by IncreasingSpecificity.
+// MarkRoot rewrites every ":root" (or fused "<unit>:root") occurrence in
+// tokens to the literal text "<unit>:marpit-root" — the add-time
+// sentinel step. Emitting a LITERAL leading unit ident (not just a bare
+// ":marpit-root" pseudo-class) is deliberate: it makes scope.go's Prepend
+// treat a :root rule EXACTLY like a literal unit-element rule (the fused,
+// same-element branch), rather than nesting it as a descendant — a
+// :root-authored rule must apply to the SAME element as a plain
+// unit-element rule, not one of its children.
+//
+// Unlike scope.go's Prepend, MarkRoot scans the ENTIRE flat token stream,
+// including tokens nested inside a FunctionToken's arguments
+// (`:is(:root, h1)`), because a real gaia-theme selector can carry the
+// marker nested inside `:where(:is(...))` (test-list case 7) and it must
+// still be found here so it survives to be scope-prefixed and later
+// rewritten by IncreasingSpecificity.
 //
 // A match is only rewritten when it sits at a "valid boundary" —
 // mirroring Marpit's own regex `/(^|[\s>+~(])(?:section)?:root\b/g`:
@@ -81,11 +69,12 @@ var rootRewriteTokens = mustParseTokens(`:where(section):not([\20 root])`)
 // a comma that tdewolff's tokenizer drops from function-argument commas;
 // see selector.go's String doc comment) that only ever broadens matching
 // for a legitimate ":root" argument, never mis-rewrites unrelated text.
-func MarkRoot(tokens []css.Token) []css.Token {
+func MarkRoot(tokens []css.Token, unit string) []css.Token {
+	marker := mustParseTokens(unit + ":marpit-root")
 	out := make([]css.Token, 0, len(tokens))
 	for i := 0; i < len(tokens); {
-		if n := rootMarkerAt(tokens, i); n > 0 && validRootBoundary(tokens, i) {
-			out = append(out, sectionMarkerTokens...)
+		if n := rootMarkerAt(tokens, i, unit); n > 0 && validRootBoundary(tokens, i) {
+			out = append(out, marker...)
 			i += n
 			continue
 		}
@@ -96,15 +85,15 @@ func MarkRoot(tokens []css.Token) []css.Token {
 }
 
 // rootMarkerAt reports how many tokens starting at tokens[i] form a
-// ":root" (2 tokens: Colon, Ident("root")) or fused "section:root" (3
-// tokens: Ident("section"), Colon, Ident("root")) occurrence — 0 if
-// neither matches at i.
-func rootMarkerAt(tokens []css.Token, i int) int {
+// ":root" (2 tokens: Colon, Ident("root")) or fused "<unit>:root" (3
+// tokens: Ident(unit), Colon, Ident("root")) occurrence — 0 if neither
+// matches at i.
+func rootMarkerAt(tokens []css.Token, i int, unit string) int {
 	if i+1 < len(tokens) && isColonIdent(tokens[i], tokens[i+1], "root") {
 		return 2
 	}
 	if i+2 < len(tokens) &&
-		tokens[i].TokenType == css.IdentToken && string(tokens[i].Data) == "section" &&
+		tokens[i].TokenType == css.IdentToken && string(tokens[i].Data) == unit &&
 		isColonIdent(tokens[i+1], tokens[i+2], "root") {
 		return 3
 	}
@@ -120,7 +109,7 @@ func isColonIdent(colon, ident css.Token, name string) bool {
 }
 
 // validRootBoundary reports whether position i in tokens is a valid
-// place for a ":root"/"section:root" match to start — see MarkRoot's doc
+// place for a ":root"/"<unit>:root" match to start — see MarkRoot's doc
 // comment for the exact boundary set.
 func validRootBoundary(tokens []css.Token, i int) bool {
 	if i <= 0 {
@@ -138,9 +127,18 @@ func validRootBoundary(tokens []css.Token, i int) bool {
 
 // IncreasingSpecificity rewrites every ":marpit-root" sentinel (bare or
 // fused as "<ident>:marpit-root") in tokens to the literal
-// `:where(section):not([\20 root])` specificity-trick sequence. This
-// MUST run AFTER scope.go's Replace — see this file's package doc comment
-// and RESEARCH Pitfall 1.
+// `:where(<unit>):not([\20 root])` specificity-trick sequence, built from
+// the caller-supplied unit ident. This MUST run AFTER scope.go's Replace
+// — see this file's package doc comment and RESEARCH Pitfall 1.
+//
+// `:where()` contributes ZERO specificity while still always matching
+// every unit element; `:not([\20 root])` contributes exactly one
+// attribute-selector specificity unit, outranking a plain unit-element
+// rule — but `[\20 root]` is a CSS-escaped attribute selector for an
+// attribute literally named "<SPACE>root", which is impossible to author
+// in HTML, so the :not() always matches too. The escape must be emitted
+// verbatim as token text, never "normalized" away (01-RESEARCH.md
+// error_recovery).
 //
 // It uses Walk (rather than a depth-blind scan) specifically so the
 // nested-in-`:where(:is(...))` gaia case (test-list case 7) is
@@ -150,7 +148,9 @@ func validRootBoundary(tokens []css.Token, i int) bool {
 // so a plain index scan would find the same matches) — Walk gives the
 // scan a depth value for free, which callers/tests can use as evidence
 // the marker really was nested, not just present at the top level.
-func IncreasingSpecificity(tokens []css.Token) []css.Token {
+func IncreasingSpecificity(tokens []css.Token, unit string) []css.Token {
+	rewrite := mustParseTokens(`:where(` + unit + `):not([\20 root])`)
+
 	type match struct {
 		start int
 		n     int
@@ -164,7 +164,7 @@ func IncreasingSpecificity(tokens []css.Token) []css.Token {
 				return true // inside an already-recorded match; skip
 			}
 		}
-		if n := marpitRootMarkerAt(tokens, index); n > 0 {
+		if n := marpitRootMarkerAt(tokens, index, unit); n > 0 {
 			matches = append(matches, match{start: index, n: n})
 		}
 		return true
@@ -178,7 +178,7 @@ func IncreasingSpecificity(tokens []css.Token) []css.Token {
 	i, mi := 0, 0
 	for i < len(tokens) {
 		if mi < len(matches) && matches[mi].start == i {
-			out = append(out, rootRewriteTokens...)
+			out = append(out, rewrite...)
 			i += matches[mi].n
 			mi++
 			continue
@@ -191,14 +191,14 @@ func IncreasingSpecificity(tokens []css.Token) []css.Token {
 
 // marpitRootMarkerAt reports how many tokens starting at tokens[i] form a
 // ":marpit-root" sentinel — 2 tokens bare (Colon, Ident("marpit-root")),
-// or 3 tokens fused ("section", Colon, Ident("marpit-root")) — 0 if
+// or 3 tokens fused (Ident(unit), Colon, Ident("marpit-root")) — 0 if
 // neither matches at i.
-func marpitRootMarkerAt(tokens []css.Token, i int) int {
+func marpitRootMarkerAt(tokens []css.Token, i int, unit string) int {
 	if i+1 < len(tokens) && isColonIdent(tokens[i], tokens[i+1], "marpit-root") {
 		return 2
 	}
 	if i+2 < len(tokens) &&
-		tokens[i].TokenType == css.IdentToken && string(tokens[i].Data) == "section" &&
+		tokens[i].TokenType == css.IdentToken && string(tokens[i].Data) == unit &&
 		isColonIdent(tokens[i+1], tokens[i+2], "marpit-root") {
 		return 3
 	}

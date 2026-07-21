@@ -59,6 +59,12 @@ import (
 // position (see stylesheet.go's String / this file's renderPacked) — the
 // model itself satisfies "hoisted to the front" by construction, so a
 // discrete hoist step would be a no-op.
+//
+// The unit-element ident, the scaffold CSS, and the advanced-background
+// CSS are all caller-supplied at ThemeSet construction time (TRD 02-03,
+// MODEL-04's de-hardcoding move — see profiles/slides, which supplies
+// all three today): chase/theme has no profile-specific value of its own,
+// only the profile-agnostic passes that consume them.
 
 // PackOptions controls a single Pack call's render-mode-dependent
 // behavior.
@@ -66,33 +72,49 @@ type PackOptions struct {
 	// InlineSVG selects Marpit's inline-SVG render mode: the container
 	// chain becomes "div.marpit > svg > foreignObject"
 	// (selector.InlineSVGContainerChain) instead of "div.marpit"
-	// (selector.NonSVGContainerChain), and the advanced-background static
-	// CSS block (scaffold.go's AdvancedBackgroundCSS) is appended.
+	// (selector.NonSVGContainerChain), and the advanced-background CSS
+	// supplied to NewThemeSet is appended.
 	InlineSVG bool
 }
 
 // ThemeSet is a named registry of loaded Themes (see theme.go's Load),
 // used to Pack any one of them into final, fully-scoped CSS text.
 //
-// Every ThemeSet auto-registers an internal scaffold theme identity
-// (scaffold.go's ScaffoldCSS, under the reserved ScaffoldThemeName) at
-// construction — see NewThemeSet — so Pack can compare a theme's
-// identity against it (pointer equality) to implement Test-list case 8's
-// "skipped when packing the scaffold theme itself".
+// Every ThemeSet auto-registers an internal scaffold theme identity (the
+// caller-supplied scaffoldCSS, under the reserved ScaffoldThemeName) at
+// construction — see NewThemeSet — so Pack can compare a theme's identity
+// against it (pointer equality) to implement Test-list case 8's "skipped
+// when packing the scaffold theme itself". unit and advancedBackground
+// are likewise supplied by the caller at construction (TRD 02-03,
+// MODEL-04's de-hardcoding move: chase/theme owns no profile-specific
+// value of its own — see profiles/slides, which supplies all three
+// today).
 type ThemeSet struct {
-	themes   map[string]*Theme
-	scaffold *Theme
+	themes             map[string]*Theme
+	scaffold           *Theme
+	unit               string
+	advancedBackground []Rule
 }
 
 // NewThemeSet constructs an empty ThemeSet with its internal scaffold
-// theme identity already registered under ScaffoldThemeName.
-func NewThemeSet() *ThemeSet {
-	ts := &ThemeSet{themes: make(map[string]*Theme)}
+// theme identity already registered under ScaffoldThemeName. unit is the
+// unit-element ident chase/theme's scoping passes scope theme rules
+// onto; scaffoldCSS is the base CSS text prepended before every packed
+// theme's own rules (except the scaffold theme itself); advancedBackgroundCSS
+// is the static CSS block appended when a Pack call has InlineSVG
+// enabled (pass "" to omit it entirely). All three values originate in
+// the active Profile (see chase/profile) — chase/theme has no default of
+// its own.
+func NewThemeSet(unit, scaffoldCSS, advancedBackgroundCSS string) *ThemeSet {
+	ts := &ThemeSet{themes: make(map[string]*Theme), unit: unit}
 	ts.scaffold = &Theme{
 		Name:  ScaffoldThemeName,
-		Sheet: Stylesheet{Rules: mustLoadPlainRules(ScaffoldCSS)},
+		Sheet: Stylesheet{Rules: mustLoadPlainRules(scaffoldCSS, unit)},
 	}
 	ts.themes[ScaffoldThemeName] = ts.scaffold
+	if advancedBackgroundCSS != "" {
+		ts.advancedBackground = mustLoadPlainRules(advancedBackgroundCSS, unit)
+	}
 	return ts
 }
 
@@ -129,18 +151,18 @@ func (ts *ThemeSet) Pack(name string, opts PackOptions) (string, error) {
 	if opts.InlineSVG {
 		container = selector.InlineSVGContainerChain()
 	}
-	slide := selector.SlideChain()
+	slide := selector.UnitChain(ts.unit)
 
 	skipScaffold := th == ts.scaffold
 	passes := []Pass{scaffoldPass(ts.scaffold.Sheet.Rules, skipScaffold)}
 	if opts.InlineSVG {
-		passes = append(passes, advancedBackgroundPass())
+		passes = append(passes, advancedBackgroundPass(ts.advancedBackground))
 	}
 	passes = append(passes,
 		paginationPass,
-		rootMarkPass,
-		scopePass(container, slide),
-		specificityPass,
+		rootMarkPass(ts.unit),
+		scopePass(container, slide, ts.unit),
+		specificityPass(ts.unit),
 	)
 
 	if err := RunPasses(&sheet, passes...); err != nil {
@@ -153,11 +175,13 @@ func (ts *ThemeSet) Pack(name string, opts PackOptions) (string, error) {
 // scopePass returns a Pass applying chase/theme/selector's two-step
 // placeholder scoping (Prepend, then Replace with the real
 // container/slide chain) to every rule's selector — see scopeSelector.
-func scopePass(container, slide []css.Token) Pass {
+// unit is the caller-supplied unit-element ident Prepend compares
+// against.
+func scopePass(container, slide []css.Token, unit string) Pass {
 	return Pass{
 		Name: "scope",
 		Run: func(sheet *Stylesheet) error {
-			sheet.Rules = scopeRulesAll(sheet.Rules, container, slide)
+			sheet.Rules = scopeRulesAll(sheet.Rules, container, slide, unit)
 			return nil
 		},
 	}
@@ -165,10 +189,10 @@ func scopePass(container, slide []css.Token) Pass {
 
 // scopeRulesAll applies scopeSelector to every rule's SelectorTokens,
 // returning a new slice (never mutating rules in place).
-func scopeRulesAll(rules []Rule, container, slide []css.Token) []Rule {
+func scopeRulesAll(rules []Rule, container, slide []css.Token, unit string) []Rule {
 	out := make([]Rule, len(rules))
 	for i, r := range rules {
-		r.SelectorTokens = scopeSelector(r.SelectorTokens, container, slide)
+		r.SelectorTokens = scopeSelector(r.SelectorTokens, container, slide, unit)
 		out[i] = r
 	}
 	return out
@@ -178,11 +202,11 @@ func scopeRulesAll(rules []Rule, container, slide []css.Token) []Rule {
 // separated) selector token list: split into its top-level compounds via
 // chase/theme/selector.SplitList, Prepend + Replace each independently,
 // then re-join via joinCompounds.
-func scopeSelector(tokens []css.Token, container, slide []css.Token) []css.Token {
+func scopeSelector(tokens []css.Token, container, slide []css.Token, unit string) []css.Token {
 	compounds := selector.SplitList(tokens)
 	scoped := make([][]css.Token, len(compounds))
 	for i, c := range compounds {
-		scoped[i] = selector.Replace(selector.Prepend(c), container, slide)
+		scoped[i] = selector.Replace(selector.Prepend(c, unit), container, slide)
 	}
 	return joinCompounds(scoped)
 }
@@ -241,12 +265,11 @@ func renderRule(r Rule) string {
 // declarationText renders a declaration back to "property: value" CSS
 // text, repadding any bare (function-argument) comma in the value with a
 // single trailing space — mirroring selector.String()'s existing comma/
-// combinator repadding discipline, so packed output (e.g.
-// "var(--x, 50%)") matches 01-RESEARCH.md's advanced-background CSS text
-// byte-for-byte (Test-list case 9) rather than chase/theme's own
-// tokensText, which — like tdewolff itself — drops the whitespace token
-// adjacent to a function-argument comma entirely (see stylesheet.go's
-// tokensText doc).
+// combinator repadding discipline, so packed output matches a caller's
+// static CSS text byte-for-byte (Test-list case 9) rather than
+// chase/theme's own tokensText, which — like tdewolff itself — drops the
+// whitespace token adjacent to a function-argument comma entirely (see
+// stylesheet.go's tokensText doc).
 func declarationText(d Declaration) string {
 	var b strings.Builder
 	for _, t := range d.Value {
