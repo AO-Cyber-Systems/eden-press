@@ -160,7 +160,12 @@ something real.
   2. Text content renders as real, editable OOXML text-box shapes (`<p:sp>` with actual text runs) — not one screenshot image dropped per slide.
   3. Generated PPTX position/size values are programmatically verified against expected EMU conversions via a dedicated, independently unit-tested EMU-conversion utility, including at least one grouped-shape (`chOff`/`chExt`) case.
   4. The generated file opens correctly in PowerPoint/LibreOffice with elements in their expected positions, verified on both a 16:9 and a 4:3 slide size.
-**Plans**: TBD
+**Plans**: 5 TRDs in 4 waves
+- [ ] 06-01-TRD.md — chase/model schema-v2: per-section Blocks (paragraph/list/code/math/heading) + press/math raw-TeX accessor — SHARED PREREQUISITE, unblocks Obj-7 DART-04 [wave 1]
+- [ ] 06-02-TRD.md — convert/pptx EMU-conversion utility + 16:9/4:3 slide-size constants + chOff/chExt group-transform, independently unit-tested (EXP-03) [wave 1]
+- [ ] 06-03-TRD.md — deterministic OPC zip packager + complete static part graph (12-attr clrMap, 3-entry fmtScheme) + trivial-deck openability on 16:9/4:3 (EXP-03) [wave 2]
+- [ ] 06-04-TRD.md — ToPPTX(model.Document, Options): Section→slide, Blocks/Outline→editable <p:sp> text boxes + grouped shape, no Chrome (EXP-03) [wave 3]
+- [ ] 06-05-TRD.md — speaker notes (Section.Notes→notesSlideN) + comprehensive openability/position verification on 16:9 + 4:3 (EXP-03) [wave 4]
 
 > **Decision gate (must be confirmed before this objective's design doc is written):** hand-rolled OOXML (stdlib `archive/zip` + `encoding/xml`) is the confirmed approach — `unioffice` and any of its forks are explicitly rejected (AGPLv3/commercial-license-key requirement, incompatible with Eden Press's MIT/embeddable positioning). Re-confirm at planning time that no new permissive Go PPTX library has emerged since the research date.
 
