@@ -147,7 +147,7 @@ something real.
 **Plans**: 5 TRDs in 4 waves
 - [x] 05-01-TRD.md — convert bootstrap (chromedp provisioned, gate stays green) + Chrome discovery chain + one-browser-many-tabs Session (EXP-04) [wave 1]
 - [x] 05-02-TRD.md — shared determinism recipe (fixed viewport/UTC/locale/animation-kill) + SetDocumentContent loader + STIX Two Math font provisioning (EXP-04) [wave 2]
-- [ ] 05-03-TRD.md — convert/pdf: PrintToPDF via ActionFunc + CSS @page sizing + print-backgrounds + inline-SVG PDF smoke (EXP-01) [wave 3]
+- [x] 05-03-TRD.md — convert/pdf: PrintToPDF via ActionFunc + CSS @page sizing + print-backgrounds + inline-SVG PDF smoke (EXP-01) [wave 3]
 - [x] 05-04-TRD.md — convert/png: per-slide screenshots (PNG/JPEG) viewport-pinned + inline-SVG capture smoke (EXP-02) [wave 3]
 - [ ] 05-05-TRD.md — CI hardening capstone: no-system-Chrome pinned headless-shell container + PDF re-validation process + no-chromedp/addlicense gates stay green (EXP-04) [wave 4]
 
@@ -164,7 +164,7 @@ something real.
 - [x] 06-01-TRD.md — chase/model schema-v2: per-section Blocks (paragraph/list/code/math/heading) + press/math raw-TeX accessor — SHARED PREREQUISITE, unblocks Obj-7 DART-04 [wave 1]
 - [x] 06-02-TRD.md — convert/pptx EMU-conversion utility + 16:9/4:3 slide-size constants + chOff/chExt group-transform, independently unit-tested (EXP-03) [wave 1] — complete 2026-07-21 (commits c5eb144, 6de5619; SUMMARY: 06-02-SUMMARY.md)
 - [x] 06-03-TRD.md — deterministic OPC zip packager + complete static part graph (12-attr clrMap, 3-entry fmtScheme) + trivial-deck openability on 16:9/4:3 (EXP-03) [wave 2] — complete 2026-07-21 (commits eb2ada9, 5a98584, b209398, 95fe34c; SUMMARY: 06-03-SUMMARY.md)
-- [ ] 06-04-TRD.md — ToPPTX(model.Document, Options): Section→slide, Blocks/Outline→editable <p:sp> text boxes + grouped shape, no Chrome (EXP-03) [wave 3]
+- [x] 06-04-TRD.md — ToPPTX(model.Document, Options): Section→slide, Blocks/Outline→editable <p:sp> text boxes + grouped shape, no Chrome (EXP-03) [wave 3]
 - [ ] 06-05-TRD.md — speaker notes (Section.Notes→notesSlideN) + comprehensive openability/position verification on 16:9 + 4:3 (EXP-03) [wave 4]
 
 > **Decision gate (must be confirmed before this objective's design doc is written):** hand-rolled OOXML (stdlib `archive/zip` + `encoding/xml`) is the confirmed approach — `unioffice` and any of its forks are explicitly rejected (AGPLv3/commercial-license-key requirement, incompatible with Eden Press's MIT/embeddable positioning). Re-confirm at planning time that no new permissive Go PPTX library has emerged since the research date.
@@ -183,7 +183,7 @@ something real.
 - [x] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2]
 - [x] 07-03-TRD.md — DART-02: native builds — Android c-shared .so/ABI, iOS c-archive→xcframework + two-pipeline CI [wave 2]
 - [x] 07-04-TRD.md — DART-05: boundary conformance — corpus subset through compiled wasm + host capi via same JSON entrypoint [wave 3]
-- [ ] 07-05-TRD.md — DART-04: JS-free Dart surface — flutter_math_fork + flutter_highlighting; consumes Obj6/06-01 schema-v2 [wave 3]
+- [x] 07-05-TRD.md — DART-04: JS-free Dart surface — flutter_math_fork + flutter_highlighting; consumes Obj6/06-01 schema-v2 [wave 3]
 
 > **Decision gate (resolve before writing any WASM-specific code):** standard Go vs. TinyGo for the WASM target — decide based on a compatibility audit of goldmark, `yaml.v3` front-matter parsing, and the JSON-AST emitter against TinyGo's partial reflection/`encoding/json` support (a functional-correctness risk, not merely a binary-size/perf tradeoff). If TinyGo is chosen, pin its bundled `wasm_exec.js` to the exact compiler version.
 
@@ -213,10 +213,10 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
-| 4. CLI (cmd/eden-press) | 5/8 | In Progress | - |
-| 5. convert/pdf + convert/png (chromedp) | 3/5 | In Progress|  |
-| 6. convert/pptx (native OOXML) | 3/5 | In Progress | - |
-| 7. Dart/Flutter Binding | 4/5 | In Progress | - |
+| 4. CLI (cmd/eden-press) | 6/8 | In Progress | - |
+| 5. convert/pdf + convert/png (chromedp) | 4/5 | In Progress | - |
+| 6. convert/pptx (native OOXML) | 4/5 | In Progress | - |
+| 7. Dart/Flutter Binding | 5/5 | Complete    | 2026-07-21 |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
 
 ---
