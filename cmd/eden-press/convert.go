@@ -24,8 +24,11 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/AO-Cyber-Systems/eden-press/press"
 )
 
 // newConvertCmd registers the explicit "convert" subcommand -- the same
@@ -45,9 +48,75 @@ func newConvertCmd() *cobra.Command {
 	return cmd
 }
 
-// runConvert is a STUB -- filled by TRD 04-03 (htmldoc bare-style zero-JS
-// assembly + convert pipeline, CLI-01). It must compile so every downstream
-// wave can build against a working command tree.
+// runConvert is the CLI-01 capstone: the full convert pipeline
+// (resolveInput -> buildOptions -> press.Render -> assembleHTML ->
+// writeOutput). It backs BOTH the root command's default action and the
+// explicit "convert" subcommand (root.go's RunE calls this same function),
+// so watch (04-06) and serve (04-07) reuse the identical
+// resolveInput->Render->assembleHTML chain rather than re-implementing it.
+//
+// The default arg (no positional given) is "-" (stdin) -- the documented
+// default pairing: `cat deck.md | eden-press` and `eden-press -` both read
+// stdin and write stdout. A positional path reads that file instead.
+//
+// Input is read via resolveInputFrom(arg, cmd.InOrStdin()) rather than
+// resolveInput(arg) -- resolveInput hardcodes the process's real os.Stdin
+// (see input.go), which is correct for main()'s real invocation (cobra's
+// cmd.InOrStdin() falls back to os.Stdin when no reader was injected) but
+// would bypass a test's cmd.SetIn(reader). Using cmd.InOrStdin() keeps
+// both paths correct through the SAME resolveInputFrom core.
 func runConvert(cmd *cobra.Command, args []string) error {
-	return fmt.Errorf("convert: not implemented (04-03)")
+	arg := "-"
+	if len(args) == 1 {
+		arg = args[0]
+	}
+
+	md, _, err := resolveInputFrom(arg, cmd.InOrStdin())
+	if err != nil {
+		return err
+	}
+
+	opts, err := buildOptions(cmd)
+	if err != nil {
+		return err
+	}
+
+	out, err := press.Render(md, opts)
+	if err != nil {
+		return err
+	}
+
+	doc := assembleHTML(out, htmlDocOptions{AutoFitScript: cfg.Bool("auto-fit-script")})
+
+	return writeOutput(cmd, doc)
+}
+
+// writeOutput writes the assembled document to the --output/-o path if
+// set, or to cmd.OutOrStdout() otherwise -- the default pairing (convert's
+// own default output is stdout; watch's default of "<input-stem>.html"
+// belongs to 04-06, not here). Using cmd.OutOrStdout() (rather than
+// os.Stdout directly) is load-bearing for testability: a test's
+// cmd.SetOut(buf) captures exactly what a real invocation prints.
+//
+// runConvert backs BOTH the root command's default action (which has no
+// --output flag of its own; only the "convert" subcommand registers it via
+// registerConvertFlags) and the "convert" subcommand itself, so --output
+// is looked up defensively: cmd.Flags().Lookup, not cmd.Flags().GetString,
+// so an invocation through root's bare default (no --output registered at
+// all) falls through to stdout instead of erroring on an undefined flag.
+func writeOutput(cmd *cobra.Command, doc string) error {
+	path := ""
+	if f := cmd.Flags().Lookup("output"); f != nil {
+		path = f.Value.String()
+	}
+
+	if path == "" {
+		_, err := fmt.Fprint(cmd.OutOrStdout(), doc)
+		return err
+	}
+
+	if err := os.WriteFile(path, []byte(doc), 0o644); err != nil {
+		return fmt.Errorf("writeOutput: write file %q: %w", path, err)
+	}
+	return nil
 }
