@@ -197,10 +197,7 @@ func (t *svgTransformer) Transform(doc *ast.Document, reader text.Reader, pc par
 			continue
 		}
 
-		// TRD 01-07 Task 3 (advancedbg.go) replaces this with the real
-		// 3-layer background/content/pseudo structure; Task 2 only
-		// establishes extraction + the base wrap.
-		wrapBaseSvg(doc, sec, opts.Width, opts.Height)
+		wrapAdvancedBackgroundSvg(doc, sec, data, opts.Width, opts.Height)
 	}
 }
 

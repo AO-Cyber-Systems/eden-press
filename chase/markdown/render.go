@@ -61,6 +61,38 @@ func (r *nodeRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(KindFooterElement, r.renderFooter)
 	reg.Register(KindSvg, r.renderSvg)
 	reg.Register(KindForeignObject, r.renderForeignObject)
+	reg.Register(KindBackgroundLayer, r.renderBackgroundLayer)
+	reg.Register(KindPseudoLayer, r.renderPseudoLayer)
+}
+
+// writeAttrs writes each Attr in attrs as ` name="escaped-value"`, in
+// order -- the same escaping/ordering renderSection already applies to
+// *Section's own Attrs, shared here for the two advanced-background layer
+// node kinds (neither of which is a *Section, so neither goes through
+// renderSection itself).
+func writeAttrs(w util.BufWriter, attrs []Attr) {
+	for _, a := range attrs {
+		_, _ = w.WriteString(` `)
+		_, _ = w.WriteString(a.Name)
+		_, _ = w.WriteString(`="`)
+		_, _ = w.Write(util.EscapeHTML([]byte(a.Value)))
+		_, _ = w.WriteString(`"`)
+	}
+}
+
+// figureStyle builds one background image's <figure style="..."> value:
+// background-image (always), background-size (if EffectiveSize resolved to
+// a non-empty value), filter (if any CSS filter functions were parsed).
+func figureStyle(img bgImage) string {
+	style := NewInlineStyle()
+	style.Set("background-image", `url("`+img.URL+`")`)
+	if img.Size != "" {
+		style.Set("background-size", img.Size)
+	}
+	if img.Filter != "" {
+		style.Set("filter", img.Filter)
+	}
+	return style.String()
 }
 
 // renderDocument wraps the entire rendered slide run in
@@ -172,5 +204,58 @@ func (r *nodeRenderer) renderForeignObject(w util.BufWriter, source []byte, n as
 	} else {
 		_, _ = w.WriteString(`</foreignObject>`)
 	}
+	return ast.WalkContinue, nil
+}
+
+// renderBackgroundLayer renders a *BackgroundLayer (the advanced-background
+// structure's first layer, advancedbg.go) as a self-contained, one-shot
+// (entering-only) emission:
+//
+//	<section ...SectionAttrs>
+//	  <div data-marpit-advanced-background-container="true" data-marpit-advanced-background-direction="...">
+//	    <figure style="...">[<figcaption>ESCAPED</figcaption>]</figure>*
+//	  </div>
+//	</section>
+func (r *nodeRenderer) renderBackgroundLayer(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		return ast.WalkContinue, nil
+	}
+	bg := n.(*BackgroundLayer)
+
+	_, _ = w.WriteString(`<section`)
+	writeAttrs(w, bg.SectionAttrs)
+	_, _ = w.WriteString(`><div data-marpit-advanced-background-container="true" data-marpit-advanced-background-direction="`)
+	_, _ = w.Write(util.EscapeHTML([]byte(bg.Direction)))
+	_, _ = w.WriteString(`">`)
+
+	for _, img := range bg.Images {
+		_, _ = w.WriteString(`<figure style="`)
+		_, _ = w.Write(util.EscapeHTML([]byte(figureStyle(img))))
+		_, _ = w.WriteString(`">`)
+		if img.Alt != "" {
+			_, _ = w.WriteString(`<figcaption>`)
+			_, _ = w.Write(util.EscapeHTML([]byte(img.Alt)))
+			_, _ = w.WriteString(`</figcaption>`)
+		}
+		_, _ = w.WriteString(`</figure>`)
+	}
+
+	_, _ = w.WriteString(`</div></section>`)
+	return ast.WalkContinue, nil
+}
+
+// renderPseudoLayer renders a *PseudoLayer (the advanced-background
+// structure's third layer, advancedbg.go) as a self-contained, one-shot
+// (entering-only) emission: <section ...SectionAttrs></section> (always
+// empty -- it stands in for Marpit's section::after pseudo-element).
+func (r *nodeRenderer) renderPseudoLayer(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		return ast.WalkContinue, nil
+	}
+	p := n.(*PseudoLayer)
+
+	_, _ = w.WriteString(`<section`)
+	writeAttrs(w, p.SectionAttrs)
+	_, _ = w.WriteString(`></section>`)
 	return ast.WalkContinue, nil
 }

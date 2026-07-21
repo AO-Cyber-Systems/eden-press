@@ -213,3 +213,62 @@ func TestNonSvgBackgroundImageDirective(t *testing.T) {
 		t.Fatalf("non-SVG mode must not emit svg/foreignObject wrap, got: %s", html)
 	}
 }
+
+// renderDocWithSvg runs the two-phase seam with inline-SVG mode explicitly
+// enabled (SvgOptionsKey), returning the rendered HTML.
+func renderDocWithSvg(md goldmark.Markdown, src string) string {
+	source := []byte(src)
+	pc := parser.NewContext()
+	pc.Set(SvgOptionsKey, &SvgOptions{Enabled: true})
+
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader, parser.WithContext(pc))
+
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, source, doc); err != nil {
+		panic(err)
+	}
+	return buf.String()
+}
+
+// Test-list case 7 (Task 3): marp-bg-image's advanced-background structure,
+// verified structurally (ignoring the heading-id slug/whitespace concerns
+// TestCorpusMarpClassSpotStructural already documents as an
+// Objective-3/TRD-01-08-only concern) against the byte-exact background/
+// content/pseudo layer shape confirmed against
+// conformance/corpus/cases/marp-bg-image/expected.html.
+func TestCorpusMarpBgImageStructural(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	out := renderDocWithSvg(md, readFixture(t, "marp-bg-image", "input.md"))
+
+	for _, want := range []string{
+		`<svg data-marpit-svg="" viewBox="0 0 1280 720">`,
+		`<foreignObject width="1280" height="720"><section data-marpit-advanced-background="background"><div data-marpit-advanced-background-container="true" data-marpit-advanced-background-direction="horizontal"><figure style="background-image:url(&quot;https://example.com/bg.jpg&quot;);"></figure></div></section></foreignObject>`,
+		`<foreignObject width="1280" height="720"><section id="1" data-marpit-advanced-background="content">`,
+		`<foreignObject width="1280" height="720" data-marpit-advanced-background="pseudo"><section data-marpit-advanced-background="pseudo" style=""></section></foreignObject>`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected substring:\n%s\nnot found in:\n%s", want, out)
+		}
+	}
+}
+
+// Test-list case 8 (Task 3): marp-bg-split's split=left advanced-background
+// structure -- content layer width/x adjust to the split percentage,
+// background/pseudo layers carry the split attr + merged
+// --marpit-advanced-background-split style through unchanged -- verified
+// against conformance/corpus/cases/marp-bg-split/expected.html.
+func TestCorpusMarpBgSplitStructural(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	out := renderDocWithSvg(md, readFixture(t, "marp-bg-split", "input.md"))
+
+	for _, want := range []string{
+		`<foreignObject width="1280" height="720"><section data-marpit-advanced-background="background" data-marpit-advanced-background-split="left" style="--marpit-advanced-background-split:50%;"><div data-marpit-advanced-background-container="true" data-marpit-advanced-background-direction="horizontal"><figure style="background-image:url(&quot;https://example.com/l.jpg&quot;);"></figure></div></section></foreignObject>`,
+		`<foreignObject width="50%" height="720" x="50%"><section id="1" data-marpit-advanced-background="content" data-marpit-advanced-background-split="left" style="--marpit-advanced-background-split:50%;">`,
+		`<foreignObject width="1280" height="720" data-marpit-advanced-background="pseudo"><section data-marpit-advanced-background="pseudo" data-marpit-advanced-background-split="left" style=""></section></foreignObject>`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected substring:\n%s\nnot found in:\n%s", want, out)
+		}
+	}
+}
