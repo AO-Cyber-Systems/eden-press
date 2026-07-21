@@ -10,6 +10,9 @@ STATE.md stays lean; this file grows over time.
 - [Objective 00-conformance-corpus-attribution]: Eden headers = 2026 AO Cyber Systems; verbatim Marp assets preserve 2018 marp-team copyright; addlicense two-template enforcement
 - [Objective 01-chase-framework]: chase/theme Pack pipeline: Pass{Name,Run}+RunPasses shared runner reused at both Tier-1 Load and Tier-2 Pack; own repadding serializers (declarationText) added since Stylesheet.String()/Declaration.String() don't repad function-argument commas in values
 - [Objective 01-chase-framework]: Only @import-theme is recursively resolved (cycle-safe via per-branch copied visited map); plain @import atoms left unresolved (no filesystem/network layer in scope); the :marpit-container-alone AdvancedBackgroundCSS gap rule is deliberately left un-scoped rather than modifying the locked chase/theme/selector package
+- [Objective 01-chase-framework]: marp-gfm-table passes outright via goldmark's stock GFM extension -- no Objective-3 battery needed, asserted explicitly as a decision record
+- [Objective 01-chase-framework]: headingDivider display-value materialization fixed (Rule 1) at apply.go's data-attribute layer only, leaving the 01-02-locked expanded-range CoerceGlobal contract untouched
+- [Objective 01-chase-framework]: Rasterization proof strategy: human-verify checkpoint (screenshot) now for Objective 1; deterministic headless-Chrome pixel-diff deferred to Objective 5 where chromedp lives, keeping chase/press Chrome-free through Objectives 1-4
 
 ## Performance Metrics
 
@@ -17,4 +20,5 @@ STATE.md stays lean; this file grows over time.
 |-----------|----------|-------|-------|
 | Objective 00-conformance-corpus-attribution P01 | 6min | 3 tasks | 19 files |
 | Objective 01-chase-framework P04 | 22min | 3 tasks | 11 files |
+| Objective 01-chase-framework P08 | 45min | 3 tasks | 6 files |
 
