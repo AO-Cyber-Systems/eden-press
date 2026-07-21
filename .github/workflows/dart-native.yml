@@ -1,0 +1,120 @@
+# Copyright (c) 2026 AO Cyber Systems
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+# Dart Native Builds (DART-02): verifies scripts/build-android.sh and
+# scripts/build-ios.sh as TWO fully isolated, separately-toolchained jobs --
+# separate runners, no shared CC/CGO_ENABLED/NDK env between them. This is a
+# NEW workflow file (ci.yml is untouched) to keep the native mobile lanes
+# isolated from the general build/vet/test/license lane.
+#
+# NO `gomobile bind` anywhere -- both jobs run plain `go build
+# -buildmode=c-shared`/`-buildmode=c-archive` via the scripts committed in
+# this same TRD.
+#
+# SC#2 (the objective's corrected toolchain-hygiene case): ios-build runs on
+# an Apple-Silicon macos runner that ALSO has the Android NDK installed
+# (co-present, unused by the iOS build) and must still succeed. The specific
+# panic this guards against historically (golang/go#47296) is scoped entirely
+# to `gomobile bind`'s own env.go and cannot reproduce here since gomobile is
+# excluded by construction (DART-02) -- env isolation between jobs is kept as
+# hygiene regardless.
+name: Dart Native Builds
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Pinned toolchain versions (RESEARCH Open Question 3: no exact NDK/Xcode
+# version was chosen in the abstract -- these are the concrete, recorded
+# choices; bump deliberately, never let them float).
+env:
+  GO_VERSION: "1.25"
+  ANDROID_NDK_VERSION: "27.2.12479018" # NDK r27c
+  XCODE_VERSION: "16.4"
+
+jobs:
+  android-build:
+    # Pinned NDK version is set by env.ANDROID_NDK_VERSION below (job names
+    # cannot reference the env context).
+    name: Android (c-shared .so per ABI, pinned NDK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set up Android NDK (pinned)
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+
+      - name: Build Android c-shared libraries (no gomobile)
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: bash scripts/build-android.sh
+
+      - name: Check no chromedp (API-02)
+        run: bash scripts/check-no-chromedp.sh
+
+  ios-build:
+    # Apple-Silicon runner (SC#2). macos-15 is the current GitHub-hosted
+    # Apple-Silicon image at time of writing; bump deliberately if renamed.
+    name: iOS (c-archive -> lipo -> xcframework, Apple Silicon + NDK co-present)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set up Xcode (pinned)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      # SC#2: install the Android NDK on THIS SAME Apple-Silicon runner to
+      # prove its mere presence does not break the iOS c-archive build. The
+      # NDK is intentionally never referenced by build-ios.sh -- only its
+      # co-presence is exercised here.
+      - name: Set up Android NDK (co-present, unused by this job's build)
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+
+      - name: Build iOS c-archive slices + xcframework (no gomobile)
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: bash scripts/build-ios.sh
+
+      - name: Check no chromedp (API-02)
+        run: bash scripts/check-no-chromedp.sh
