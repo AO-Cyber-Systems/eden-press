@@ -8,6 +8,9 @@
 # WebAssembly build artifacts
 *.wasm
 
+# C-ABI (cgo) host build output (scripts/build-capi-host.sh)
+/bind/capi/build/
+
 # Node tooling used only by the throwaway corpus generator (tools/corpus-gen)
 /node_modules/
 tools/corpus-gen/node_modules/

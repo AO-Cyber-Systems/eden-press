@@ -35,7 +35,7 @@ set -euo pipefail
 # The package trees whose transitive deps must be chromedp-free. press/ is the
 # public surface; chase/ and profiles/ are everything it composes. Asserting all
 # three (not just press/) proves the boundary holds one level down too.
-TREES=("./press/..." "./chase/..." "./profiles/...")
+TREES=("./press/..." "./chase/..." "./profiles/..." "./bind/...")
 
 echo "check-no-chromedp: scanning transitive deps of ${TREES[*]}"
 
