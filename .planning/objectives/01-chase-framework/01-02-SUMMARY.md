@@ -154,3 +154,7 @@ None - no external service configuration required.
 ---
 *Objective: 01-chase-framework*
 *Completed: 2026-07-21*
+
+## Self-Check: PASSED
+
+All 6 created source/test files confirmed present on disk (`chase/directive/{comment,frontmatter,yaml,directives,carryforward}.go`, `directive_test.go`). All 7 referenced commit hashes (`6597192`, `dcd1ac4`, `72f42f9`, `671d5d8`, `87e298a`, `89a72af`, `9d770de`) confirmed present via `git log --oneline --all`.
