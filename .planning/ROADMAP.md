@@ -179,7 +179,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 |-------|----------------|--------|-----------|
 | 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 6/6 | Complete    | 2026-07-20 |
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
-| 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete   | 2026-07-21 |
+| 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
 | 3. press/ Batteries + Public API | 0/TBD | Not started | - |
 | 4. CLI (cmd/eden-press) | 0/TBD | Not started | - |
 | 5. convert/pdf + convert/png (chromedp) | 0/TBD | Not started | - |
