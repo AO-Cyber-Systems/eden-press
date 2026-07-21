@@ -33,10 +33,10 @@
 
 ### Document model & profiles (`chase/model`, `chase/profile`) — first-class from day one
 
-- [ ] **MODEL-01**: A structured document model (slides, outline, speaker notes, metadata) derived from the finalized AST
-- [ ] **MODEL-02**: Emit the model as JSON alongside rendered HTML+CSS from the same source pass
-- [ ] **MODEL-03**: An output-**profile** interface separating shared core (parse/directives/model) from profile-specific rendering (container/layout/pagination/export)
-- [ ] **MODEL-04**: A `slides` profile (Marp-compatible) implemented against that interface as profile #1
+- [x] **MODEL-01**: A structured document model (slides, outline, speaker notes, metadata) derived from the finalized AST
+- [x] **MODEL-02**: Emit the model as JSON alongside rendered HTML+CSS from the same source pass
+- [x] **MODEL-03**: An output-**profile** interface separating shared core (parse/directives/model) from profile-specific rendering (container/layout/pagination/export)
+- [x] **MODEL-04**: A `slides` profile (Marp-compatible) implemented against that interface as profile #1
 
 ### Batteries (`press/` — Marp-Core equivalent)
 
@@ -148,10 +148,10 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | THEME-02 | Objective 1 | Pending |
 | THEME-03 | Objective 1 | Complete |
 | THEME-04 | Objective 1 | Pending |
-| MODEL-01 | Objective 2 — chase/model + chase/profile + profiles/slides | Pending |
-| MODEL-02 | Objective 2 | Pending |
-| MODEL-03 | Objective 2 | Pending |
-| MODEL-04 | Objective 2 | Pending |
+| MODEL-01 | Objective 2 — chase/model + chase/profile + profiles/slides | Complete |
+| MODEL-02 | Objective 2 | Complete |
+| MODEL-03 | Objective 2 | Complete |
+| MODEL-04 | Objective 2 | Complete |
 | CORE-01 | Objective 3 — press/ Batteries + Public API | Pending |
 | CORE-02 | Objective 3 | Pending |
 | CORE-03 | Objective 3 | Pending |
