@@ -25,6 +25,7 @@ package model
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -234,6 +235,221 @@ func TestBuildNonMutation(t *testing.T) {
 	}
 	if htmlA != htmlB {
 		t.Fatalf("markdown.Render(md, nil) not stable across calls:\nA: %s\nB: %s", htmlA, htmlB)
+	}
+}
+
+// blocksOfKind returns every Block of kind k in blocks, preserving order.
+func blocksOfKind(blocks []Block, k BlockKind) []Block {
+	var out []Block
+	for _, b := range blocks {
+		if b.Kind == k {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// TestBuildParagraphBlocks covers Test-list case 3: a section with two
+// paragraphs yields two Block{Kind: paragraph} in document order, each carrying
+// plain editable text.
+func TestBuildParagraphBlocks(t *testing.T) {
+	md := "# Title\n\nFirst paragraph.\n\nSecond paragraph.\n"
+	doc, pc := markdown.Parse(md)
+
+	d := Build(doc, []byte(md), pc)
+
+	if len(d.Sections) != 1 {
+		t.Fatalf("len(Sections) = %d, want 1", len(d.Sections))
+	}
+	paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph)
+	if len(paras) != 2 {
+		t.Fatalf("paragraph blocks = %d, want 2 (all blocks: %+v)", len(paras), d.Sections[0].Blocks)
+	}
+	if paras[0].Text != "First paragraph." {
+		t.Errorf("paras[0].Text = %q, want %q", paras[0].Text, "First paragraph.")
+	}
+	if paras[1].Text != "Second paragraph." {
+		t.Errorf("paras[1].Text = %q, want %q", paras[1].Text, "Second paragraph.")
+	}
+
+	// Document order: the heading Block precedes both paragraph Blocks.
+	blocks := d.Sections[0].Blocks
+	if len(blocks) < 3 || blocks[0].Kind != BlockHeading || blocks[1].Kind != BlockParagraph || blocks[2].Kind != BlockParagraph {
+		t.Errorf("block order = %+v, want [heading, paragraph, paragraph]", blocks)
+	}
+}
+
+// TestBuildListBlocks covers Test-list case 4: a nested bullet list yields one
+// Block{Kind: list, Ordered: false} whose Items carry per-item Text + 0-based
+// nesting Level in document order; an ordered list sets Ordered: true.
+func TestBuildListBlocks(t *testing.T) {
+	t.Run("nested_bullet", func(t *testing.T) {
+		md := "# T\n\n- a\n  - b\n- c\n"
+		doc, pc := markdown.Parse(md)
+
+		d := Build(doc, []byte(md), pc)
+
+		lists := blocksOfKind(d.Sections[0].Blocks, BlockList)
+		if len(lists) != 1 {
+			t.Fatalf("list blocks = %d, want 1 (all: %+v)", len(lists), d.Sections[0].Blocks)
+		}
+		lb := lists[0]
+		if lb.Ordered {
+			t.Errorf("Ordered = true, want false for a bullet list")
+		}
+		want := []ListItem{{Text: "a", Level: 0}, {Text: "b", Level: 1}, {Text: "c", Level: 0}}
+		if len(lb.Items) != len(want) {
+			t.Fatalf("Items = %+v, want %+v", lb.Items, want)
+		}
+		for i, w := range want {
+			if lb.Items[i] != w {
+				t.Errorf("Items[%d] = %+v, want %+v", i, lb.Items[i], w)
+			}
+		}
+
+		// No loose paragraph blocks leaked from the list's item text.
+		if paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph); len(paras) != 0 {
+			t.Errorf("list item text leaked as %d paragraph block(s): %+v", len(paras), paras)
+		}
+	})
+
+	t.Run("ordered", func(t *testing.T) {
+		md := "# T\n\n1. one\n2. two\n"
+		doc, pc := markdown.Parse(md)
+
+		d := Build(doc, []byte(md), pc)
+
+		lists := blocksOfKind(d.Sections[0].Blocks, BlockList)
+		if len(lists) != 1 {
+			t.Fatalf("list blocks = %d, want 1", len(lists))
+		}
+		if !lists[0].Ordered {
+			t.Errorf("Ordered = false, want true for a numbered list")
+		}
+		want := []ListItem{{Text: "one"}, {Text: "two"}}
+		if len(lists[0].Items) != len(want) {
+			t.Fatalf("Items = %+v, want %+v", lists[0].Items, want)
+		}
+		for i, w := range want {
+			if lists[0].Items[i] != w {
+				t.Errorf("Items[%d] = %+v, want %+v", i, lists[0].Items[i], w)
+			}
+		}
+	})
+}
+
+// TestBuildCodeBlocks covers Test-list case 5: a fenced code block yields
+// Block{Kind: code, Language: "go", Text: <RAW source>} -- pre-chroma, with no
+// HTML span markup. An indented code block yields a code Block with empty
+// Language.
+func TestBuildCodeBlocks(t *testing.T) {
+	t.Run("fenced_go", func(t *testing.T) {
+		md := "# T\n\n```go\nfmt.Println()\n```\n"
+		doc, pc := markdown.Parse(md)
+
+		d := Build(doc, []byte(md), pc)
+
+		codes := blocksOfKind(d.Sections[0].Blocks, BlockCode)
+		if len(codes) != 1 {
+			t.Fatalf("code blocks = %d, want 1 (all: %+v)", len(codes), d.Sections[0].Blocks)
+		}
+		if codes[0].Language != "go" {
+			t.Errorf("Language = %q, want %q", codes[0].Language, "go")
+		}
+		if codes[0].Text != "fmt.Println()\n" {
+			t.Errorf("Text = %q, want %q (RAW source)", codes[0].Text, "fmt.Println()\n")
+		}
+		if strings.Contains(codes[0].Text, "<span") || strings.Contains(codes[0].Text, "class=") {
+			t.Errorf("code Text must be RAW (pre-chroma), got HTML markup: %q", codes[0].Text)
+		}
+	})
+
+	t.Run("indented_no_language", func(t *testing.T) {
+		md := "# T\n\n    indented code\n"
+		doc, pc := markdown.Parse(md)
+
+		d := Build(doc, []byte(md), pc)
+
+		codes := blocksOfKind(d.Sections[0].Blocks, BlockCode)
+		if len(codes) != 1 {
+			t.Fatalf("code blocks = %d, want 1 (all: %+v)", len(codes), d.Sections[0].Blocks)
+		}
+		if codes[0].Language != "" {
+			t.Errorf("Language = %q, want empty for indented code", codes[0].Language)
+		}
+		if codes[0].Text != "indented code\n" {
+			t.Errorf("Text = %q, want %q", codes[0].Text, "indented code\n")
+		}
+	})
+}
+
+// TestBuildHeadingBlocks covers Test-list case 6: an `## H2` inside a section
+// produces BOTH the existing Outline entry (unchanged) AND a
+// Block{Kind: heading, Level: 2, Text: "..."}.
+func TestBuildHeadingBlocks(t *testing.T) {
+	md := "# H1\n\n## H2\n"
+	doc, pc := markdown.Parse(md)
+
+	d := Build(doc, []byte(md), pc)
+
+	// Outline unchanged (mirrors TestBuildOutlineHeadingsGroupedBySection).
+	wantOutline := []OutlineEntry{
+		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1"},
+		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2"},
+	}
+	if len(d.Outline) != len(wantOutline) {
+		t.Fatalf("len(Outline) = %d, want %d", len(d.Outline), len(wantOutline))
+	}
+	for i, w := range wantOutline {
+		if d.Outline[i] != w {
+			t.Errorf("Outline[%d] = %+v, want %+v", i, d.Outline[i], w)
+		}
+	}
+
+	// Heading Blocks alongside the Outline.
+	headings := blocksOfKind(d.Sections[0].Blocks, BlockHeading)
+	wantHeadings := []Block{
+		{Kind: BlockHeading, Level: 1, Text: "H1"},
+		{Kind: BlockHeading, Level: 2, Text: "H2"},
+	}
+	if len(headings) != len(wantHeadings) {
+		t.Fatalf("heading blocks = %+v, want %+v", headings, wantHeadings)
+	}
+	for i, w := range wantHeadings {
+		if !reflect.DeepEqual(headings[i], w) {
+			t.Errorf("heading block[%d] = %+v, want %+v", i, headings[i], w)
+		}
+	}
+}
+
+// TestBuildBlocksPreserveExistingOutput is the Task-2 regression: adding block
+// extraction leaves the pre-existing Attrs/Notes/Outline output byte-for-byte
+// unchanged for a mixed fixture (heading + note + directive + paragraph).
+func TestBuildBlocksPreserveExistingOutput(t *testing.T) {
+	md := "# Slide\n\nBody text.\n\n<!-- just a presenter note -->\n\n<!-- paginate: true -->\n"
+	doc, pc := markdown.Parse(md)
+
+	d := Build(doc, []byte(md), pc)
+
+	if len(d.Sections) != 1 {
+		t.Fatalf("len(Sections) = %d, want 1", len(d.Sections))
+	}
+	// Notes unchanged: exactly the one non-directive note.
+	notes := d.Sections[0].Notes
+	if len(notes) != 1 || notes[0] != "just a presenter note" {
+		t.Fatalf("Notes = %+v, want exactly [%q]", notes, "just a presenter note")
+	}
+	// Outline unchanged: the single H1.
+	wantOutline := []OutlineEntry{{SectionID: 1, Level: 1, Text: "Slide", Slug: "slide"}}
+	if len(d.Outline) != 1 || d.Outline[0] != wantOutline[0] {
+		t.Fatalf("Outline = %+v, want %+v", d.Outline, wantOutline)
+	}
+	// New Blocks present: a heading block + a paragraph block (order preserved).
+	if paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph); len(paras) != 1 || paras[0].Text != "Body text." {
+		t.Errorf("paragraph blocks = %+v, want one %q", paras, "Body text.")
+	}
+	if hs := blocksOfKind(d.Sections[0].Blocks, BlockHeading); len(hs) != 1 || hs[0].Text != "Slide" {
+		t.Errorf("heading blocks = %+v, want one %q", hs, "Slide")
 	}
 }
 
