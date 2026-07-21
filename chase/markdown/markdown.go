@@ -72,8 +72,15 @@ func (e *ext) Extend(m goldmark.Markdown) {
 		parser.WithInlineParsers(
 			util.Prioritized(newCommentInlineParser(), 0),
 		),
+		// headingDivider (100) MUST run before slide-split (200): it
+		// inserts synthetic *ast.ThematicBreak siblings that slide-split
+		// then consumes uniformly alongside any author-written "---"
+		// breaks (01-RESEARCH.md "headingDivider ordering").
+		parser.WithASTTransformers(
+			util.Prioritized(newHeadingDividerTransformer(), 100),
+			util.Prioritized(newSlideSplitTransformer(), 200),
+		),
 	)
-	// ASTTransformers (headingDivider + slide-split) and NodeRenderers
-	// (.marpit/<section> render-time wrapping) are added by Task 2 and
-	// Task 3 of this TRD, below this line, as those files land.
+	// NodeRenderers (.marpit/<section> render-time wrapping) are added by
+	// Task 3 of this TRD, below this line, as that file lands.
 }
