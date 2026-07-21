@@ -81,6 +81,23 @@ func ParseSelectorTokens(selectorText string) ([]css.Token, error) {
 	}
 }
 
+// mustParseTokens parses a fixed, package-internal selector literal (a
+// placeholder chain, a container/slide chain, or the :root rewrite
+// target) via ParseSelectorTokens and panics on error. It exists so
+// scope.go/root.go's constant token sequences are built by the SAME
+// tokenizer used everywhere else in this package — dogfooding the parser
+// — rather than hand-authored as css.Token{} struct literals, which would
+// be one more place to introduce a typo in an escape sequence like
+// `\20 `. It is only ever called with fixed, package-authored strings at
+// package-var initialization time, never with untrusted input.
+func mustParseTokens(selectorText string) []css.Token {
+	tokens, err := ParseSelectorTokens(selectorText)
+	if err != nil {
+		panic("selector: mustParseTokens(" + selectorText + "): " + err.Error())
+	}
+	return tokens
+}
+
 // SplitList splits a full selector-list token stream into its
 // comma-separated compound selectors, splitting ONLY on TOP-LEVEL commas.
 // A comma nested inside a FunctionToken's arguments (`:is(a, b)`), inside
