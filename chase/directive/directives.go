@@ -57,6 +57,21 @@ func CoerceGlobal(key string, raw RawValue, themeExists ThemeExists) (value any,
 		return coerceHeadingDivider(raw), true
 	case "style":
 		return raw, true
+	case "size":
+		// CORE-02 (03-07): Marp-Core-layer global directive (above Marpit
+		// proper) -- not a Marpit directive itself, but recognized here so
+		// COMMENT-form "<!-- size: 4:3 -->" classifies as a directive rather
+		// than leaking into Section.Notes as a presenter note (see
+		// chase/model/build.go's isRecognizedDirectiveKey/isNote). Passed
+		// through raw, exactly like style/lang -- front-matter-form size
+		// already reaches Output.Meta unfiltered via buildMeta; this case
+		// closes the comment-form classification gap only.
+		return raw, true
+	case "math":
+		// CORE-02 (03-07): same Marp-Core-layer global directive shape as
+		// "size" immediately above -- passthrough so comment-form
+		// "<!-- math: mathml -->" classifies as a directive, not a note.
+		return raw, true
 	case "theme":
 		s, isStr := raw.(string)
 		if !isStr || themeExists == nil || !themeExists(s) {

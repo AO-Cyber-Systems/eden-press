@@ -186,6 +186,43 @@ func TestCoerceLocalPaginateClassFooter(t *testing.T) {
 	}
 }
 
+// --- 03-07 Task 1: size/math GLOBAL directives (CORE-02) ---
+// Test-list cases 1, 3.
+
+// Test-list case 1: global coercion -- size/math are recognized GLOBAL
+// directives (Marp-Core-layer, above Marpit), mirroring the existing
+// style/lang passthrough shape: raw value returned unchanged, isKnown=true.
+func TestCoerceGlobalSizeMathRecognized(t *testing.T) {
+	v, known := CoerceGlobal("size", "4:3", nil)
+	if !known || v != "4:3" {
+		t.Fatalf(`expected size: "4:3" -> ("4:3", true), got %#v known=%v`, v, known)
+	}
+
+	v, known = CoerceGlobal("math", "mathml", nil)
+	if !known || v != "mathml" {
+		t.Fatalf(`expected math: "mathml" -> ("mathml", true), got %#v known=%v`, v, known)
+	}
+}
+
+// Test-list case 3: regression -- style/lang passthrough (already-recognized
+// global directives, untouched by the size/math addition) and an
+// unrecognized key still behave exactly as before.
+func TestCoerceGlobalStyleLangPassthroughAndUnknownKeyRegression(t *testing.T) {
+	v, known := CoerceGlobal("style", "section { color: red; }", nil)
+	if !known || v != "section { color: red; }" {
+		t.Fatalf("expected style to pass through unchanged, got %#v known=%v", v, known)
+	}
+
+	v, known = CoerceGlobal("lang", "en", nil)
+	if !known || v != "en" {
+		t.Fatalf("expected lang to pass through unchanged, got %#v known=%v", v, known)
+	}
+
+	if _, known := CoerceGlobal("bogus", "x", nil); known {
+		t.Fatalf("expected an unrecognized global key to still report isKnown=false")
+	}
+}
+
 // Spot-rule coverage: an underscore-prefixed key maps to its base local
 // directive name.
 func TestSpotKeyMapsToBaseLocalDirective(t *testing.T) {
