@@ -49,10 +49,10 @@ package model
 const SchemaVersion = "eden-press.model/v1"
 
 // Document is the root of the docmodel: deck-level Meta, the ordered list
-// of Sections (the generic unit a profile happens to call a "slide" or a
-// "page" -- see chase/profile and ARCHITECTURE.md Anti-Pattern 1, which is
-// exactly why nothing in this package is ever named Slide), and a flat
-// Outline of every heading in the deck.
+// of Sections (the generic unit a profile happens to give its own presentation
+// name to -- see chase/profile and ARCHITECTURE.md Anti-Pattern 1, which is
+// exactly why this package never bakes in a profile-specific name for it),
+// and a flat Outline of every heading in the deck.
 type Document struct {
 	// SchemaVersion is always the package constant SchemaVersion; present
 	// as a field (not just a package constant) so it round-trips through
