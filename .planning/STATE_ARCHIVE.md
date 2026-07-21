@@ -15,6 +15,7 @@ STATE.md stays lean; this file grows over time.
 - [Objective 01-chase-framework]: Rasterization proof strategy: human-verify checkpoint (screenshot) now for Objective 1; deterministic headless-Chrome pixel-diff deferred to Objective 5 where chromedp lives, keeping chase/press Chrome-free through Objectives 1-4
 - [Objective 02-model-profile]: chase.Render composes markdown.Parse+RenderDoc+model.Build+profile-parameterized theme.Pack as the one-parse-two-sinks internal entrypoint (MODEL-02); Objective 2 complete
 - [Objective 03-press-batteries-api]: CORE-03's strikethrough <s> override is a priority-100 renderer.NodeRenderer registered for extast.KindStrikethrough (last-write-wins under goldmark's own 500-priority default), exposed as a standalone goldmark.Option (strikethroughOption()) folded into press.Render's NewEngine(pressExtraOpts...) hook — never modifies chase/markdown.NewEngine itself; CORE-03's tables/hard-breaks and CORE-04's heading slugs required zero new wiring (already baked into NewEngine via extension.GFM/WithHardWraps/WithAutoHeadingID) and are regression-locked by verify-only tests instead
+- [Objective 06-convert-pptx]: convert/pptx/emu.go's chOff/chExt GroupTransform.MapChild applies subtract-ChOff-then-scale-then-add-Off (matching ECMA-376 CT_GroupTransform2D exactly); a single shared round() (math.Round) helper backs every EMU conversion AND the transform's scale math, so the whole package has exactly one rounding rule; SlideSize16x9/SlideSize4x3/NotesSize are plain exported struct vars (not funcs/maps) as the single authoritative source 06-03/06-04 size <p:sldSz>/<p:notesSz> from; decision gate re-confirmed — hand-rolled OOXML stays the approach, no new permissive Go PPTX lib emerged, zero new dependency added by this TRD
 
 ## Performance Metrics
 
@@ -26,4 +27,5 @@ STATE.md stays lean; this file grows over time.
 | Objective 02-model-profile P04 | 14min | 3 tasks | 4 files |
 | Objective 03-press-batteries-api P01 | ~8min | 3 tasks | 7 files |
 | Objective 03-press-batteries-api P03 | 12min | 2 tasks | 3 files |
+| Objective 06-convert-pptx 06-02 | 4min | 2 tasks | 3 files |
 
