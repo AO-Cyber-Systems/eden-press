@@ -25,7 +25,26 @@ package markdown
 import (
 	"bytes"
 	"testing"
+
+	"github.com/yuin/goldmark/ast"
 )
+
+// countSectionsAnywhere counts *Section nodes anywhere in doc's subtree, not
+// just direct children -- with inline-SVG mode enabled (seam.go's Parse
+// always enables it), every Section is nested under a Svg/ForeignObject
+// wrapper (svgTransformer, priority 400), so it is no longer a direct doc
+// child the way markdown_test.go's countChildrenOfKind assumes for the
+// inline-SVG-disabled unit tests in this package.
+func countSectionsAnywhere(doc ast.Node) int {
+	n := 0
+	_ = ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering && node.Kind() == KindSection {
+			n++
+		}
+		return ast.WalkContinue, nil
+	})
+	return n
+}
 
 // TestSeamCriterion1ASTAndContextInspectableBetweenPhases covers 01-08's
 // Test-list case 1: Parse (seam.go) returns a finalized *ast.Document --
@@ -42,13 +61,13 @@ func TestSeamCriterion1ASTAndContextInspectableBetweenPhases(t *testing.T) {
 	if pc == nil {
 		t.Fatalf("Parse returned a nil parser.Context")
 	}
-	if got, want := countChildrenOfKind(doc, KindSection), 2; got != want {
-		t.Fatalf("between phases: got %d Section children, want %d", got, want)
+	if got, want := countSectionsAnywhere(doc), 2; got != want {
+		t.Fatalf("between phases: got %d Section nodes, want %d", got, want)
 	}
 
-	first, ok := doc.FirstChild().(*Section)
+	first, ok := findNode(doc, KindSection).(*Section)
 	if !ok {
-		t.Fatalf("doc.FirstChild() is not *Section, got %T", doc.FirstChild())
+		t.Fatalf("first Section not found or wrong type, got %T", findNode(doc, KindSection))
 	}
 	foundClass := false
 	for _, a := range first.Attrs {
