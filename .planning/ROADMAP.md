@@ -182,7 +182,7 @@ something real.
 - [x] 07-01-TRD.md — DART-01: C-ABI core — RenderJSON pure-Go JSON boundary + cgo PressRender/PressFree [wave 1]
 - [x] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2]
 - [x] 07-03-TRD.md — DART-02: native builds — Android c-shared .so/ABI, iOS c-archive→xcframework + two-pipeline CI [wave 2]
-- [ ] 07-04-TRD.md — DART-05: boundary conformance — corpus subset through compiled wasm + host capi via same JSON entrypoint [wave 3]
+- [x] 07-04-TRD.md — DART-05: boundary conformance — corpus subset through compiled wasm + host capi via same JSON entrypoint [wave 3]
 - [ ] 07-05-TRD.md — DART-04: JS-free Dart surface — flutter_math_fork + flutter_highlighting; consumes Obj6/06-01 schema-v2 [wave 3]
 
 > **Decision gate (resolve before writing any WASM-specific code):** standard Go vs. TinyGo for the WASM target — decide based on a compatibility audit of goldmark, `yaml.v3` front-matter parsing, and the JSON-AST emitter against TinyGo's partial reflection/`encoding/json` support (a functional-correctness risk, not merely a binary-size/perf tradeoff). If TinyGo is chosen, pin its bundled `wasm_exec.js` to the exact compiler version.
@@ -216,7 +216,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 4. CLI (cmd/eden-press) | 5/8 | In Progress | - |
 | 5. convert/pdf + convert/png (chromedp) | 2/5 | In Progress | - |
 | 6. convert/pptx (native OOXML) | 3/5 | In Progress | - |
-| 7. Dart/Flutter Binding | 3/5 | In Progress | - |
+| 7. Dart/Flutter Binding | 4/5 | In Progress | - |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
 
 ---

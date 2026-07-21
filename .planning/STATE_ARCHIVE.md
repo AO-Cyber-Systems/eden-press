@@ -17,6 +17,7 @@ STATE.md stays lean; this file grows over time.
 - [Objective 03-press-batteries-api]: CORE-03's strikethrough <s> override is a priority-100 renderer.NodeRenderer registered for extast.KindStrikethrough (last-write-wins under goldmark's own 500-priority default), exposed as a standalone goldmark.Option (strikethroughOption()) folded into press.Render's NewEngine(pressExtraOpts...) hook — never modifies chase/markdown.NewEngine itself; CORE-03's tables/hard-breaks and CORE-04's heading slugs required zero new wiring (already baked into NewEngine via extension.GFM/WithHardWraps/WithAutoHeadingID) and are regression-locked by verify-only tests instead
 - [Objective 06-convert-pptx]: convert/pptx/emu.go's chOff/chExt GroupTransform.MapChild applies subtract-ChOff-then-scale-then-add-Off (matching ECMA-376 CT_GroupTransform2D exactly); a single shared round() (math.Round) helper backs every EMU conversion AND the transform's scale math, so the whole package has exactly one rounding rule; SlideSize16x9/SlideSize4x3/NotesSize are plain exported struct vars (not funcs/maps) as the single authoritative source 06-03/06-04 size <p:sldSz>/<p:notesSz> from; decision gate re-confirmed — hand-rolled OOXML stays the approach, no new permissive Go PPTX lib emerged, zero new dependency added by this TRD
 - [Objective 04-cli]: loadConfigSources fills the 04-02 posflag-only stub with file(ext-routed)->env->posflag-last load order + project-local .marprc.* discovery (--config override); only config.go changed, so CLI-06 config support flows into every mode through the existing cfg/buildOptions seam
+- [Objective 07-dart-binding]: 07-04: responseEnvelope reuses press.Output directly (no json tags -> Go-default keys); synthetic-case parity technique feeds a fresh in-process press.Render HTML into the unmodified runner.RunCase to compare boundary-vs-in-process, never the corpus's own Marp golden
 
 ## Performance Metrics
 
@@ -30,4 +31,5 @@ STATE.md stays lean; this file grows over time.
 | Objective 03-press-batteries-api P03 | 12min | 2 tasks | 3 files |
 | Objective 06-convert-pptx 06-02 | 4min | 2 tasks | 3 files |
 | Objective 04-cli P04 | 5min | 1 tasks | 2 files |
+| Objective 07-dart-binding P04 | 3min | 2 tasks | 6 files |
 
