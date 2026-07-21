@@ -1,0 +1,113 @@
+// Copyright (c) 2026 AO Cyber Systems
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package profile
+
+import "github.com/AO-Cyber-Systems/eden-press/chase/theme"
+
+// profile.go defines chase/profile's core abstraction: the Profile
+// interface plus its two shared value types (SizeTable,
+// PaginationRule). See doc.go for the package-level decision record
+// (why chase/* is exported, and why Boundary()/Directives() from
+// ARCHITECTURE.md Pattern 2's future-profile sketch are deliberately
+// absent from this method set).
+//
+// Every method below is validated bottom-up: it de-hardcodes one
+// SPECIFIC call-site that is hardcoded today in chase/theme (cited in
+// each method's doc) and will become profile-supplied once 02-03
+// wires profiles/slides in and 02-04 builds the chase entrypoint. No
+// method exists without a named consumer in this objective.
+
+// Profile is the output-profile abstraction (differentiator #1 —
+// PROJECT.md, ARCHITECTURE.md Pattern 2): it owns everything that
+// differs between output kinds ("Marp slides" today; "paged
+// report"/"article"/"EPUB" later) and NOTHING else. Parsing, directive
+// resolution, chase/model's docmodel schema, and chase/theme's
+// CSS-scoping passes themselves are all profile-agnostic; a Profile
+// only supplies the tables/predicates those passes consult.
+type Profile interface {
+	// ID is the profile's registry key (e.g. "slides"). Register,
+	// Get, and Default (registry.go) index profiles by this value;
+	// the chase entrypoint (02-04) uses it to select a profile by
+	// name/flag.
+	ID() string
+
+	// UnitElement is the element chase/theme's scoping passes scope
+	// theme rules onto — "section" for slides. De-hardcodes
+	// chase/theme/selector/scope.go's package-level slideChain,
+	// which is a fixed "section" literal today.
+	UnitElement() string
+
+	// Container returns the physical container-chain selector text a
+	// unit is wrapped in for rendering — e.g. "div.marpit > svg >
+	// foreignObject" when inlineSVG is true, "div.marpit" when it is
+	// false. De-hardcodes chase/theme/selector/scope.go's
+	// inlineSVGChain / nonSVGChain package-level vars today.
+	Container(inlineSVG bool) string
+
+	// Sizes resolves the profile's named-size table plus its default
+	// size (16:9 for slides). De-hardcodes chase/theme/meta.go's
+	// bareSizeFallback map and chase/theme/stylesheet.go's
+	// defaultWidthPx/defaultHeightPx constants today.
+	Sizes() SizeTable
+
+	// Pagination describes the render-time pagination CSS shape a
+	// profile wants injected. De-hardcodes
+	// chase/theme/pass_pagination.go's hardcoded "::after"-targeting
+	// / "attr(data-marpit-pagination)" literals today.
+	Pagination() PaginationRule
+
+	// Scaffold returns the base CSS text to prepend before a packed
+	// theme's own rules — the slide-reset scaffold, plus the
+	// advanced-background support CSS appended when inlineSVG is
+	// true. De-hardcodes chase/theme/scaffold.go's ScaffoldCSS /
+	// AdvancedBackgroundCSS constants today.
+	Scaffold(inlineSVG bool) string
+}
+
+// SizeTable is a profile's named-size table plus its default size —
+// e.g. slides' {"4:3": ..., "16:9": ...} with Default set to the
+// "16:9" entry. It reuses chase/theme.Size (the existing
+// Name/WidthPx/HeightPx value type, see chase/theme/stylesheet.go)
+// rather than inventing a parallel one — the one deliberate exception
+// to chase/profile's "no chase/theme dependency beyond this" rule
+// (chase/theme itself MUST NOT import chase/profile back; see doc.go
+// for the one-way edge this preserves).
+type SizeTable struct {
+	ByName  map[string]theme.Size
+	Default theme.Size
+}
+
+// PaginationRule is the render-time pagination CSS shape a Profile
+// supplies: the pseudo-element Selector pagination counters attach to
+// (e.g. "section::after" for slides) and the CSS ContentExpr used for
+// the counter's default `content` value (e.g.
+// "attr(data-marpit-pagination)"). This is deliberately the minimal
+// shape needed by chase/theme/pass_pagination.go's one known call-site
+// in this objective — recognizing/preserving the default pagination
+// content declaration while neutralizing any other author-authored
+// `content` on the same pseudo-element — not a general-purpose CSS
+// rule model.
+type PaginationRule struct {
+	Selector    string
+	ContentExpr string
+}
