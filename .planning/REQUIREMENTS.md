@@ -78,7 +78,7 @@
 - [ ] **DART-02**: Native binding via `dart:ffi` — Android `-buildmode=c-shared` (`.so`), iOS `-buildmode=c-archive` (`.a`); **no `gomobile bind`**
 - [x] **DART-03**: Web binding via `GOOS=js/wasm` + `wasm_exec.js` loader
 - [ ] **DART-04**: JS-free Dart rendering surface — math via `flutter_math_fork`, highlight via `highlighting`/`flutter_highlighting`
-- [ ] **DART-05**: Bindings pass a shared subset of the conformance corpus
+- [x] **DART-05**: Bindings pass a shared subset of the conformance corpus
 
 ### Licensing & attribution (early, first-class)
 
@@ -178,7 +178,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | DART-02 | Objective 7 | Pending |
 | DART-03 | Objective 7 | Complete |
 | DART-04 | Objective 7 | Pending |
-| DART-05 | Objective 7 | Pending |
+| DART-05 | Objective 7 | Complete |
 
 Objective 8 (Math-Fidelity Hardening + Auto-Fit Resolution) owns no new v1 requirement ID — it
 hardens CORE-08 and CORE-09 (delivered in Objective 3) to production quality.
