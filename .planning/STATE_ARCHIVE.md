@@ -14,6 +14,7 @@ STATE.md stays lean; this file grows over time.
 - [Objective 01-chase-framework]: headingDivider display-value materialization fixed (Rule 1) at apply.go's data-attribute layer only, leaving the 01-02-locked expanded-range CoerceGlobal contract untouched
 - [Objective 01-chase-framework]: Rasterization proof strategy: human-verify checkpoint (screenshot) now for Objective 1; deterministic headless-Chrome pixel-diff deferred to Objective 5 where chromedp lives, keeping chase/press Chrome-free through Objectives 1-4
 - [Objective 02-model-profile]: chase.Render composes markdown.Parse+RenderDoc+model.Build+profile-parameterized theme.Pack as the one-parse-two-sinks internal entrypoint (MODEL-02); Objective 2 complete
+- [Objective 03-press-batteries-api]: CORE-03's strikethrough <s> override is a priority-100 renderer.NodeRenderer registered for extast.KindStrikethrough (last-write-wins under goldmark's own 500-priority default), exposed as a standalone goldmark.Option (strikethroughOption()) folded into press.Render's NewEngine(pressExtraOpts...) hook — never modifies chase/markdown.NewEngine itself; CORE-03's tables/hard-breaks and CORE-04's heading slugs required zero new wiring (already baked into NewEngine via extension.GFM/WithHardWraps/WithAutoHeadingID) and are regression-locked by verify-only tests instead
 
 ## Performance Metrics
 
@@ -24,4 +25,5 @@ STATE.md stays lean; this file grows over time.
 | Objective 01-chase-framework P08 | 45min | 3 tasks | 6 files |
 | Objective 02-model-profile P04 | 14min | 3 tasks | 4 files |
 | Objective 03-press-batteries-api P01 | ~8min | 3 tasks | 7 files |
+| Objective 03-press-batteries-api P03 | 12min | 2 tasks | 3 files |
 
