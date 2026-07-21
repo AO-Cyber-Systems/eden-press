@@ -69,6 +69,10 @@ func (e *ext) Extend(m goldmark.Markdown) {
 		// (01-RESEARCH.md "HTML-Comment Directive Detection").
 		parser.WithBlockParsers(
 			util.Prioritized(newCommentBlockParser(), 0),
+			// Front-matter (TRD 01-06) also triggers on '-', at the same
+			// priority as the comment parser -- different trigger byte
+			// ('-' vs '<'), so there is no priority race between them.
+			util.Prioritized(newFrontMatterBlockParser(), 0),
 		),
 		parser.WithInlineParsers(
 			util.Prioritized(newCommentInlineParser(), 0),
@@ -77,9 +81,14 @@ func (e *ext) Extend(m goldmark.Markdown) {
 		// inserts synthetic *ast.ThematicBreak siblings that slide-split
 		// then consumes uniformly alongside any author-written "---"
 		// breaks (01-RESEARCH.md "headingDivider ordering").
+		//
+		// The directive-apply transformer (TRD 01-06, PARSE-04) runs LAST
+		// (300), strictly after slide-split (200): it requires the
+		// document's top-level children to already be *Section nodes.
 		parser.WithASTTransformers(
 			util.Prioritized(newHeadingDividerTransformer(), 100),
 			util.Prioritized(newSlideSplitTransformer(), 200),
+			util.Prioritized(newDirectiveApplyTransformer(), 300),
 		),
 	)
 	m.Renderer().AddOptions(

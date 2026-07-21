@@ -57,6 +57,8 @@ func (r *nodeRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(KindSection, r.renderSection)
 	reg.Register(KindCommentNode, r.renderComment)
 	reg.Register(KindCommentInline, r.renderComment)
+	reg.Register(KindHeaderElement, r.renderHeader)
+	reg.Register(KindFooterElement, r.renderFooter)
 }
 
 // renderDocument wraps the entire rendered slide run in
@@ -99,4 +101,30 @@ func (r *nodeRenderer) renderSection(w util.BufWriter, source []byte, n ast.Node
 // leak into visible HTML output.
 func (r *nodeRenderer) renderComment(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	return ast.WalkSkipChildren, nil
+}
+
+// renderHeader renders a *HeaderElement (materialized by the header local
+// directive, apply.go's prependHeaderElement) as <header>ESCAPED</header>.
+func (r *nodeRenderer) renderHeader(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		h := n.(*HeaderElement)
+		_, _ = w.WriteString(`<header>`)
+		_, _ = w.Write(util.EscapeHTML([]byte(h.Content)))
+	} else {
+		_, _ = w.WriteString(`</header>`)
+	}
+	return ast.WalkContinue, nil
+}
+
+// renderFooter renders a *FooterElement (materialized by the footer local
+// directive, apply.go's appendFooterElement) as <footer>ESCAPED</footer>.
+func (r *nodeRenderer) renderFooter(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		f := n.(*FooterElement)
+		_, _ = w.WriteString(`<footer>`)
+		_, _ = w.Write(util.EscapeHTML([]byte(f.Content)))
+	} else {
+		_, _ = w.WriteString(`</footer>`)
+	}
+	return ast.WalkContinue, nil
 }
