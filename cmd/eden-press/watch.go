@@ -38,6 +38,7 @@ func newWatchCmd() *cobra.Command {
 			return runWatch(cmd, args)
 		},
 	}
+	registerWatchFlags(cmd)
 	return cmd
 }
 

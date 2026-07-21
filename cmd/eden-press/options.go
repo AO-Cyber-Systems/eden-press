@@ -25,6 +25,8 @@ package main
 import (
 	"github.com/knadh/koanf/v2"
 	"github.com/spf13/cobra"
+
+	"github.com/AO-Cyber-Systems/eden-press/press"
 )
 
 // cfg is the single package-level koanf instance every mode resolves its
@@ -40,4 +42,39 @@ var cfg = koanf.New(".")
 // cfg through buildOptions.
 func applyConfig(cmd *cobra.Command) error {
 	return loadConfigSources(cfg, cmd)
+}
+
+// buildOptions is the single options-resolution point every mode calls: it
+// reads RESOLVED values through cfg (populated by applyConfig, so
+// config-file/env precedence added by 04-04 layers in without editing this
+// mapping) and maps them onto a press.Options. Unset flags are passed
+// through as their Go zero values VERBATIM -- press.Render owns the
+// ""->front-matter->"default" (etc.) fallback chain; buildOptions must
+// never re-implement it (anti-pattern, research Pattern 1).
+//
+// themeCSS(cmd) (the 04-05 stub in themeset.go) is called here so this is
+// the one call site every downstream mode shares; it returns (nil, nil)
+// today.
+//
+// NOTE on press.Options.ThemeCSS: that field is added by the sibling
+// Wave-1 TRD 04-01 (press.Options additive extension), executed in its own
+// parallel worktree and not yet merged into this one -- so it does not
+// exist on press.Options here. themeCSS's result (tcss) is intentionally
+// not yet assigned to an Options field; once 04-01 merges, wire it in as
+// `ThemeCSS: tcss` below (04-03's own error_recovery documents this same
+// same-module ordering constraint for press.BrowserFitJS, confirming 04-01
+// must merge before Wave-2 TRDs run).
+func buildOptions(cmd *cobra.Command) (press.Options, error) {
+	if _, err := themeCSS(cmd); err != nil {
+		return press.Options{}, err
+	}
+
+	return press.Options{
+		Theme:          cfg.String("theme"),
+		Profile:        cfg.String("profile"),
+		MathMode:       cfg.String("math"),
+		NoHighlight:    cfg.Bool("no-highlight"),
+		HighlightStyle: cfg.String("highlight-style"),
+		InlineSVG:      cfg.Bool("inline-svg"),
+	}, nil
 }

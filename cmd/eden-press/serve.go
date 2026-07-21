@@ -38,6 +38,7 @@ func newServeCmd() *cobra.Command {
 			return runServe(cmd, args)
 		},
 	}
+	registerServeFlags(cmd)
 	return cmd
 }
 

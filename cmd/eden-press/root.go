@@ -67,6 +67,7 @@ not as a filename. If your input file happens to be named e.g. "watch.md"
 		},
 	}
 
+	registerPersistentFlags(root)
 	root.AddCommand(newConvertCmd(), newWatchCmd(), newServeCmd(), newPreviewCmd())
 
 	return root

@@ -41,6 +41,7 @@ func newConvertCmd() *cobra.Command {
 			return runConvert(cmd, args)
 		},
 	}
+	registerConvertFlags(cmd)
 	return cmd
 }
 
