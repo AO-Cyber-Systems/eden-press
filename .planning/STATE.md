@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Objective: 3 of 9 (press/ Batteries + Public API) — IN PROGRESS; Objectives 0-2 complete
-Job: 1 of 9 complete (03-01 chase/markdown.ParseWithEngine seam + frozen press.Options/Output API-03 surface + six battery deps + goldmark-emoji compat spike (API-03) — wave 1/3)
-Status: Objective 3 in progress — 03-01 (wave-1 foundation) done; wave-1 03-02 and wave-2 battery TRDs unblocked (go.mod owned + provisioned, press types + ParseWithEngine seam available)
-Last activity: 2026-07-21 — 03-01-TRD executed (wave-1 foundation): chase/markdown.ParseWithEngine added (ADDITIVE engine-parameterized twin of Parse — same SvgOptionsKey + resolved HeadingDividerKey pre-seed, parses via caller-supplied engine; seam.go/chase.go byte-for-byte untouched); press.Options + press.Output defined as the frozen API-03 surface (zero value = Marp-Core default, NoHighlight inverted, Sanitize nil = built-in policy); six battery deps provisioned into go.mod additively (chroma/v2 v2.27.0, goldmark-emoji v1.0.6, goldmark-highlighting/v2, bluemonday v1.0.27, latex2mathml, codeberg.org/go-latex/latex v0.3.0 — go-latex provisioned ONLINE, no defer/BLOCKER); goldmark-emoji↔goldmark v1.8.4 compat spike (research riskiest-item #3) closed with a passing test; 3 task commits (8af93ad, 9b74483, 60a12a4); whole-repo build/vet/test, gofmt, Go-source addlicense, Obj-1 corpus/cssdiff gates, Obj-2 grep-gate, and no-chromedp invariant all green
+Job: 3 of 9 complete (03-01 API-03 seam/Options/Output/deps + emoji-compat spike; 03-02 CORE-01 embedded themes; 03-04 CORE-06 emoji shortcode+unicode → twemoji — 03-03 wave-2 still pending)
+Status: Objective 3 in progress — 03-04 (emoji battery) done via goldmark-emoji reuse (shortcode half) + a bespoke unicode-literal InlineParser (unicode half, same east.Emoji node/renderer); remaining wave-2 battery TRDs (03-03, 03-05..03-08) unblocked and independent
+Last activity: 2026-07-21 — 03-04-TRD executed (CORE-06 native emoji, no JS): press/emoji.go wires github.com/yuin/goldmark-emoji's emoji.New(WithRenderingMethod(Twemoji)) as a goldmark.Extender (reused verbatim, configurable TwemojiOptions{Base,Ext} per Marp's base/ext contract); press/emoji_unicode.go adds ONLY the bespoke piece goldmark-emoji lacks — a rune-sequence→*definition.Emoji reverse index (seeded from definition.Github(), which exposes no enumeration method) feeding a halfspace-triggered InlineParser that emits the SAME east.Emoji AST node goldmark-emoji's own renderer already handles (no second NodeRenderer); 2 task commits (6f81008, e052a0b); all 5 TDD test-list cases pass; whole-repo build/vet/test, gofmt, addlicense, Obj-1 corpus/cssdiff, Obj-2 grep-gate, and no-chromedp invariant all green
 
-Progress: [█████████░] 95% (19/27 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4, Objective 3: 1/9)
+Progress: [████████░░] 78% (21/27 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4, Objective 3: 3/9)
 
 ## Accumulated Context
 
@@ -34,6 +34,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-21 (03-01-TRD execution — wave-1 foundation of Objective 3)
-Stopped at: Completed 03-01-TRD.md (API-03): ParseWithEngine seam + frozen press.Options/Output + six battery deps + emoji compat spike; SUMMARY committed on worktree branch. Wave-1 03-02 and the wave-2 battery TRDs are unblocked. Objective 3 at 1/9.
+Last session: 2026-07-21 (03-04-TRD execution — emoji battery, Objective 3 wave 2)
+Stopped at: Completed 03-04-TRD.md (CORE-06): goldmark-emoji Twemoji shortcode reuse + bespoke unicode-literal InlineParser (same east.Emoji node/renderer, no second NodeRenderer); SUMMARY committed on worktree branch. Objective 3 at 3/9 (03-01, 03-02, 03-04 done; 03-03, 03-05..03-09 remain).
 Resume file: None
