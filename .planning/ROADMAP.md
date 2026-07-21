@@ -163,7 +163,7 @@ something real.
 **Plans**: 5 TRDs in 4 waves
 - [x] 06-01-TRD.md — chase/model schema-v2: per-section Blocks (paragraph/list/code/math/heading) + press/math raw-TeX accessor — SHARED PREREQUISITE, unblocks Obj-7 DART-04 [wave 1]
 - [x] 06-02-TRD.md — convert/pptx EMU-conversion utility + 16:9/4:3 slide-size constants + chOff/chExt group-transform, independently unit-tested (EXP-03) [wave 1] — complete 2026-07-21 (commits c5eb144, 6de5619; SUMMARY: 06-02-SUMMARY.md)
-- [ ] 06-03-TRD.md — deterministic OPC zip packager + complete static part graph (12-attr clrMap, 3-entry fmtScheme) + trivial-deck openability on 16:9/4:3 (EXP-03) [wave 2]
+- [x] 06-03-TRD.md — deterministic OPC zip packager + complete static part graph (12-attr clrMap, 3-entry fmtScheme) + trivial-deck openability on 16:9/4:3 (EXP-03) [wave 2] — complete 2026-07-21 (commits eb2ada9, 5a98584, b209398, 95fe34c; SUMMARY: 06-03-SUMMARY.md)
 - [ ] 06-04-TRD.md — ToPPTX(model.Document, Options): Section→slide, Blocks/Outline→editable <p:sp> text boxes + grouped shape, no Chrome (EXP-03) [wave 3]
 - [ ] 06-05-TRD.md — speaker notes (Section.Notes→notesSlideN) + comprehensive openability/position verification on 16:9 + 4:3 (EXP-03) [wave 4]
 
@@ -215,7 +215,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
 | 4. CLI (cmd/eden-press) | 2/8 | In Progress | - |
 | 5. convert/pdf + convert/png (chromedp) | 1/5 | In Progress | - |
-| 6. convert/pptx (native OOXML) | 1/5 | In progress | 06-02: 2026-07-21 |
+| 6. convert/pptx (native OOXML) | 2/5 | In progress | 06-03: 2026-07-21 |
 | 7. Dart/Flutter Binding | 1/5 | In Progress | - |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
 
