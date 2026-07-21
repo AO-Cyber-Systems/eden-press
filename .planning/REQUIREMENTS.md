@@ -42,8 +42,8 @@
 
 - [x] **CORE-01**: Bundle the three official themes (default/gaia/uncover) **verbatim** via `go:embed`, with preserved MIT headers
 - [ ] **CORE-02**: `size` and `math` global directives (Marp-Core-level, not Marpit)
-- [ ] **CORE-03**: GFM tables + strikethrough (config `<s>` to match Marp, not goldmark's `<del>`) + line-break→`<br>`
-- [ ] **CORE-04**: Heading slug `id`s on `h1`–`h6`
+- [x] **CORE-03**: GFM tables + strikethrough (config `<s>` to match Marp, not goldmark's `<del>`) + line-break→`<br>`
+- [x] **CORE-04**: Heading slug `id`s on `h1`–`h6`
 - [ ] **CORE-05**: HTML allow-list sanitization matching Marp's `xss` policy (behavioral parity: strip-vs-escape semantics; hand-filter the GFM disallowed tags `<script>`/`<iframe>`/… that goldmark does not filter)
 - [ ] **CORE-06**: Emoji — shortcodes + unicode → twemoji, native (shortcode table + regex), no JS
 - [ ] **CORE-07**: Syntax highlighting via `chroma`, with a bounded chroma-class ↔ highlight.js-class reconciliation so the bundled themes style code correctly
@@ -154,8 +154,8 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | MODEL-04 | Objective 2 | Complete |
 | CORE-01 | Objective 3 — press/ Batteries + Public API | Complete |
 | CORE-02 | Objective 3 | Pending |
-| CORE-03 | Objective 3 | Pending |
-| CORE-04 | Objective 3 | Pending |
+| CORE-03 | Objective 3 | Complete |
+| CORE-04 | Objective 3 | Complete |
 | CORE-05 | Objective 3 | Pending |
 | CORE-06 | Objective 3 | Pending |
 | CORE-07 | Objective 3 | Pending |
