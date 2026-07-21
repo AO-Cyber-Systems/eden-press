@@ -180,3 +180,237 @@ func TestScaffoldEmbeddedTextMatchesResearchVerbatim(t *testing.T) {
 		t.Fatalf("len(AdvancedBackgroundCSS rules) = %d, want 10", len(advBgSheet.Rules))
 	}
 }
+
+// ---- Task 2: Tier-2 (Pack) — scope, root (2nd pass + specificity),
+// import, scaffold (full), advanced-background (full), pagination ----
+
+// miniThemeCSS is a minimal single-rule theme used wherever a test only
+// needs to observe scaffold/advanced-background/scope behavior without
+// the stress theme's extra nesting/pseudo-class shapes.
+const miniThemeCSS = `/**
+ * @theme mini
+ */
+h1 { color: red; }
+`
+
+// TestPackScopesEverySelectorInlineSVG covers Test-list case 5: Pack
+// scopes every rule to "div.marpit > svg > foreignObject > section" in
+// inline-SVG render mode — both the packed theme's own rule and the
+// prepended scaffold's own "section" rule.
+func TestPackScopesEverySelectorInlineSVG(t *testing.T) {
+	th, err := Load(miniThemeCSS)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	ts := NewThemeSet()
+	ts.Add(th)
+
+	out, err := ts.Pack("mini", PackOptions{InlineSVG: true})
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+
+	if !strings.Contains(out, "div.marpit > svg > foreignObject > section h1") {
+		t.Fatalf("Pack output missing scoped h1 rule; got:\n%s", out)
+	}
+	if !strings.Contains(out, "div.marpit > svg > foreignObject > section {") {
+		t.Fatalf("Pack output missing scoped scaffold section rule; got:\n%s", out)
+	}
+}
+
+// TestRootIncreasingSpecificityRunsAfterScoping covers Test-list case 6:
+// the ":marpit-root" sentinel is rewritten to the final
+// ":where(section):not([\20 root])" specificity-trick sequence AFTER
+// selector-scoping — the packed output carries the fully-scoped,
+// fully-boosted selector, never the raw ":marpit-root" sentinel or an
+// un-replaced container placeholder.
+func TestRootIncreasingSpecificityRunsAfterScoping(t *testing.T) {
+	th, err := Load(stressThemeCSS)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	ts := NewThemeSet()
+	ts.Add(th)
+
+	out, err := ts.Pack("stress", PackOptions{InlineSVG: false})
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+
+	want := `div.marpit > :where(section):not([\20 root])`
+	if !strings.Contains(out, want) {
+		t.Fatalf("Pack output missing scoped+specificity-boosted root rule (want substring %q); got:\n%s", want, out)
+	}
+	if strings.Contains(out, ":marpit-root") {
+		t.Fatalf("Pack output still contains the raw :marpit-root sentinel "+
+			"(specificity pass didn't run, or ran before scoping):\n%s", out)
+	}
+	if strings.Contains(out, ":marpit-container") {
+		t.Fatalf("Pack output still contains the unscoped placeholder sentinel:\n%s", out)
+	}
+}
+
+// importBaseThemeCSS / importChildThemeCSS / importCyclicThemeCSS are
+// Test-list case 7's fixtures: "child" recursively imports "base" via
+// @import-theme, and "cyclic" imports itself.
+const importBaseThemeCSS = `/**
+ * @theme base
+ */
+h1 { color: blue; }
+`
+
+const importChildThemeCSS = `/**
+ * @theme child
+ */
+@import-theme "base";
+h2 { color: green; }
+`
+
+const importCyclicThemeCSS = `/**
+ * @theme cyclic
+ */
+@import-theme "cyclic";
+`
+
+// TestImportThemeResolvesRecursivelyAndDetectsCycle covers Test-list case
+// 7: @import-theme resolves recursively (child's Pack output carries both
+// its own and its imported base theme's rules), and a self-referential
+// @import-theme ERRORS via cycle detection rather than recursing forever.
+func TestImportThemeResolvesRecursivelyAndDetectsCycle(t *testing.T) {
+	baseTh, err := Load(importBaseThemeCSS)
+	if err != nil {
+		t.Fatalf("Load(base): %v", err)
+	}
+	childTh, err := Load(importChildThemeCSS)
+	if err != nil {
+		t.Fatalf("Load(child): %v", err)
+	}
+
+	ts := NewThemeSet()
+	ts.Add(baseTh)
+	ts.Add(childTh)
+
+	out, err := ts.Pack("child", PackOptions{})
+	if err != nil {
+		t.Fatalf("Pack(child): %v", err)
+	}
+	if !strings.Contains(out, "color: blue") {
+		t.Fatalf("Pack(child) missing imported base theme's rule; got:\n%s", out)
+	}
+	if !strings.Contains(out, "color: green") {
+		t.Fatalf("Pack(child) missing its own rule; got:\n%s", out)
+	}
+
+	cyclicTh, err := Load(importCyclicThemeCSS)
+	if err != nil {
+		t.Fatalf("Load(cyclic): %v", err)
+	}
+	ts.Add(cyclicTh)
+	if _, err := ts.Pack("cyclic", PackOptions{}); err == nil {
+		t.Fatalf("Pack(cyclic): expected a circular @import-theme error, got nil")
+	}
+}
+
+// TestPackScaffoldPrependedForStressTheme and
+// TestPackSkipsScaffoldForScaffoldThemeItself together cover the full
+// Pack-level half of Test-list case 8: scaffold.go's ScaffoldCSS is
+// prepended for an ordinary theme, but Pack never double-prepends it when
+// the theme being packed IS the scaffold theme itself.
+func TestPackScaffoldPrependedForStressTheme(t *testing.T) {
+	th, err := Load(stressThemeCSS)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	ts := NewThemeSet()
+	ts.Add(th)
+
+	out, err := ts.Pack("stress", PackOptions{})
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+	if !strings.Contains(out, "scroll-snap-align") {
+		t.Fatalf("Pack(stress) missing the prepended scaffold reset rule; got:\n%s", out)
+	}
+}
+
+func TestPackSkipsScaffoldForScaffoldThemeItself(t *testing.T) {
+	ts := NewThemeSet()
+
+	out, err := ts.Pack(ScaffoldThemeName, PackOptions{})
+	if err != nil {
+		t.Fatalf("Pack(scaffold): %v", err)
+	}
+	if count := strings.Count(out, "scroll-snap-align"); count != 1 {
+		t.Fatalf("Pack(scaffold) scaffold-reset rule count = %d, want exactly 1 "+
+			"(scaffold must not be double-prepended onto itself); got:\n%s", count, out)
+	}
+}
+
+// TestAdvancedBgInjectedMatchesResearchVerbatim covers Test-list case 9:
+// the advanced-background static CSS block is injected verbatim when
+// inline-SVG rendering is enabled, and omitted entirely otherwise.
+func TestAdvancedBgInjectedMatchesResearchVerbatim(t *testing.T) {
+	th, err := Load(miniThemeCSS)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	ts := NewThemeSet()
+	ts.Add(th)
+
+	svgOut, err := ts.Pack("mini", PackOptions{InlineSVG: true})
+	if err != nil {
+		t.Fatalf("Pack(InlineSVG=true): %v", err)
+	}
+	for _, want := range []string{
+		"columns: initial !important",
+		"margin-left: calc(100% - var(--marpit-advanced-background-split, 50%))",
+		"background: transparent !important",
+		"pointer-events: none !important",
+	} {
+		if !strings.Contains(svgOut, want) {
+			t.Fatalf("Pack(InlineSVG=true) missing advanced-background declaration %q; got:\n%s", want, svgOut)
+		}
+	}
+
+	nonSVGOut, err := ts.Pack("mini", PackOptions{InlineSVG: false})
+	if err != nil {
+		t.Fatalf("Pack(InlineSVG=false): %v", err)
+	}
+	if strings.Contains(nonSVGOut, "columns: initial !important") {
+		t.Fatalf("Pack(InlineSVG=false) unexpectedly includes advanced-background CSS:\n%s", nonSVGOut)
+	}
+}
+
+// TestPaginationNeutralizesNonDefaultAfterContent exercises pass_pagination.go
+// directly (Test-list wording: "pagination comment-out non-marpit content
+// on section::after"): a non-default `content` declaration on a
+// "::after"-targeting rule is neutralized, its sibling declarations
+// survive, and the scaffold's own default pagination content is
+// untouched.
+func TestPaginationNeutralizesNonDefaultAfterContent(t *testing.T) {
+	authoredCSS := `/**
+ * @theme paginated
+ */
+section::after { content: "custom"; color: red; }
+`
+	th, err := Load(authoredCSS)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	ts := NewThemeSet()
+	ts.Add(th)
+
+	out, err := ts.Pack("paginated", PackOptions{})
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+	if strings.Contains(out, `content: "custom"`) {
+		t.Fatalf("Pack output still contains a non-default ::after content declaration that should have been neutralized:\n%s", out)
+	}
+	if !strings.Contains(out, "color: red") {
+		t.Fatalf("Pack output dropped an unrelated declaration on the same ::after rule:\n%s", out)
+	}
+	if !strings.Contains(out, "content: attr(data-marpit-pagination)") {
+		t.Fatalf("Pack output missing the scaffold's default pagination content:\n%s", out)
+	}
+}
