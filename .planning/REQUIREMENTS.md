@@ -9,27 +9,27 @@
 
 ### Conformance (acceptance gate — precedes all engine work)
 
-- [ ] **CONF-01**: A language-neutral golden corpus of Markdown→HTML/CSS cases exists, seeded from Marp's own Jest snapshot fixtures (MIT)
+- [x] **CONF-01**: A language-neutral golden corpus of Markdown→HTML/CSS cases exists, seeded from Marp's own Jest snapshot fixtures (MIT)
 - [x] **CONF-02**: A test runner renders each case and compares **DOM-normalized** HTML (ignores cosmetic `<br>`/`<hr>`/whitespace/attr-order)
-- [ ] **CONF-03**: A **CSS-AST diff** comparator exists for theme-CSS output (new tooling; not a DOM diff)
-- [ ] **CONF-04**: The corpus covers the full CommonMark + GFM spec sweep (not only the 32-case parser spike), and is the acceptance gate cited by every engine objective
+- [x] **CONF-03**: A **CSS-AST diff** comparator exists for theme-CSS output (new tooling; not a DOM diff)
+- [x] **CONF-04**: The corpus covers the full CommonMark + GFM spec sweep (not only the 32-case parser spike), and is the acceptance gate cited by every engine objective
 
 ### Markdown & directives (`chase/markdown`, `chase/directive`)
 
 - [x] **PARSE-01**: Parse Marpit Markdown via goldmark two-phase `Parse()`+`Render()` (never `Convert()`), so the finalized AST is available to downstream sinks
-- [ ] **PARSE-02**: Resolve the directive system — global, local (carry-forward), and spot (`_`-prefixed) — via `parser.Context` state
-- [ ] **PARSE-03**: Support both directive syntaxes: YAML front-matter (deck-level) and HTML-comment (`<!-- key: value -->`) directives
-- [ ] **PARSE-04**: Implement the Marpit directive set — `theme`, `style`, `headingDivider`, `paginate`, `header`, `footer`, `class`, `color`, `backgroundColor`, `backgroundImage`, `backgroundPosition/Repeat/Size/Split`
-- [ ] **PARSE-05**: Slide splitting on thematic breaks (`---`, incl. the setext-H2 trap) and `headingDivider`, wrapping each slide in `<section>` inside a `.marpit` container
-- [ ] **PARSE-06**: Background-image syntax `![bg …](url)` (fit/split/position modifiers) → CSS backgrounds or the advanced-background SVG layer
-- [ ] **PARSE-07**: Inline-SVG slide mode (`<svg><foreignObject><section>…`) — the blocking dependency for advanced backgrounds and auto-fit
+- [x] **PARSE-02**: Resolve the directive system — global, local (carry-forward), and spot (`_`-prefixed) — via `parser.Context` state
+- [x] **PARSE-03**: Support both directive syntaxes: YAML front-matter (deck-level) and HTML-comment (`<!-- key: value -->`) directives
+- [x] **PARSE-04**: Implement the Marpit directive set — `theme`, `style`, `headingDivider`, `paginate`, `header`, `footer`, `class`, `color`, `backgroundColor`, `backgroundImage`, `backgroundPosition/Repeat/Size/Split`
+- [x] **PARSE-05**: Slide splitting on thematic breaks (`---`, incl. the setext-H2 trap) and `headingDivider`, wrapping each slide in `<section>` inside a `.marpit` container
+- [x] **PARSE-06**: Background-image syntax `![bg …](url)` (fit/split/position modifiers) → CSS backgrounds or the advanced-background SVG layer
+- [x] **PARSE-07**: Inline-SVG slide mode (`<svg><foreignObject><section>…`) — the blocking dependency for advanced backgrounds and auto-fit
 
 ### Theme-CSS engine (`chase/theme`)
 
-- [ ] **THEME-01**: Build an in-memory `Stylesheet{Meta,Rules,Atoms}` model from `tdewolff/parse` css token stream (it is a token stream, not a node-AST)
-- [ ] **THEME-02**: Parse theme metadata comments — `@theme` (required), `@size`, `@auto-scaling`
+- [x] **THEME-01**: Build an in-memory `Stylesheet{Meta,Rules,Atoms}` model from `tdewolff/parse` css token stream (it is a token stream, not a node-AST)
+- [x] **THEME-02**: Parse theme metadata comments — `@theme` (required), `@size`, `@auto-scaling`
 - [x] **THEME-03**: The scoping pipeline, in verified order: nesting down-level → `:root` remap/specificity-fix → selector-scope to container → `@import`/`@import-theme` resolve → render-time pagination + advanced-background injection
-- [ ] **THEME-04**: A dedicated, independently tested **selector-rewriter** subsystem (no Go equivalent exists)
+- [x] **THEME-04**: A dedicated, independently tested **selector-rewriter** subsystem (no Go equivalent exists)
 
 ### Document model & profiles (`chase/model`, `chase/profile`) — first-class from day one
 
@@ -41,43 +41,43 @@
 ### Batteries (`press/` — Marp-Core equivalent)
 
 - [x] **CORE-01**: Bundle the three official themes (default/gaia/uncover) **verbatim** via `go:embed`, with preserved MIT headers
-- [ ] **CORE-02**: `size` and `math` global directives (Marp-Core-level, not Marpit)
+- [x] **CORE-02**: `size` and `math` global directives (Marp-Core-level, not Marpit)
 - [x] **CORE-03**: GFM tables + strikethrough (config `<s>` to match Marp, not goldmark's `<del>`) + line-break→`<br>`
 - [x] **CORE-04**: Heading slug `id`s on `h1`–`h6`
-- [ ] **CORE-05**: HTML allow-list sanitization matching Marp's `xss` policy (behavioral parity: strip-vs-escape semantics; hand-filter the GFM disallowed tags `<script>`/`<iframe>`/… that goldmark does not filter)
+- [x] **CORE-05**: HTML allow-list sanitization matching Marp's `xss` policy (behavioral parity: strip-vs-escape semantics; hand-filter the GFM disallowed tags `<script>`/`<iframe>`/… that goldmark does not filter)
 - [x] **CORE-06**: Emoji — shortcodes + unicode → twemoji, native (shortcode table + regex), no JS
-- [ ] **CORE-07**: Syntax highlighting via `chroma`, with a bounded chroma-class ↔ highlight.js-class reconciliation so the bundled themes style code correctly
+- [x] **CORE-07**: Syntax highlighting via `chroma`, with a bounded chroma-class ↔ highlight.js-class reconciliation so the bundled themes style code correctly
 - [x] **CORE-08**: Math (`$…$`, `$$…$$`) via vendored/forked `latex2mathml` → native MathML; construct-detection (`\tag`/`\label`/complex `aligned`) auto-routes to the `codeberg.org/go-latex/latex` SVG/PNG fallback
-- [ ] **CORE-09**: Auto-fit markers (`# <!--fit-->`, code/math shrink) emitted for the viewer-side helper; `@auto-scaling` honored as theme-CSS-only
+- [x] **CORE-09**: Auto-fit markers (`# <!--fit-->`, code/math shrink) emitted for the viewer-side helper; `@auto-scaling` honored as theme-CSS-only
 
 ### Library API (`press/`)
 
-- [ ] **API-01**: `press.Render(md, opts) → {HTML, CSS, Model, Comments, Meta}` with **no Chrome dependency** (pure Go, no browser for HTML/structured output)
-- [ ] **API-02**: The `press/` package must not import `chromedp` — enforced by CI (`go list -deps ./press/... | grep chromedp` is empty)
+- [x] **API-01**: `press.Render(md, opts) → {HTML, CSS, Model, Comments, Meta}` with **no Chrome dependency** (pure Go, no browser for HTML/structured output)
+- [x] **API-02**: The `press/` package must not import `chromedp` — enforced by CI (`go list -deps ./press/... | grep chromedp` is empty)
 - [x] **API-03**: Stable, documented options (themes, math mode, highlight, inline-SVG, profile) and output types
 
 ### CLI (`cmd/eden-press`)
 
 - [x] **CLI-01**: `eden-press <in.md>` → HTML output (default `bare`-style zero-JS static HTML)
-- [ ] **CLI-02**: Watch mode (`fsnotify`) — rebuild on change
+- [x] **CLI-02**: Watch mode (`fsnotify`) — rebuild on change
 - [x] **CLI-03**: Server mode with live-reload (serve local files, convert on request)
 - [x] **CLI-04**: Preview (open output in a browser)
-- [ ] **CLI-05**: `--theme` / `--theme-set` loading
-- [ ] **CLI-06**: Config file loading (YAML/JSON/TOML via koanf) + stdin input (`-`)
+- [x] **CLI-05**: `--theme` / `--theme-set` loading
+- [x] **CLI-06**: Config file loading (YAML/JSON/TOML via koanf) + stdin input (`-`)
 
 ### Export (`convert/`)
 
 - [x] **EXP-01**: PDF via `chromedp` `Page.printToPDF`
-- [ ] **EXP-02**: PNG/JPEG per-slide via `chromedp` screenshots
-- [ ] **EXP-03**: PPTX via a **hand-rolled OOXML writer** (`archive/zip` + `encoding/xml`; reject `unioffice` — licensing + network check-in), consuming the docmodel directly (no Chrome), targeting **editable** text boxes
+- [x] **EXP-02**: PNG/JPEG per-slide via `chromedp` screenshots
+- [x] **EXP-03**: PPTX via a **hand-rolled OOXML writer** (`archive/zip` + `encoding/xml`; reject `unioffice` — licensing + network check-in), consuming the docmodel directly (no Chrome), targeting **editable** text boxes
 - [x] **EXP-04**: Robust headless-Chrome discovery (`--browser-path`, known paths) and a MATH-font provisioning note (bundle official STIX Two Math OTF)
 
 ### Dart / Flutter client (`bindings/`)
 
-- [ ] **DART-01**: A single Go C-ABI core with a JSON-in/JSON-out boundary (not mirrored structs)
-- [ ] **DART-02**: Native binding via `dart:ffi` — Android `-buildmode=c-shared` (`.so`), iOS `-buildmode=c-archive` (`.a`); **no `gomobile bind`**
+- [x] **DART-01**: A single Go C-ABI core with a JSON-in/JSON-out boundary (not mirrored structs)
+- [x] **DART-02**: Native binding via `dart:ffi` — Android `-buildmode=c-shared` (`.so`), iOS `-buildmode=c-archive` (`.a`); **no `gomobile bind`**
 - [x] **DART-03**: Web binding via `GOOS=js/wasm` + `wasm_exec.js` loader
-- [ ] **DART-04**: JS-free Dart rendering surface — math via `flutter_math_fork`, highlight via `highlighting`/`flutter_highlighting`
+- [x] **DART-04**: JS-free Dart rendering surface — math via `flutter_math_fork`, highlight via `highlighting`/`flutter_highlighting`
 - [x] **DART-05**: Bindings pass a shared subset of the conformance corpus
 
 ### Licensing & attribution (early, first-class)
