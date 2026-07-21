@@ -16,10 +16,31 @@ License: MIT
 Marp Core (https://github.com/marp-team/marp-core)
 Copyright (c) 2018 Marp team (marp-team@marp.app)
 License: MIT
-  - The bundled themes (default, gaia, uncover) and the browser fit/polyfill
-    script are reused VERBATIM under their original MIT license and copyright
-    when they land (Objective 3). Each such file preserves the original Marp
-    copyright in its per-file header; see themes/ and CONTRIBUTING.md.
+  - The three bundled themes (themes/default.css, themes/gaia.css,
+    themes/uncover.css) and the browser fit/auto-scaling helper
+    (themes/browser-fit.js) are reused VERBATIM under their original MIT license
+    and copyright (LANDED in Objective 3, CORE-01). Provenance: @marp-team/marp-core
+    tag v4.4.0 (matches UPSTREAM-VERSIONS.txt). The .css files are marp-core's OWN
+    fully-compiled per-theme CSS — NOT a hand-recompile of its Sass source —
+    extracted through the real npm package by tools/corpus-gen/extract-themes.mjs
+    (`marp.themeSet.get(<name>).css`); browser-fit.js is marp-core's shipped
+    lib/browser.js verbatim. Each .css file preserves Marp's own
+    `/*! @theme <name> … @author … */` block as its leading comment (which is
+    ALSO the copyright header — so these files are NOT AO-Cyber addlicense-stamped;
+    they are excluded via .github/workflows/ci.yml's -ignore 'themes/**').
+    browser-fit.js carries Marp's MIT header (year 2018) per CONTRIBUTING.md's
+    verbatim-asset template. Re-extract: `cd tools/corpus-gen && npm ci && node
+    extract-themes.mjs`.
+
+github-markdown-css (https://github.com/sindresorhus/github-markdown-css)
+Copyright (c) Sindre Sorhus (sindresorhus@gmail.com)
+License: MIT
+  - Inlined VERBATIM into the compiled themes/default.css by marp-core's Sass
+    `pkg:` importer (`@use "pkg:github-markdown-css/…"`) at marp-core v4.4.0
+    build time — it supplies default.css's GitHub-flavored base styling (the
+    leading `section { --fgColor-*: light-dark(…); … }` custom-property block).
+    Vendored transitively through @marp-team/marp-core v4.4.0; no separate file
+    in this repo. Covered by the themes/** addlicense -ignore.
 
 Marp CLI (https://github.com/marp-team/marp-cli)
 Copyright (c) 2018 Marp team (marp-team@marp.app)

@@ -40,7 +40,7 @@
 
 ### Batteries (`press/` — Marp-Core equivalent)
 
-- [ ] **CORE-01**: Bundle the three official themes (default/gaia/uncover) **verbatim** via `go:embed`, with preserved MIT headers
+- [x] **CORE-01**: Bundle the three official themes (default/gaia/uncover) **verbatim** via `go:embed`, with preserved MIT headers
 - [ ] **CORE-02**: `size` and `math` global directives (Marp-Core-level, not Marpit)
 - [ ] **CORE-03**: GFM tables + strikethrough (config `<s>` to match Marp, not goldmark's `<del>`) + line-break→`<br>`
 - [ ] **CORE-04**: Heading slug `id`s on `h1`–`h6`
@@ -152,7 +152,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | MODEL-02 | Objective 2 | Complete |
 | MODEL-03 | Objective 2 | Complete |
 | MODEL-04 | Objective 2 | Complete |
-| CORE-01 | Objective 3 — press/ Batteries + Public API | Pending |
+| CORE-01 | Objective 3 — press/ Batteries + Public API | Complete |
 | CORE-02 | Objective 3 | Pending |
 | CORE-03 | Objective 3 | Pending |
 | CORE-04 | Objective 3 | Pending |

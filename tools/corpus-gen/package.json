@@ -3,11 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Dev tooling (not shipped). Generates the Marp golden conformance corpus (CONF-01) by rendering representative Markdown through the real @marp-team/marp-core npm package — the oracle. Regenerate with `npm ci && node gen.mjs`. Output: conformance/corpus/cases/<id>/{input.md,options.json,expected.html,expected.css}.",
+  "description": "Dev tooling (not shipped). Generates the Marp golden conformance corpus (CONF-01) by rendering representative Markdown through the real @marp-team/marp-core npm package — the oracle — and extracts the three official themes' fully-compiled CSS (CORE-01) for verbatim go:embed. Regenerate with `npm ci && node gen.mjs`; extract themes with `npm ci && node extract-themes.mjs`. Output: conformance/corpus/cases/<id>/{input.md,options.json,expected.html,expected.css} and themes/{default,gaia,uncover}.css + themes/browser-fit.js.",
   "scripts": {
-    "gen": "node gen.mjs"
+    "gen": "node gen.mjs",
+    "extract-themes": "node extract-themes.mjs"
   },
   "dependencies": {
-    "@marp-team/marp-core": "^4.1.0"
+    "@marp-team/marp-core": "^4.4.0"
   }
 }
