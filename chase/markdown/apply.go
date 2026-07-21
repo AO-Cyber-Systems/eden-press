@@ -197,8 +197,12 @@ func applyDirectivesToSection(sec *Section, keys []string, resolved map[string]a
 			continue
 		}
 		kebab := kebabCase(k)
-		sec.Attrs = append(sec.Attrs, Attr{Name: "data-" + kebab, Value: directiveValueString(v)})
-		style.Set("--"+kebab, directiveValueString(v))
+		display := directiveValueString(v)
+		if k == "headingDivider" {
+			display = headingDividerDisplayValue(v)
+		}
+		sec.Attrs = append(sec.Attrs, Attr{Name: "data-" + kebab, Value: display})
+		style.Set("--"+kebab, display)
 	}
 
 	if v, ok := resolved["lang"]; ok && truthy(v) {
@@ -297,6 +301,36 @@ func directiveValueString(v any) string {
 	default:
 		return fmt.Sprintf("%v", t)
 	}
+}
+
+// headingDividerDisplayValue renders a resolved "headingDivider" value for
+// display as both the data-heading-divider attribute and the
+// --heading-divider custom property.
+//
+// chase/directive.CoerceGlobal deliberately EXPANDS a scalar headingDivider
+// value (e.g. "2") into the full []int range it implies ([1, 2]) --
+// headingdivider.go's synthetic-break transformer needs exactly that
+// expanded range (see TestCoerceGlobalHeadingDividerAndTheme, a locked-in
+// 01-02 contract this fix does not touch). But real Marp/Marpit
+// materializes the AUTHOR-FACING scalar back onto the slide
+// (data-heading-divider="2"), not the internal expansion -- see
+// conformance/corpus/cases/marp-heading-divider/expected.html. This narrow
+// helper reconstructs that scalar display form from the expanded range: an
+// exact contiguous range starting at 1 ([1..N]) collapses back to "N";
+// anything else (an author-supplied non-contiguous array is not part of
+// the corpus and not expected here) falls back to the existing
+// comma-joined directiveValueString for safety.
+func headingDividerDisplayValue(v any) string {
+	levels, ok := v.([]int)
+	if !ok || len(levels) == 0 {
+		return directiveValueString(v)
+	}
+	for i, n := range levels {
+		if n != i+1 {
+			return directiveValueString(v)
+		}
+	}
+	return strconv.Itoa(levels[len(levels)-1])
 }
 
 // kebabCase converts a camelCase directive name (e.g. "backgroundColor") to
