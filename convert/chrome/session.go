@@ -1,0 +1,151 @@
+// Copyright (c) 2026 AO Cyber Systems
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package chrome
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/chromedp/chromedp"
+
+	"github.com/AO-Cyber-Systems/eden-press/convert"
+)
+
+// Session is the one-browser-many-tabs pool primitive every convert/
+// exporter (convert/pdf, convert/png) drives its rendering through. New
+// allocates exactly ONE Chrome process; NewTab hands out additional tabs on
+// that SAME browser -- never a fresh process per call.
+type Session struct {
+	allocCtx    context.Context
+	allocCancel context.CancelFunc
+
+	// rootCtx is an internal, already-Run anchor tab context. It exists
+	// solely so NewTab's chromedp.NewContext(rootCtx) calls inherit a
+	// non-nil Browser at creation time -- see the package-level comment on
+	// New for why this indirection is required.
+	rootCtx    context.Context
+	rootCancel context.CancelFunc
+
+	userDataDir string
+}
+
+// New builds ONE chromedp ExecAllocator/browser with the CI-hardening and
+// determinism launch flags baked in as DEFAULTS (not opt-ins), resolving the
+// executable via Discover.
+//
+// Implementation note (why a root anchor tab, not just the allocator ctx):
+// chromedp.NewContext(parent) copies parent's *Browser field at CALL time --
+// it does not lazily re-read it later. The allocator context returned by
+// chromedp.NewExecAllocator is never itself Run (doing so directly is a
+// chromedp error), so its attached Context.Browser field is permanently
+// nil. If NewTab called chromedp.NewContext(s.allocCtx) directly on every
+// invocation, each call would independently see a nil Browser and allocate
+// its OWN Chrome process -- exactly the per-render-process anti-pattern this
+// Session exists to avoid. Instead, New creates one internal tab context
+// (rootCtx) and immediately Runs it (zero actions) so the browser is
+// allocated eagerly and rootCtx's Context.Browser is populated once; every
+// subsequent NewTab derives from that SAME already-populated rootCtx, so it
+// correctly inherits the live Browser and only ever creates a new Target
+// (tab) -- exactly chromedp's own documented multi-tab pattern
+// (ExampleNewContext_manyTabs in the chromedp package itself).
+func New(opts convert.Options) (*Session, error) {
+	execPath, _, err := Discover(DiscoverOptions{BrowserPath: opts.BrowserPath})
+	if err != nil {
+		return nil, err
+	}
+
+	userDataDir, err := os.MkdirTemp("", "eden-press-chrome-*")
+	if err != nil {
+		return nil, fmt.Errorf("convert/chrome: creating unique user-data-dir: %w", err)
+	}
+
+	allocOpts := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
+	allocOpts = append(allocOpts,
+		// NoSandbox: guarded-for-container posture -- CI/container
+		// execution commonly runs as root with no user-namespace sandbox
+		// available, so the sandbox must be disabled for Chrome to launch
+		// at all (05-05 hardens the surrounding non-root/CI posture).
+		chromedp.NoSandbox,
+		// Unique per-run profile dir -- avoids cross-run contention if
+		// multiple Sessions exist concurrently (Pitfall 11).
+		chromedp.UserDataDir(userDataDir),
+		// Container /dev/shm is often too small; disabling shared-memory
+		// usage avoids BUS_ADRERR crashes (Pitfall 11). Also already present
+		// in chromedp.DefaultExecAllocatorOptions; set again explicitly so
+		// the determinism recipe is self-documenting and order-independent.
+		chromedp.Flag("disable-dev-shm-usage", true),
+		// Determinism: fixed device-scale-factor so screenshots/PDFs render
+		// pixel-identically across hosts with different display densities.
+		chromedp.Flag("force-device-scale-factor", "1"),
+		// Determinism: fixed locale, independent of the host's system locale.
+		chromedp.Flag("lang", "en-US"),
+		// Determinism: fixed timezone for the Chrome process's own clock,
+		// independent of the host machine's TZ.
+		chromedp.Env("TZ=UTC"),
+	)
+	if execPath != "" {
+		// Only pin an explicit executable when Discover resolved one, e.g.
+		// tier 1 (BrowserPath) or tier 2 (CHROME_PATH). An empty execPath
+		// (tier 3, "auto") deliberately omits ExecPath so chromedp's own
+		// ExecAllocator performs its own auto-detection.
+		allocOpts = append(allocOpts, chromedp.ExecPath(execPath))
+	}
+
+	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), allocOpts...)
+
+	rootCtx, rootCancel := chromedp.NewContext(allocCtx)
+	if err := chromedp.Run(rootCtx); err != nil {
+		rootCancel()
+		allocCancel()
+		_ = os.RemoveAll(userDataDir)
+		return nil, fmt.Errorf("convert/chrome: allocating browser: %w", err)
+	}
+
+	return &Session{
+		allocCtx:    allocCtx,
+		allocCancel: allocCancel,
+		rootCtx:     rootCtx,
+		rootCancel:  rootCancel,
+		userDataDir: userDataDir,
+	}, nil
+}
+
+// NewTab creates a child chromedp.NewContext -- a new TAB on the SAME
+// browser, never a new process. The returned context is not itself Run;
+// the caller drives it via chromedp.Run(ctx, actions...), whose first call
+// creates the actual Target (tab) on the shared browser.
+func (s *Session) NewTab() (context.Context, context.CancelFunc) {
+	return chromedp.NewContext(s.rootCtx)
+}
+
+// Close tears the browser down: cancels the root tab, then the allocator
+// (which stops the Chrome process and waits for it to exit), then removes
+// the unique user-data-dir created for this run.
+func (s *Session) Close() {
+	s.rootCancel()
+	s.allocCancel()
+	if s.userDataDir != "" {
+		_ = os.RemoveAll(s.userDataDir)
+	}
+}
