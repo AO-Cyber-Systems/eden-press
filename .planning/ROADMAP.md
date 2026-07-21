@@ -25,7 +25,7 @@ something real.
 - [x] **Objective 0: Conformance Corpus, Acceptance Gate & Attribution Bootstrap** - Golden corpus (Marp's own MIT fixtures + full CommonMark/GFM sweep), DOM-normalized HTML diff runner, new CSS-AST diff tooling, upstream-drift CI check, and day-one LICENSE/NOTICE/attribution. (completed 2026-07-20)
 - [x] **Objective 1: chase/markdown + chase/directive + chase/theme (Marpit-in-Go)** - Directive resolution, slide-splitting, background-image syntax, inline-SVG mode, and the theme-CSS scoping pipeline with its own tested selector-rewriter. (completed 2026-07-21)
 - [x] **Objective 2: chase/model + chase/profile + profiles/slides** - The structured JSON document model and output-profile interface as first-class packages, with `profiles/slides` as profile #1. (completed 2026-07-21)
-- [ ] **Objective 3: press/ Batteries + Public API** - Embedded themes, GFM/slug/sanitize/emoji/highlight/math batteries, and the stable `press.Render()` API with a CI-enforced zero-chromedp boundary.
+- [x] **Objective 3: press/ Batteries + Public API** - Embedded themes, GFM/slug/sanitize/emoji/highlight/math batteries, and the stable `press.Render()` API with a CI-enforced zero-chromedp boundary. (9/9 TRDs complete — 03-09 capstone: press.Render one-parse-two-sinks compose + no-chromedp gate.)
 - [ ] **Objective 4: CLI (cmd/eden-press)** - `eden-press` convert/watch/serve/preview, theme loading, config file + stdin input.
 - [ ] **Objective 5: convert/pdf + convert/png (chromedp raster export)** - PDF and PNG/JPEG export via headless Chrome, robust Chrome discovery, deterministic/CI-hardened export.
 - [ ] **Objective 6: convert/pptx (native OOXML)** - Hand-rolled, Chrome-free, editable-text-box PPTX export consuming the docmodel directly — sibling to Objective 5, not sequential after it.
@@ -111,7 +111,7 @@ something real.
 - [x] 03-06-TRD.md — math baseline: $/$$→MathML + construct-detect + PNG fallback (CORE-08) [wave 2]
 - [x] 03-07-TRD.md — size/math global directives + auto-fit markers (CORE-02, CORE-09) [wave 2]
 - [x] 03-08-TRD.md — sanitize: bluemonday Marp-parity policy + adversarial suite (CORE-05) [wave 2]
-- [ ] 03-09-TRD.md — press.Render compose (API-01) + no-chromedp CI gate (API-02) + capstone [wave 3]
+- [x] 03-09-TRD.md — press.Render compose (API-01) + no-chromedp CI gate (API-02) + capstone [wave 3]
 
 > **Decision gate (baseline, hardened in Objective 8):** a first-pass acceptable MathML-quality threshold before auto-invoking the SVG/PNG fallback is decided here; the full converter-hardening pass and final fallback-trigger rule land in Objective 8.
 
