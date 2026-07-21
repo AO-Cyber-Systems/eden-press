@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"github.com/AO-Cyber-Systems/eden-press/chase/theme/selector"
+	"github.com/AO-Cyber-Systems/eden-press/conformance/cssdiff"
 )
 
 // pack_test.go holds this TRD's full Test-list (cases 1-10), added
@@ -412,5 +413,95 @@ section::after { content: "custom"; color: red; }
 	}
 	if !strings.Contains(out, "content: attr(data-marpit-pagination)") {
 		t.Fatalf("Pack output missing the scaffold's default pagination content:\n%s", out)
+	}
+}
+
+// ---- Task 3: cssdiff.Equal acceptance gate (Test-list case 10) ----
+
+// expectedStressPackedCSS is the hand-verified expected output of
+// Pack("stress", PackOptions{InlineSVG: true}): derived by running the
+// implemented pipeline once and reviewing every rule against
+// 01-RESEARCH.md's documented transforms — scaffold prepended and scoped
+// to "div.marpit > svg > foreignObject > section", the stress theme's own
+// nesting (implicit-"&" child + "&"-compound) down-leveled and scoped,
+// its ":root" declaration scoped THEN specificity-boosted to
+// ":where(section):not([\20 root])" (proving the order: scope, then
+// specificity — this TRD's central pipeline-ordering must_have), its
+// plain `:where()`/`:is()`/`::backdrop` rules scoped as ordinary
+// (space-prepended) selectors, and the advanced-background static block
+// appended + scoped — EXCEPT the one rule using the bare
+// ":marpit-container" placeholder (no paired ":marpit-slide"), which
+// 01-01's locked selector.Replace cannot resolve — see
+// pass_advancedbg.go's documented, deliberate scope-narrowing gap.
+const expectedStressPackedCSS = `div.marpit > svg > foreignObject > section { width: 1280px; height: 720px; box-sizing: border-box; overflow: hidden; position: relative; scroll-snap-align: center center; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+div.marpit > svg > foreignObject > section::after { bottom: 0; content: attr(data-marpit-pagination); padding: inherit; pointer-events: none; position: absolute; right: 0; }
+div.marpit > svg > foreignObject > section:not([data-marpit-pagination])::after { display: none; }
+div.marpit > svg > foreignObject > section :where(h1) { font-size: 2em; margin-block: 0.67em; }
+div.marpit > svg > foreignObject > section video::-webkit-media-controls { will-change: transform; }
+div.marpit > svg > foreignObject > :where(section):not([\20 root]) { --accent: teal; }
+div.marpit > svg > foreignObject > section h1, div.marpit > svg > foreignObject > section h2 { color: var(--accent); }
+div.marpit > svg > foreignObject > section.lead { text-align: center; }
+div.marpit > svg > foreignObject > section :where(h1, h2) { margin: 0; }
+div.marpit > svg > foreignObject > section :is(h3, h4) + p { margin-top: 0; }
+div.marpit > svg > foreignObject > section ::backdrop { background: #048; }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"] { columns: initial !important; display: block !important; padding: 0 !important; }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"]::before, div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"]::after, div.marpit > svg > foreignObject > section[data-marpit-advanced-background="content"]::before, div.marpit > svg > foreignObject > section[data-marpit-advanced-background="content"]::after { display: none !important; }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"] > div[data-marpit-advanced-background-container] { all: initial; display: flex; flex-direction: row; height: 100%; overflow: hidden; width: 100%; }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"] > div[data-marpit-advanced-background-container][data-marpit-advanced-background-direction="vertical"] { flex-direction: column; }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"][data-marpit-advanced-background-split] > div[data-marpit-advanced-background-container] { width: var(--marpit-advanced-background-split, 50%); }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"][data-marpit-advanced-background-split="right"] > div[data-marpit-advanced-background-container] { margin-left: calc(100% - var(--marpit-advanced-background-split, 50%)); }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"] > div[data-marpit-advanced-background-container] > figure { all: initial; background-position: center; background-repeat: no-repeat; background-size: cover; flex: auto; margin: 0; }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="content"], div.marpit > svg > foreignObject > section[data-marpit-advanced-background="pseudo"] { background: transparent !important; }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background="pseudo"], :marpit-container > svg[data-marpit-svg] > foreignObject[data-marpit-advanced-background="pseudo"] { pointer-events: none !important; }
+div.marpit > svg > foreignObject > section[data-marpit-advanced-background-split] { width: 100%; height: 100%; }`
+
+// expectedScaffoldPackedCSS is the hand-verified expected output of
+// Pack(ScaffoldThemeName, PackOptions{InlineSVG: false}): the scaffold
+// theme packed against ITSELF must skip the scaffold-prepend step
+// entirely (Test-list case 8 — no duplication) while still going through
+// scope + the (here, no-op) root-mark/specificity/pagination passes, in
+// the non-SVG container chain ("div.marpit > section").
+const expectedScaffoldPackedCSS = `div.marpit > section { width: 1280px; height: 720px; box-sizing: border-box; overflow: hidden; position: relative; scroll-snap-align: center center; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+div.marpit > section::after { bottom: 0; content: attr(data-marpit-pagination); padding: inherit; pointer-events: none; position: absolute; right: 0; }
+div.marpit > section:not([data-marpit-pagination])::after { display: none; }
+div.marpit > section :where(h1) { font-size: 2em; margin-block: 0.67em; }
+div.marpit > section video::-webkit-media-controls { will-change: transform; }`
+
+// TestPackFullPipelineStressThemeMatchesFixtureViaCSSDiff covers Test-list
+// case 10 (stress theme half): Pack("stress", InlineSVG) equals the
+// hand-verified expected fixture via conformance/cssdiff.Equal — a
+// format-insensitive, order-sensitive AST diff, not a brittle string
+// compare.
+func TestPackFullPipelineStressThemeMatchesFixtureViaCSSDiff(t *testing.T) {
+	th, err := Load(stressThemeCSS)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	ts := NewThemeSet()
+	ts.Add(th)
+
+	out, err := ts.Pack("stress", PackOptions{InlineSVG: true})
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+
+	if equal, diff := cssdiff.Equal(expectedStressPackedCSS, out); !equal {
+		t.Fatalf("Pack(stress) != expected fixture via cssdiff.Equal:\n%s", diff)
+	}
+}
+
+// TestPackFullPipelineScaffoldThemeMatchesFixtureViaCSSDiff covers
+// Test-list case 10 (scaffold theme half): Pack(scaffold) equals the
+// hand-verified expected fixture via cssdiff.Equal.
+func TestPackFullPipelineScaffoldThemeMatchesFixtureViaCSSDiff(t *testing.T) {
+	ts := NewThemeSet()
+
+	out, err := ts.Pack(ScaffoldThemeName, PackOptions{InlineSVG: false})
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+
+	if equal, diff := cssdiff.Equal(expectedScaffoldPackedCSS, out); !equal {
+		t.Fatalf("Pack(scaffold) != expected fixture via cssdiff.Equal:\n%s", diff)
 	}
 }
