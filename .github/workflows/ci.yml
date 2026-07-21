@@ -62,9 +62,12 @@ jobs:
         # themes/*.css carry Marp's OWN /*! @theme … */ header (an added Eden header
         # would displace the leading @theme block chase/theme/meta.go parses) and
         # themes/browser-fit.js carries Marp's MIT header — all credited in NOTICE,
-        # so they are excluded from the AO-Cyber header assertion. Everything else
+        # so they are excluded from the AO-Cyber header assertion. convert/chrome/
+        # fonts/** is the vendored STIX Two Math OTF binary (EXP-04 font
+        # provisioning, 05-02) — a font binary, not Eden Press source, so it is
+        # excluded the same way conformance/corpus/cases/** is. Everything else
         # must have the MIT header.
-        run: addlicense -l mit -s -c "AO Cyber Systems" -ignore 'conformance/corpus/cases/**' -ignore '**/node_modules/**' -ignore 'themes/**' -check .
+        run: addlicense -l mit -s -c "AO Cyber Systems" -ignore 'conformance/corpus/cases/**' -ignore '**/node_modules/**' -ignore 'themes/**' -ignore 'convert/chrome/fonts/**' -check .
 
       - name: Check no chromedp (API-02)
         # OBJECTIVE.md success criterion 2 + the Objective-7-begin gate: the
@@ -73,3 +76,70 @@ jobs:
         # a consumer that imports only press/ never pulls in chromedp. This
         # mechanically enforces that boundary on every push/PR.
         run: make check-no-chromedp
+
+  export:
+    name: export (pinned no-system-Chrome headless-shell container, EXP-04)
+    runs-on: ubuntu-latest
+    env:
+      # The SAME pinned tag as the Makefile's CHROME_VERSION var (see
+      # convert/EXPORT.md's version-pin + PDF-re-validation process) — bump
+      # both together, then re-run `make check-chrome-export` before
+      # accepting the bump. NEVER "latest" (05-RESEARCH Pitfall A/11).
+      CHROME_VERSION: '151.0.7922.34'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build a Go + pinned-headless-shell image (NO system Chrome otherwise)
+        # A throwaway multi-stage image, built for this job only: stage
+        # "shell" is the PINNED chromedp/headless-shell:${CHROME_VERSION}
+        # image, verbatim and unmodified — its /headless-shell tree is the
+        # ONLY Chrome/Chromium binary that will exist anywhere in the final
+        # image. The final stage is a plain Go toolchain image with NOTHING
+        # chrome-related pre-installed; the headless-shell tree is COPIED in
+        # from the pinned stage (never apt-installed, never `latest`). None
+        # of convert/chrome/discover.go's tier-3 auto-detect candidate binary
+        # names (google-chrome*, chromium*) exist anywhere in this image —
+        # so the ONLY way Discover can resolve Chrome here is tier 2
+        # (the CHROME_PATH env var, set below to the copied-in headless-shell
+        # path), which is exactly what proves the EXP-04 discovery fallback
+        # chain resolves Chrome from a genuinely clean, no-system-Chrome
+        # container.
+        run: |
+          cat > Dockerfile.export-ci <<'EOF'
+          ARG CHROME_VERSION
+          FROM chromedp/headless-shell:${CHROME_VERSION} AS shell
+
+          FROM golang:1.26-bookworm
+          COPY --from=shell /headless-shell /headless-shell
+          RUN useradd --create-home --uid 10001 exporter
+          USER exporter
+          WORKDIR /workspace
+          EOF
+          docker build \
+            --build-arg CHROME_VERSION="${CHROME_VERSION}" \
+            -f Dockerfile.export-ci \
+            -t eden-press-export-ci:local \
+            .
+
+      - name: Run export tests in the pinned no-system-Chrome container
+        # Non-root (--user, matching the image's unprivileged `exporter`
+        # user), --disable-dev-shm-usage (already baked into
+        # convert/chrome.Session's launch flags as a DEFAULT — this adds a
+        # generous --shm-size on top per Pitfall 11), and a unique
+        # --user-data-dir per run (also already a Session default via
+        # os.MkdirTemp). CHROME_PATH points at the copied-in pinned
+        # headless-shell binary — the tier-2 resolution this whole job
+        # exists to prove.
+        run: |
+          docker run --rm \
+            --user 10001:10001 \
+            --shm-size=1g \
+            -e CHROME_PATH=/headless-shell/headless-shell \
+            -e HOME=/tmp \
+            -e GOCACHE=/tmp/gocache \
+            -e GOPATH=/tmp/gopath \
+            -e CHROME_VERSION="${CHROME_VERSION}" \
+            -v "${{ github.workspace }}":/workspace \
+            -w /workspace \
+            eden-press-export-ci:local \
+            bash -c "make export-test"
