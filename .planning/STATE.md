@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Objective: 3 of 9 (press/ Batteries + Public API) — IN PROGRESS; Objectives 0-2 complete
-Job: 1 of 9 complete (03-01 chase/markdown.ParseWithEngine seam + frozen press.Options/Output API-03 surface + six battery deps + goldmark-emoji compat spike (API-03) — wave 1/3)
-Status: Objective 3 in progress — 03-01 (wave-1 foundation) done; wave-1 03-02 and wave-2 battery TRDs unblocked (go.mod owned + provisioned, press types + ParseWithEngine seam available)
-Last activity: 2026-07-21 — 03-01-TRD executed (wave-1 foundation): chase/markdown.ParseWithEngine added (ADDITIVE engine-parameterized twin of Parse — same SvgOptionsKey + resolved HeadingDividerKey pre-seed, parses via caller-supplied engine; seam.go/chase.go byte-for-byte untouched); press.Options + press.Output defined as the frozen API-03 surface (zero value = Marp-Core default, NoHighlight inverted, Sanitize nil = built-in policy); six battery deps provisioned into go.mod additively (chroma/v2 v2.27.0, goldmark-emoji v1.0.6, goldmark-highlighting/v2, bluemonday v1.0.27, latex2mathml, codeberg.org/go-latex/latex v0.3.0 — go-latex provisioned ONLINE, no defer/BLOCKER); goldmark-emoji↔goldmark v1.8.4 compat spike (research riskiest-item #3) closed with a passing test; 3 task commits (8af93ad, 9b74483, 60a12a4); whole-repo build/vet/test, gofmt, Go-source addlicense, Obj-1 corpus/cssdiff gates, Obj-2 grep-gate, and no-chromedp invariant all green
+Job: 3 of 9 complete (wave-1: 03-01 ParseWithEngine seam + API-03 surface + deps, 03-02 embedded themes; wave-2: 03-06 CORE-08 BASELINE math — this branch; other wave-2 TRDs execute in parallel worktrees, reconciled at merge)
+Status: Objective 3 in progress — 03-06 (CORE-08 math battery) done on this worktree; parallel wave-2 TRDs (03-03/04/05/07/08) in flight; 03-09 compose is wave 3
+Last activity: 2026-07-21 — 03-06-TRD executed (wave-2 riskiest battery): press/math subpackage built from scratch (no reusable goldmark-math library) — bespoke $/$$ InlineParser + custom mathNode + routing NodeRenderer; test-first construct-detection predicate needsFallback (\tag|\label|\begin{aligned|align|alignat|cases|array}) pre-scans RAW source; common $…$/$$…$$ → native MathML via vendored latex2mathml; heavy constructs → PNG-ONLY base64 data-URI <img> via go-latex/latex drawtex/drawimg (drawtex has NO SVG canvas — framing corrected to PNG); Pandoc currency guard; MathMode "off" disables math; RECORDED surprise: go-latex/mtex PANICS on superscripts + all \begin{…} envs → fallback wraps recover() and degrades to alt-only <img> stub (real PNG path proven with \frac), so aligned-family currently renders the graceful stub — Objective 8 owns raster quality + final fallback rule; recover guard also on latex2mathml (8 known converter bugs → Obj 8); 2 task commits (76610d3, 6116618); whole-repo build/vet/test, gofmt, Go-source addlicense, Obj-1 corpus/cssdiff, Obj-2 grep-gate, no-chromedp (count 0) all green; go.mod/go.sum additive-only (gg/freetype/x/image/x/text transitive; go-latex+latex2mathml promoted to direct)
 
-Progress: [█████████░] 95% (19/27 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4, Objective 3: 1/9)
+Progress: [█████████░] 96% (21/27 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4, Objective 3: 3/9)
 
 ## Accumulated Context
 
@@ -34,6 +34,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-21 (03-01-TRD execution — wave-1 foundation of Objective 3)
-Stopped at: Completed 03-01-TRD.md (API-03): ParseWithEngine seam + frozen press.Options/Output + six battery deps + emoji compat spike; SUMMARY committed on worktree branch. Wave-1 03-02 and the wave-2 battery TRDs are unblocked. Objective 3 at 1/9.
+Last session: 2026-07-21 (03-06-TRD execution — wave-2 CORE-08 BASELINE math battery)
+Stopped at: Completed 03-06-TRD.md (CORE-08): press/math from-scratch goldmark battery — $/$$→MathML via latex2mathml + test-first construct-detection predicate + PNG-only go-latex fallback; SUMMARY committed on worktree branch. Objective 3 at 3/9 (this worktree). NOTE for reconcile: parallel wave-2 worktrees (03-03/04/05/07/08) also advance Objective-3 tracking — the orchestrator reconciles the true count at merge. 03-08 sanitize MUST allow <math>+children and the fallback <img> (see 03-06-SUMMARY "For 03-08"); 03-09 wires press/math.Option(opts.MathMode) into the compose engine.
 Resume file: None
