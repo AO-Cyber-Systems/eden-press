@@ -220,3 +220,44 @@ func TestMathRender(t *testing.T) {
 		t.Errorf("heavy `\\begin{aligned}` should NOT emit MathML: %q", fallback)
 	}
 }
+
+// TestMathRawDisplayAccessors covers Test-list case 8 (the 06-01 additive
+// getter seam): MathRaw()/MathDisplay() return the mathNode's Raw/Block fields
+// unchanged, and a *mathNode satisfies the exact duck-typed interface
+// chase/model reaches raw TeX through -- WITHOUT chase/model ever importing
+// press/math. This test IS that interface contract: if these getters or their
+// signatures drift, chase/model's math-block extraction silently stops
+// compiling against the seam, so this test pins the shape DART-04 depends on.
+func TestMathRawDisplayAccessors(t *testing.T) {
+	display := newMathNode(`E=mc^2`, true)
+	if display.MathRaw() != `E=mc^2` {
+		t.Errorf("MathRaw() = %q, want %q", display.MathRaw(), `E=mc^2`)
+	}
+	if !display.MathDisplay() {
+		t.Errorf("MathDisplay() = false, want true for $$…$$ (block) math")
+	}
+
+	inline := newMathNode(`x`, false)
+	if inline.MathRaw() != "x" {
+		t.Errorf("MathRaw() = %q, want %q", inline.MathRaw(), "x")
+	}
+	if inline.MathDisplay() {
+		t.Errorf("MathDisplay() = true, want false for $…$ (inline) math")
+	}
+
+	// The duck-typed seam: an *ast.Node value type-asserts to the exact
+	// interface chase/model declares locally (as `rawMath`). This proves
+	// chase/model can recover raw TeX + display flag from a math node reached
+	// only as an ast.Node, with no press/math import.
+	var node ast.Node = display
+	rm, ok := node.(interface {
+		MathRaw() string
+		MathDisplay() bool
+	})
+	if !ok {
+		t.Fatal("*mathNode does not satisfy the rawMath duck-typed interface (MathRaw/MathDisplay)")
+	}
+	if rm.MathRaw() != `E=mc^2` || !rm.MathDisplay() {
+		t.Errorf("via interface: MathRaw()=%q MathDisplay()=%v, want %q true", rm.MathRaw(), rm.MathDisplay(), `E=mc^2`)
+	}
+}

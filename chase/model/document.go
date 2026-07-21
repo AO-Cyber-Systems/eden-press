@@ -46,7 +46,80 @@ package model
 // future incompatible change to Document's JSON shape bumps this constant,
 // giving a consumer a stable signal to branch on rather than silently
 // misinterpreting an old/new shape.
-const SchemaVersion = "eden-press.model/v1"
+//
+// v1 -> v2 (06-01): ADDITIVE per-section body-content enrichment. Section
+// gained a Blocks []Block field (ordered paragraph/list/code/math/heading
+// content, materialized by the SAME single read-only Build walk). Every new
+// field carries `omitempty`, so a v1-shaped (block-less) document's JSON is
+// byte-for-byte unchanged apart from this version string -- v2 is a strict
+// superset of v1, never a breaking reshape.
+const SchemaVersion = "eden-press.model/v2"
+
+// BlockKind enumerates the kinds of body-content block a Section can carry.
+type BlockKind string
+
+const (
+	// BlockParagraph is a plain-text paragraph (editable prose).
+	BlockParagraph BlockKind = "paragraph"
+	// BlockList is a bullet or ordered list of items.
+	BlockList BlockKind = "list"
+	// BlockCode is a fenced or indented code block (raw source + language).
+	BlockCode BlockKind = "code"
+	// BlockMath is a `$…$`/`$$…$$` math construct (raw TeX + display flag).
+	BlockMath BlockKind = "math"
+	// BlockHeading is a heading (level + text); mirrors an Outline entry.
+	BlockHeading BlockKind = "heading"
+)
+
+// Block is one ordered piece of a Section's body content, materialized by the
+// same read-only AST walk that builds Sections/Outline (see build.go). Its
+// zero-value fields are `omitempty` so a Section with no blocks serializes
+// without a `blocks` key, and a block that does not use a field (e.g. a
+// paragraph has no Language) omits it -- keeping v2 JSON a strict, additive
+// superset of v1.
+//
+// This is the ONE shared schema-v2 surface both downstream objectives consume:
+// Objective 6's PPTX writer maps paragraph/list/heading blocks into editable
+// text-box shapes; Objective 7's DART-04 serializes code (source+language) and
+// math (rawTeX+display) blocks verbatim for native Flutter rendering. Both the
+// raw code source and the raw math TeX are JSON-native and lossless here --
+// neither is recoverable from the rendered Output.HTML.
+type Block struct {
+	// Kind is the block's discriminator (paragraph/list/code/math/heading).
+	Kind BlockKind `json:"kind"`
+
+	// Text is the block's primary text payload: paragraph/heading plain text,
+	// a code block's RAW source (pre-chroma), or a math construct's RAW TeX.
+	// Empty for a pure list block (its content lives in Items).
+	Text string `json:"text,omitempty"`
+
+	// Level is the heading level 1-6 (heading blocks only).
+	Level int `json:"level,omitempty"`
+
+	// Language is the fenced-code info-string language, e.g. "go" (code blocks
+	// only; empty for an indented code block or a fence with no info string).
+	Language string `json:"language,omitempty"`
+
+	// Display reports display ($$…$$) vs. inline ($…$) math (math blocks only).
+	Display bool `json:"display,omitempty"`
+
+	// Ordered reports a numbered vs. bullet list (list blocks only).
+	Ordered bool `json:"ordered,omitempty"`
+
+	// Items are the entries of a list block, in document order (list blocks
+	// only).
+	Items []ListItem `json:"items,omitempty"`
+}
+
+// ListItem is one entry of a list Block, carrying its editable Text and its
+// 0-based nesting Level (0 = top level, 1 = one level of indentation, ...).
+type ListItem struct {
+	// Text is the item's editable plain text.
+	Text string `json:"text"`
+
+	// Level is the item's 0-based nesting depth within the list.
+	Level int `json:"level,omitempty"`
+}
 
 // Document is the root of the docmodel: deck-level Meta, the ordered list
 // of Sections (the generic unit a profile happens to give its own presentation
@@ -75,14 +148,16 @@ type Document struct {
 }
 
 // Section is the JSON-serializable projection of a *markdown.Section: its
-// 1-based ID, its materialized directive-derived attributes, and any
-// speaker notes (non-directive HTML comments) found within it.
+// 1-based ID, its materialized directive-derived attributes, any speaker
+// notes (non-directive HTML comments) found within it, and -- as of schema
+// v2 (06-01) -- its ordered body-content Blocks.
 //
-// Blocks/HTML content are deliberately NOT part of this shape -- this
-// objective (MODEL-01) only needs outline+notes+meta+attrs; a field with
-// no consumer in this TRD's Test list is a speculative superset and does
-// not belong here (see build.go's non-mutation invariant tests for what
-// IS exercised).
+// Blocks is ADDITIVE (schema v2): the ID/Attrs/Notes fields, their JSON tags,
+// and their order are FROZEN v1 shape and unchanged. Blocks carries `omitempty`
+// so a Section with no extracted body content serializes exactly as it did
+// under v1 (no `blocks` key). Build materializes Blocks in the SAME single
+// read-only AST walk that produces ID/Attrs/Notes/Outline -- never a second
+// parse, never reverse-engineered from rendered HTML.
 type Section struct {
 	// ID is the Section's 1-based index, mirroring *markdown.Section.ID.
 	ID int `json:"id"`
@@ -98,6 +173,13 @@ type Section struct {
 	// HTML comment within it that did NOT resolve to a recognized
 	// directive, in document order.
 	Notes []string `json:"notes,omitempty"`
+
+	// Blocks holds this Section's ordered body-content blocks (paragraph,
+	// list, code, math, heading), in document order -- the editable/lossless
+	// per-section surface schema v2 adds for downstream data sinks (PPTX text
+	// shapes, native Flutter rendering). Nil (and omitted from JSON) for a
+	// Section with no extracted body content.
+	Blocks []Block `json:"blocks,omitempty"`
 }
 
 // Meta carries deck-level metadata resolved from the document's front

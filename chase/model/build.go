@@ -32,10 +32,25 @@ import (
 
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
 
 	"github.com/AO-Cyber-Systems/eden-press/chase/directive"
 	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
 )
+
+// rawMath is the duck-typed seam by which Build recovers a math construct's RAW
+// TeX + display flag WITHOUT chase/model importing press/math. press/math's
+// (unexported) *mathNode satisfies it via its additive MathRaw()/MathDisplay()
+// getters (press/math/math.go), so chase/model reaches the raw TeX with no
+// direct import -- no dependency-closure coupling, no import cycle, and the
+// no-chromedp closure of press/chase/profiles is unaffected. ANY ast.Node
+// implementing these two methods is materialized as a math Block; the raw TeX
+// is the lossless surface Objective 7's DART-04 consumes (never the presentation
+// MathML in Output.HTML, which carries no <annotation> TeX).
+type rawMath interface {
+	MathRaw() string
+	MathDisplay() bool
+}
 
 // Build walks doc and returns the Document it describes.
 //
@@ -88,11 +103,77 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 			}
 		case *ast.Heading:
 			if entering && sectionIdx >= 0 {
+				// The Outline entry is FROZEN v1 behavior -- unchanged. Schema
+				// v2 ADDITIVELY also appends a heading Block so a Section's
+				// body content carries its headings in document order (the
+				// Outline is a flat deck-wide index; Blocks is per-section body).
+				text := string(node.Text(source))
 				d.Outline = append(d.Outline, OutlineEntry{
 					SectionID: d.Sections[sectionIdx].ID,
 					Level:     node.Level,
-					Text:      string(node.Text(source)),
+					Text:      text,
 					Slug:      headingSlug(node),
+				})
+				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+					Kind:  BlockHeading,
+					Level: node.Level,
+					Text:  text,
+				})
+			}
+		case *ast.Paragraph, *ast.TextBlock:
+			// A paragraph (or a list-item's TextBlock, though those are never
+			// reached here -- the *ast.List case below skips its children)
+			// contributes its concatenated plain text as an editable paragraph
+			// Block. TWO paragraphs are skipped so they don't emit a spurious
+			// text Block:
+			//   - a whitespace-only paragraph; and
+			//   - a MATH-ONLY paragraph. goldmark wraps a standalone `$$…$$` /
+			//     `$…$` line in a Paragraph whose only child is the math node,
+			//     yet Paragraph.Text reconstructs the RAW `$$…$$` source (the
+			//     math node does not strip it), so a naive text check would
+			//     double-emit the raw TeX as prose. The math node itself is
+			//     materialized as a math Block when the walk descends into this
+			//     paragraph (the rawMath case in default, below) -- preserving
+			//     document order + the display flag (error_recovery).
+			if entering && sectionIdx >= 0 && !isMathOnlyParagraph(n, source) {
+				if txt := string(n.Text(source)); strings.TrimSpace(txt) != "" {
+					d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+						Kind: BlockParagraph,
+						Text: txt,
+					})
+				}
+			}
+		case *ast.List:
+			// Emit one list Block carrying every item (including nested items,
+			// each with its 0-based nesting Level) then SKIP the list's
+			// children, so the item TextBlocks/Paragraphs are not ALSO emitted
+			// as loose paragraph Blocks. Nested lists are handled entirely by
+			// collectListItems, never re-encountered by this walk.
+			if entering && sectionIdx >= 0 {
+				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+					Kind:    BlockList,
+					Ordered: node.IsOrdered(),
+					Items:   collectListItems(node, source),
+				})
+				return ast.WalkSkipChildren, nil
+			}
+		case *ast.FencedCodeBlock:
+			// RAW source (pre-chroma) reconstructed from the node's line
+			// segments, plus the info-string Language -- the lossless surface
+			// Objective 7's flutter_highlighting consumes.
+			if entering && sectionIdx >= 0 {
+				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+					Kind:     BlockCode,
+					Language: string(node.Language(source)),
+					Text:     rawLinesText(node.Lines(), source),
+				})
+			}
+		case *ast.CodeBlock:
+			// Indented code block: RAW source, no info-string language.
+			if entering && sectionIdx >= 0 {
+				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+					Kind: BlockCode,
+					Text: rawLinesText(node.Lines(), source),
 				})
 			}
 		case *markdown.CommentNode:
@@ -114,11 +195,96 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 			if entering && sectionIdx >= 0 && isNote(node.Raw) {
 				d.Sections[sectionIdx].Notes = append(d.Sections[sectionIdx].Notes, node.Raw)
 			}
+		default:
+			// Math construct: reached via the duck-typed rawMath seam (press/
+			// math's *mathNode satisfies it) so chase/model never imports press/
+			// math. Present ONLY under a math-battery engine (press.Render);
+			// under the default chase engine `$$x$$` is plain text -> a
+			// paragraph Block, which is expected + correct. Text is the RAW TeX,
+			// Display the $$…$$ (block) vs. $…$ (inline) flag.
+			if entering && sectionIdx >= 0 {
+				if mn, ok := n.(rawMath); ok {
+					d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+						Kind:    BlockMath,
+						Text:    mn.MathRaw(),
+						Display: mn.MathDisplay(),
+					})
+				}
+			}
 		}
 		return ast.WalkContinue, nil
 	})
 
 	return d
+}
+
+// isMathOnlyParagraph reports whether n is a paragraph/text-block whose only
+// non-whitespace content is math node(s) -- e.g. a standalone `$$E=mc^2$$` or
+// `$x$` line goldmark wraps in a Paragraph. Such a paragraph must NOT emit a
+// text Block (its Paragraph.Text reconstructs the raw `$$…$$` source); the math
+// node it wraps is emitted as a math Block by the walk instead. Returns false
+// for a paragraph that mixes prose with math, or one with no math at all.
+func isMathOnlyParagraph(n ast.Node, source []byte) bool {
+	hasMath := false
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		if _, ok := c.(rawMath); ok {
+			hasMath = true
+			continue
+		}
+		if strings.TrimSpace(string(c.Text(source))) != "" {
+			return false // a non-math, non-whitespace child -> real prose
+		}
+	}
+	return hasMath
+}
+
+// rawLinesText reconstructs a code block's RAW source by concatenating the
+// value of each of its line segments against source -- the exact pre-chroma
+// bytes goldmark parsed, never the highlighted HTML a renderer later produces.
+func rawLinesText(lines *text.Segments, source []byte) string {
+	var b strings.Builder
+	for i := 0; i < lines.Len(); i++ {
+		seg := lines.At(i)
+		b.Write(seg.Value(source))
+	}
+	return b.String()
+}
+
+// collectListItems flattens list (and every list nested within its items) into
+// a document-ordered []ListItem, each carrying its own leading text and its
+// 0-based nesting Level. An item's text is taken from its first TextBlock/
+// Paragraph child only (a tight list uses TextBlock, a loose list Paragraph);
+// a nested *ast.List child is recursed into at Level+1, appended AFTER its
+// owning item so document order is preserved (parent, then its descendants).
+func collectListItems(list *ast.List, source []byte) []ListItem {
+	var items []ListItem
+	var walk func(l *ast.List, level int)
+	walk = func(l *ast.List, level int) {
+		for li := l.FirstChild(); li != nil; li = li.NextSibling() {
+			item, ok := li.(*ast.ListItem)
+			if !ok {
+				continue
+			}
+			var itemText string
+			var nested []*ast.List
+			for c := item.FirstChild(); c != nil; c = c.NextSibling() {
+				switch child := c.(type) {
+				case *ast.List:
+					nested = append(nested, child)
+				case *ast.TextBlock, *ast.Paragraph:
+					if itemText == "" {
+						itemText = string(c.Text(source))
+					}
+				}
+			}
+			items = append(items, ListItem{Text: itemText, Level: level})
+			for _, nl := range nested {
+				walk(nl, level+1)
+			}
+		}
+	}
+	walk(list, 0)
+	return items
 }
 
 // attrsToMap materializes chase/markdown's ordered []Attr into the JSON-sink

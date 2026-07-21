@@ -77,6 +77,23 @@ func newMathNode(raw string, block bool) *mathNode {
 	return &mathNode{Raw: raw, Block: block}
 }
 
+// MathRaw returns the raw LaTeX between the delimiters ($…$ or $$…$$), exactly
+// as the $-parser captured it -- the lossless TeX source, never the rendered
+// MathML/PNG. It is a PURE getter: it does not touch the $ parser, the routing
+// NodeRenderer, or the emitted HTML.
+//
+// This exists so a JSON data sink (chase/model.Build, schema v2) can recover a
+// math construct's raw TeX for downstream native rendering (Objective 7's
+// DART-04 feeds it to flutter_math_fork). chase/model reaches this via a
+// duck-typed interface, never importing press/math -- so MathRaw/MathDisplay
+// are the additive seam that keeps the two packages decoupled and cycle-free.
+func (n *mathNode) MathRaw() string { return n.Raw }
+
+// MathDisplay reports display ($$…$$) vs. inline ($…$) math -- the same Block
+// flag the NodeRenderer already routes on, exposed additively as a getter for
+// the same JSON data sink. Also a PURE getter (no parse/render change).
+func (n *mathNode) MathDisplay() bool { return n.Block }
+
 // dollarDollar is the display-math delimiter.
 var dollarDollar = []byte("$$")
 
