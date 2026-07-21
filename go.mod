@@ -7,3 +7,16 @@ require (
 	github.com/yuin/goldmark v1.8.4
 	golang.org/x/net v0.57.0
 )
+
+require (
+	codeberg.org/go-latex/latex v0.3.0 // indirect
+	git.sr.ht/~mekyt/latex2mathml v0.0.0-20231214134936-808832af73fc // indirect
+	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
+	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
+	github.com/gorilla/css v1.0.1 // indirect
+	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
+	github.com/neruyzo/etree v0.0.0-20230816193247-70b7b06b18ad // indirect
+	github.com/yuin/goldmark-emoji v1.0.6 // indirect
+	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc // indirect
+)

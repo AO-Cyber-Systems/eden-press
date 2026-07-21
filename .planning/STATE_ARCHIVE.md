@@ -23,4 +23,5 @@ STATE.md stays lean; this file grows over time.
 | Objective 01-chase-framework P04 | 22min | 3 tasks | 11 files |
 | Objective 01-chase-framework P08 | 45min | 3 tasks | 6 files |
 | Objective 02-model-profile P04 | 14min | 3 tasks | 4 files |
+| Objective 03-press-batteries-api P01 | ~8min | 3 tasks | 7 files |
 

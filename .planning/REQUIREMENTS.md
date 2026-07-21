@@ -54,7 +54,7 @@
 
 - [ ] **API-01**: `press.Render(md, opts) → {HTML, CSS, Model, Comments, Meta}` with **no Chrome dependency** (pure Go, no browser for HTML/structured output)
 - [ ] **API-02**: The `press/` package must not import `chromedp` — enforced by CI (`go list -deps ./press/... | grep chromedp` is empty)
-- [ ] **API-03**: Stable, documented options (themes, math mode, highlight, inline-SVG, profile) and output types
+- [x] **API-03**: Stable, documented options (themes, math mode, highlight, inline-SVG, profile) and output types
 
 ### CLI (`cmd/eden-press`)
 
@@ -163,7 +163,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | CORE-09 | Objective 3 (hardened further in Objective 8) | Pending |
 | API-01 | Objective 3 | Pending |
 | API-02 | Objective 3 | Pending |
-| API-03 | Objective 3 | Pending |
+| API-03 | Objective 3 | Complete |
 | CLI-01 | Objective 4 — CLI (cmd/eden-press) | Pending |
 | CLI-02 | Objective 4 | Pending |
 | CLI-03 | Objective 4 | Pending |
