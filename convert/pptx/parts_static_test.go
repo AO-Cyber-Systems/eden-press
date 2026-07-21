@@ -195,18 +195,18 @@ func TestStaticPartsProduceWellFormedXML(t *testing.T) {
 	slides := []slideRef{{RelID: rIDSlide1, Target: "slides/slide1.xml"}}
 	builders := map[string][]byte{
 		"_rels/.rels":                                  rootRelsXML(),
-		"docProps/core.xml":                             docPropsCoreXML(),
-		"docProps/app.xml":                              docPropsAppXML(len(slides)),
-		"ppt/presentation.xml":                          presentationXML(SlideSize16x9, slides),
-		"ppt/_rels/presentation.xml.rels":               presentationRelsXML(slides),
-		"ppt/presProps.xml":                             presPropsXML(),
-		"ppt/viewProps.xml":                             viewPropsXML(),
-		"ppt/tableStyles.xml":                           tableStylesXML(),
-		"ppt/theme/theme1.xml":                          theme1XML(),
-		"ppt/slideMasters/slideMaster1.xml":             slideMaster1XML(),
-		"ppt/slideMasters/_rels/slideMaster1.xml.rels":  slideMaster1RelsXML(),
-		"ppt/slideLayouts/slideLayout1.xml":             slideLayout1XML(),
-		"ppt/slideLayouts/_rels/slideLayout1.xml.rels":  slideLayout1RelsXML(),
+		"docProps/core.xml":                            docPropsCoreXML(),
+		"docProps/app.xml":                             docPropsAppXML(len(slides)),
+		"ppt/presentation.xml":                         presentationXML(SlideSize16x9, slides),
+		"ppt/_rels/presentation.xml.rels":              presentationRelsXML(slides),
+		"ppt/presProps.xml":                            presPropsXML(),
+		"ppt/viewProps.xml":                            viewPropsXML(),
+		"ppt/tableStyles.xml":                          tableStylesXML(),
+		"ppt/theme/theme1.xml":                         theme1XML(),
+		"ppt/slideMasters/slideMaster1.xml":            slideMaster1XML(),
+		"ppt/slideMasters/_rels/slideMaster1.xml.rels": slideMaster1RelsXML(),
+		"ppt/slideLayouts/slideLayout1.xml":            slideLayout1XML(),
+		"ppt/slideLayouts/_rels/slideLayout1.xml.rels": slideLayout1RelsXML(),
 	}
 	for name, content := range builders {
 		if len(content) == 0 {
