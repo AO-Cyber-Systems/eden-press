@@ -199,8 +199,10 @@ func TestRebuildOnceInjectsReloadClientOnly(t *testing.T) {
 	}
 	wantOut := filepath.Join(dir, "deck.html")
 
-	cmd := newTestConvertCmd() // persistent + auto-fit-script flag surface is enough; watch reads the same cfg seam
-	registerWatchFlags(cmd)
+	cmd := newTestConvertCmd() // persistent + --output flag surface is enough; watch reads the same cfg seam
+	// NOT registerWatchFlags(cmd) too: it registers the identical --output/-o
+	// flag newTestConvertCmd's registerConvertFlags already added, and pflag
+	// panics on a duplicate flag registration on the same FlagSet.
 	if err := cmd.ParseFlags(nil); err != nil {
 		t.Fatalf("ParseFlags: %v", err)
 	}
