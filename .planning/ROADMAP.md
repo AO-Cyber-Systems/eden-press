@@ -180,7 +180,7 @@ something real.
   4. A shared subset of Objective 0's conformance corpus runs against the compiled capi/wasm artifact through the same JSON entrypoint the Dart code uses (not just the Go-native test run) and passes.
 **Plans**: 5 TRDs in 3 waves
 - [x] 07-01-TRD.md — DART-01: C-ABI core — RenderJSON pure-Go JSON boundary + cgo PressRender/PressFree [wave 1]
-- [ ] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2]
+- [x] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2] — complete 2026-07-21 (commits aced805, 235c54f; SUMMARY: 07-02-SUMMARY.md)
 - [ ] 07-03-TRD.md — DART-02: native builds — Android c-shared .so/ABI, iOS c-archive→xcframework + two-pipeline CI [wave 2]
 - [ ] 07-04-TRD.md — DART-05: boundary conformance — corpus subset through compiled wasm + host capi via same JSON entrypoint [wave 3]
 - [ ] 07-05-TRD.md — DART-04: JS-free Dart surface — flutter_math_fork + flutter_highlighting; consumes Obj6/06-01 schema-v2 [wave 3]
@@ -216,7 +216,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 4. CLI (cmd/eden-press) | 2/8 | In Progress | - |
 | 5. convert/pdf + convert/png (chromedp) | 1/5 | In Progress | - |
 | 6. convert/pptx (native OOXML) | 1/5 | In progress | 06-02: 2026-07-21 |
-| 7. Dart/Flutter Binding | 1/5 | In Progress | - |
+| 7. Dart/Flutter Binding | 2/5 | In Progress | 07-02: 2026-07-21 |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
 
 ---
