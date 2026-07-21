@@ -27,8 +27,7 @@
 /// dart:ffi on Android/iOS, wasm via dart:js_interop on Web -- see
 /// `src/native_loader.dart` / `src/web_loader.dart`) and returns a decoded
 /// [Output] whose [ModelDocument] (schema-v2 `Section.Blocks`) can be handed
-/// to `EdenPressView` (`src/render_surface.dart`, wired in by Task 2 of
-/// 07-05-TRD.md) for a fully native render: math via `flutter_math_fork`,
+/// to [EdenPressView] for a fully native render: math via `flutter_math_fork`,
 /// code via `flutter_highlighting`. Nothing in this path parses `Output.html`
 /// or executes JavaScript in the Dart application layer.
 library;
@@ -44,6 +43,7 @@ import 'src/native_loader.dart'
     as backend;
 
 export 'src/model.dart';
+export 'src/render_surface.dart';
 
 /// Renders [md] through the Eden Press engine and returns the decoded
 /// [Output], including its schema-v2 [ModelDocument].
