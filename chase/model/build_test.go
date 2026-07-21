@@ -145,6 +145,29 @@ func TestBuildNotesVsDirectiveComment(t *testing.T) {
 	}
 }
 
+// TestBuildCommentFormSizeMathNotNotes covers 03-07 Task 1 Test-list case 2
+// (CORE-02): once chase/directive.CoerceGlobal recognizes "size"/"math" as
+// GLOBAL directives, a COMMENT-form "<!-- size: 4:3 -->" / "<!-- math:
+// mathml -->" must classify as a recognized directive -- not a presenter
+// note -- exactly mirroring TestBuildNotesVsDirectiveComment's existing
+// paginate coverage, but for the two Marp-Core (not Marpit) global
+// directives this TRD adds. A genuine free-form note in the same slide must
+// still land in Notes untouched.
+func TestBuildCommentFormSizeMathNotNotes(t *testing.T) {
+	md := "# Slide\n\n<!-- size: 4:3 -->\n\n<!-- math: mathml -->\n\n<!-- just a note -->\n"
+	doc, pc := markdown.Parse(md)
+
+	d := Build(doc, []byte(md), pc)
+
+	if len(d.Sections) != 1 {
+		t.Fatalf("len(Sections) = %d, want 1", len(d.Sections))
+	}
+	notes := d.Sections[0].Notes
+	if len(notes) != 1 || notes[0] != "just a note" {
+		t.Fatalf("Notes = %+v, want exactly [%q] (comment-form size/math must classify as directives, not notes)", notes, "just a note")
+	}
+}
+
 // TestBuildMetaFromFrontMatter covers Test-list case 4: a deck with front
 // matter (theme: gaia, size: 16:9, class: lead) -> Document.Meta carries
 // those resolved values.
