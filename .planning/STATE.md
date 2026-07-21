@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Objective: 1 of 9 (chase/markdown + chase/directive + chase/theme (Marpit-in-Go)) — Objective 0 complete
-Job: 4 of 8 complete (01-01 selector-rewriter, 01-02 directive state machine, 01-03 Stylesheet model, 01-04 ordered two-tier CSS scoping pipeline all executed; wave 2 done)
-Status: Executing — Wave 2 complete (01-04 delivered THEME-03); 01-05 (chase/markdown two-phase seam + slide-split + container, PARSE-05) next, wave 2/3
-Last activity: 2026-07-20 — 01-04-TRD executed: Tier-1 Theme.Load (nesting down-level, :root mark) + Tier-2 ThemeSet.Pack (@import-theme resolve, scaffold prepend, advanced-bg injection, pagination neutralize, selector-scope via chase/theme/selector, specificity rewrite), cssdiff.Equal-verified stress+scaffold fixtures (THEME-03); 3 task commits + 1 docs commit
+Objective: 1 of 9 (chase/markdown + chase/directive + chase/theme (Marpit-in-Go)) — COMPLETE; Objective 0 also complete
+Job: 8 of 8 complete (01-01 selector-rewriter, 01-02 directive state machine, 01-03 Stylesheet model, 01-04 CSS scoping pipeline, 01-05 two-phase seam/slide-split/container, 01-06 directive apply, 01-07 backgrounds/inline-SVG, 01-08 integration — corpus + cssdiff gates + raster check (PARSE-01) all executed; wave 5/5 done)
+Status: Objective 1 complete — ready for Objective 2 planning (chase/model + chase/profile + profiles/slides)
+Last activity: 2026-07-21 — 01-08-TRD executed: two-phase Parse()/Render() seam (PARSE-01) formalized in chase/markdown/seam.go; NEW conformance/runner/chase_corpus_test.go drives the 18-case Marp corpus through the chase engine (10 PASS incl. all 9 Marpit-mechanic cases + marp-gfm-table, 8 BLOCKED on Objective-3 CORE-* batteries via explicit skip-map, 0 unexplained failures); chase/theme/pack_conformance_test.go cssdiff.Equal gate green for stress+scaffold; inline-SVG rasterization human-verified (auto-approved, autonomous run) via browser screenshot; [Rule 1] headingDivider display-value bug fixed in apply.go; 4 task commits (16fcc47, 902e93d, e9adebf, dd68671) + 1 docs commit (729a9ef)
 
-Progress: [███████░░░] ~71% (10/14 TRDs across planned objectives; Objective 1: 4/8)
+Progress: [██████████] 100% (14/14 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8; Objective 2 not yet planned)
 
 ## Accumulated Context
 
@@ -34,6 +34,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-20 (01-04-TRD execution)
-Stopped at: Completed 01-chase-framework-04-TRD.md (THEME-03); two-tier CSS scoping pipeline (Theme.Load + ThemeSet.Pack) verified via cssdiff.Equal fixtures; SUMMARY committed 0ac4f74; 01-05-TRD next.
+Last session: 2026-07-21 (01-08-TRD execution — final TRD of Objective 1)
+Stopped at: Completed 01-chase-framework-08-TRD.md (PARSE-01); Objective 1 now fully complete (8/8). SUMMARY committed 729a9ef. Objective 2 (chase/model + chase/profile + profiles/slides) planning next.
 Resume file: None

@@ -16,7 +16,7 @@
 
 ### Markdown & directives (`chase/markdown`, `chase/directive`)
 
-- [ ] **PARSE-01**: Parse Marpit Markdown via goldmark two-phase `Parse()`+`Render()` (never `Convert()`), so the finalized AST is available to downstream sinks
+- [x] **PARSE-01**: Parse Marpit Markdown via goldmark two-phase `Parse()`+`Render()` (never `Convert()`), so the finalized AST is available to downstream sinks
 - [ ] **PARSE-02**: Resolve the directive system — global, local (carry-forward), and spot (`_`-prefixed) — via `parser.Context` state
 - [ ] **PARSE-03**: Support both directive syntaxes: YAML front-matter (deck-level) and HTML-comment (`<!-- key: value -->`) directives
 - [ ] **PARSE-04**: Implement the Marpit directive set — `theme`, `style`, `headingDivider`, `paginate`, `header`, `footer`, `class`, `color`, `backgroundColor`, `backgroundImage`, `backgroundPosition/Repeat/Size/Split`
@@ -137,7 +137,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | LIC-02 | Objective 0 | Complete |
 | LIC-03 | Objective 0 (enforcement mechanism) + Objective 3 (per-file Marp headers applied, with CORE-01) | Complete |
 | LIC-04 | Objective 0 | Complete |
-| PARSE-01 | Objective 1 — chase/markdown + chase/directive + chase/theme | Pending |
+| PARSE-01 | Objective 1 — chase/markdown + chase/directive + chase/theme | Complete |
 | PARSE-02 | Objective 1 | Pending |
 | PARSE-03 | Objective 1 | Pending |
 | PARSE-04 | Objective 1 | Pending |
