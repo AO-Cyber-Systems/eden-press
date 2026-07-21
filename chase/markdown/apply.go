@@ -88,11 +88,26 @@ func (n *FooterElement) Dump(source []byte, level int) {
 }
 
 // applyDirectives materializes each slide's resolved directive map onto its
-// Section, in document order. sections, resolvedPerSlide, and keysPerSlide
-// are expected to be the same length and index-aligned (one entry per
-// slide); a short keysPerSlide/resolvedPerSlide (e.g. an empty document) is
-// tolerated defensively.
+// Section, in document order, THEN runs a trailing pass that stamps
+// data-marpit-pagination-total onto every slide that paginated.
+//
+// sections, resolvedPerSlide, and keysPerSlide are expected to be the same
+// length and index-aligned (one entry per slide); a short
+// keysPerSlide/resolvedPerSlide (e.g. an empty document) is tolerated
+// defensively.
+//
+// The running pageNumber counter and paginating accumulator are threaded
+// through the per-section loop here (not inside applyDirectivesToSection)
+// so the two-pass total-stamping step has a single, auditable place to
+// live, mirroring apply.js's own two-phase structure: `tokensForPagination`
+// accumulates during the main per-token loop, then a separate trailing
+// `for (const token of tokensForPagination)` stamps
+// data-marpit-pagination-total after the page-number counter has reached
+// its final value.
 func applyDirectives(sections []*Section, resolvedPerSlide []map[string]any, keysPerSlide [][]string) {
+	pageNumber := 0
+	var paginating []*Section
+
 	for i, sec := range sections {
 		var resolved map[string]any
 		var keys []string
@@ -102,8 +117,48 @@ func applyDirectives(sections []*Section, resolvedPerSlide []map[string]any, key
 		if i < len(keysPerSlide) {
 			keys = keysPerSlide[i]
 		}
-		applyDirectivesToSection(sec, keys, resolved)
+		pageNumber = advancePageNumber(pageNumber, resolved)
+		pageNumber = applyDirectivesToSection(sec, keys, resolved, pageNumber, &paginating)
 	}
+
+	total := strconv.Itoa(pageNumber)
+	for _, sec := range paginating {
+		sec.Attrs = append(sec.Attrs, Attr{Name: "data-marpit-pagination-total", Value: total})
+	}
+}
+
+// advancePageNumber increments the running page-number counter for one
+// slide, UNLESS that slide's resolved paginate value is the string "skip"
+// or "hold" -- both freeze the counter (Marpit: "hold" keeps showing the
+// current page number without advancing it; "skip" hides pagination
+// entirely and does not consume a page number either).
+func advancePageNumber(pageNumber int, resolved map[string]any) int {
+	if s, isStr := resolved["paginate"].(string); isStr && (s == "skip" || s == "hold") {
+		return pageNumber
+	}
+	return pageNumber + 1
+}
+
+// applyPaginateAttr sets data-marpit-pagination on sec and adds it to
+// *paginating (for the trailing -total pass), following apply.js: any
+// truthy paginate value other than the string "skip" paginates (this
+// INCLUDES "hold" -- only "skip" is excluded here; "hold"/anything else
+// was already excluded from the COUNTER increment above, but still gets
+// the attribute stamped using the frozen page number).
+func applyPaginateAttr(sec *Section, resolved map[string]any, pageNumber int, paginating *[]*Section) int {
+	v, ok := resolved["paginate"]
+	if !ok || !truthy(v) {
+		return pageNumber
+	}
+	if s, isStr := v.(string); isStr && s == "skip" {
+		return pageNumber
+	}
+	if pageNumber <= 0 {
+		pageNumber = 1
+	}
+	sec.Attrs = append(sec.Attrs, Attr{Name: "data-marpit-pagination", Value: strconv.Itoa(pageNumber)})
+	*paginating = append(*paginating, sec)
+	return pageNumber
 }
 
 // applyDirectivesToSection materializes one slide's resolved directives
@@ -120,18 +175,18 @@ func applyDirectives(sections []*Section, resolvedPerSlide []map[string]any, key
 //  6. backgroundImage -> style override (+ position/repeat/size defaults,
 //     each override-able by backgroundPosition/backgroundRepeat/
 //     backgroundSize if ALSO present).
-//  7. header/footer -> element insertion (first/last child).
-//  8. style attrSet, only if any declaration was set.
+//  7. paginate -> data-marpit-pagination attr (using the running pageNumber
+//     counter apply.js's own per-token loop reads/writes at this exact
+//     point in the branch sequence; the two-pass -total stamp itself is a
+//     separate trailing pass in applyDirectives, over *paginating).
+//  8. header/footer -> element insertion (first/last child).
+//  9. style attrSet, only if any declaration was set.
 //
-// The pagination counter (data-marpit-pagination / -total) is NOT handled
-// here -- see applyPagination (Task 3): apply.js sets
-// `data-marpit-pagination` inline in this same per-token loop, but chase/
-// markdown splits it out into its own pass over the fully materialized
-// Section list so the running page-number counter and the two-pass total
-// stay in one auditable place.
-func applyDirectivesToSection(sec *Section, keys []string, resolved map[string]any) {
+// It returns the (possibly bumped-to-1) pageNumber, so the caller's running
+// counter stays correct across the whole per-section loop.
+func applyDirectivesToSection(sec *Section, keys []string, resolved map[string]any, pageNumber int, paginating *[]*Section) int {
 	if resolved == nil {
-		return
+		return pageNumber
 	}
 
 	style := NewInlineStyle()
@@ -175,6 +230,8 @@ func applyDirectivesToSection(sec *Section, keys []string, resolved map[string]a
 		}
 	}
 
+	pageNumber = applyPaginateAttr(sec, resolved, pageNumber, paginating)
+
 	if v, ok := resolved["header"]; ok {
 		if s, isStr := v.(string); isStr && s != "" {
 			prependHeaderElement(sec, s)
@@ -189,6 +246,8 @@ func applyDirectivesToSection(sec *Section, keys []string, resolved map[string]a
 	if !style.Empty() {
 		sec.Attrs = append(sec.Attrs, Attr{Name: "style", Value: style.String()})
 	}
+
+	return pageNumber
 }
 
 // truthy mirrors JS's `if (value)` truthiness for the value shapes
