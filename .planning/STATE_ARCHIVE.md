@@ -16,6 +16,7 @@ STATE.md stays lean; this file grows over time.
 - [Objective 02-model-profile]: chase.Render composes markdown.Parse+RenderDoc+model.Build+profile-parameterized theme.Pack as the one-parse-two-sinks internal entrypoint (MODEL-02); Objective 2 complete
 - [Objective 03-press-batteries-api]: CORE-03's strikethrough <s> override is a priority-100 renderer.NodeRenderer registered for extast.KindStrikethrough (last-write-wins under goldmark's own 500-priority default), exposed as a standalone goldmark.Option (strikethroughOption()) folded into press.Render's NewEngine(pressExtraOpts...) hook — never modifies chase/markdown.NewEngine itself; CORE-03's tables/hard-breaks and CORE-04's heading slugs required zero new wiring (already baked into NewEngine via extension.GFM/WithHardWraps/WithAutoHeadingID) and are regression-locked by verify-only tests instead
 - [Objective 06-convert-pptx]: convert/pptx/emu.go's chOff/chExt GroupTransform.MapChild applies subtract-ChOff-then-scale-then-add-Off (matching ECMA-376 CT_GroupTransform2D exactly); a single shared round() (math.Round) helper backs every EMU conversion AND the transform's scale math, so the whole package has exactly one rounding rule; SlideSize16x9/SlideSize4x3/NotesSize are plain exported struct vars (not funcs/maps) as the single authoritative source 06-03/06-04 size <p:sldSz>/<p:notesSz> from; decision gate re-confirmed — hand-rolled OOXML stays the approach, no new permissive Go PPTX lib emerged, zero new dependency added by this TRD
+- [Objective 04-cli]: loadConfigSources fills the 04-02 posflag-only stub with file(ext-routed)->env->posflag-last load order + project-local .marprc.* discovery (--config override); only config.go changed, so CLI-06 config support flows into every mode through the existing cfg/buildOptions seam
 
 ## Performance Metrics
 
@@ -28,4 +29,5 @@ STATE.md stays lean; this file grows over time.
 | Objective 03-press-batteries-api P01 | ~8min | 3 tasks | 7 files |
 | Objective 03-press-batteries-api P03 | 12min | 2 tasks | 3 files |
 | Objective 06-convert-pptx 06-02 | 4min | 2 tasks | 3 files |
+| Objective 04-cli P04 | 5min | 1 tasks | 2 files |
 
