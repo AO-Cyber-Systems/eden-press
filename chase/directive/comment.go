@@ -39,11 +39,18 @@ var commentPattern = regexp.MustCompile(`(?s)^<!--+\s*(.*?)\s*--+>`)
 // for it. Mirrors comment.js's fast-fail ("charCodeAt(pos) !== 0x3c") plus
 // its opening/closing regex match.
 func DetectComment(s string) (body string, ok bool) {
-	return "", false
+	if len(s) == 0 || s[0] != '<' {
+		return "", false
+	}
+	m := commentPattern.FindStringSubmatch(s)
+	if m == nil {
+		return "", false
+	}
+	return m[1], true
 }
 
 // ParseComment parses a detected comment's raw body into an ordered slice of
 // raw key/value pairs using the YAML-ish scalar/flow-list parser (yaml.go).
 func ParseComment(body string) []KV {
-	return nil
+	return ParseYAMLish(body)
 }

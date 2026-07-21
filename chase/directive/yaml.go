@@ -29,6 +29,8 @@
 // machine" and "Directive value coercion tables".
 package directive
 
+import "strings"
+
 // RawValue is a YAML-ish scalar or flow-list value as parsed from a
 // directive comment or front-matter block, before global/local coercion.
 //
@@ -65,6 +67,70 @@ type KV struct {
 // stripping) and small flow lists ("[a, b]") is a faithful, sufficient port
 // of yaml.js's FAILSAFE_SCHEMA behavior for the corpus -- no YAML library
 // dependency is needed, and none was added to go.mod.
+//
+// Each non-blank line is treated as one "key: value" mapping entry (the only
+// shape the directive corpus needs -- front-matter/comment bodies are flat
+// mappings, never nested). Lines without a ":" (e.g. a plain-prose HTML
+// comment) are silently skipped, which is exactly how a non-directive
+// comment ends up DETECTED but producing zero recognized kv pairs.
 func ParseYAMLish(text string) []KV {
-	return nil
+	var kvs []KV
+	for _, rawLine := range strings.Split(text, "\n") {
+		line := strings.TrimSpace(strings.TrimRight(rawLine, "\r"))
+		if line == "" {
+			continue
+		}
+		key, val, ok := splitYAMLishLine(line)
+		if !ok {
+			continue
+		}
+		kvs = append(kvs, KV{Key: key, Val: parseYAMLishValue(val)})
+	}
+	return kvs
+}
+
+// splitYAMLishLine splits a single trimmed "key: value" line on the first
+// ":" -- keys are never quoted in the directive corpus, but we still strip
+// surrounding quotes defensively.
+func splitYAMLishLine(line string) (key, val string, ok bool) {
+	idx := strings.IndexByte(line, ':')
+	if idx < 0 {
+		return "", "", false
+	}
+	key = unquoteYAMLish(strings.TrimSpace(line[:idx]))
+	if key == "" {
+		return "", "", false
+	}
+	val = strings.TrimSpace(line[idx+1:])
+	return key, val, true
+}
+
+// parseYAMLishValue recognizes a bare/quoted scalar string or a small flow
+// list ("[a, b]"), mirroring the two structural shapes js-yaml's
+// FAILSAFE_SCHEMA actually resolves for directive purposes.
+func parseYAMLishValue(v string) RawValue {
+	if len(v) >= 2 && strings.HasPrefix(v, "[") && strings.HasSuffix(v, "]") {
+		inner := strings.TrimSpace(v[1 : len(v)-1])
+		if inner == "" {
+			return []string{}
+		}
+		parts := strings.Split(inner, ",")
+		out := make([]string, len(parts))
+		for i, p := range parts {
+			out[i] = unquoteYAMLish(strings.TrimSpace(p))
+		}
+		return out
+	}
+	return unquoteYAMLish(v)
+}
+
+// unquoteYAMLish strips a single layer of matching '...' or "..." quotes.
+func unquoteYAMLish(s string) string {
+	if len(s) >= 2 {
+		first, last := s[0], s[len(s)-1]
+		if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
+			return s[1 : len(s)-1]
+		}
+	}
+	return s
 }

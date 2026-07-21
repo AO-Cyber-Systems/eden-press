@@ -22,6 +22,12 @@
 
 package directive
 
+import "strings"
+
+// frontMatterFence is the YAML front-matter delimiter, mirroring
+// markdown-it-front-matter's Jekyll-style "---" fence.
+const frontMatterFence = "---"
+
 // DetectFrontMatter detects a leading YAML front-matter block delimited by
 // "---" fence lines at the very start of the document (mirrors
 // markdown-it-front-matter, as wired by Marpit's directives/parse.js
@@ -29,7 +35,37 @@ package directive
 // between the fences) and the remaining markdown after the closing fence,
 // or ok=false if s does not open with a terminated "---" fence.
 func DetectFrontMatter(s string) (body string, rest string, ok bool) {
-	return "", s, false
+	if !strings.HasPrefix(s, frontMatterFence) {
+		return "", s, false
+	}
+
+	afterFence := s[len(frontMatterFence):]
+	nl := strings.IndexByte(afterFence, '\n')
+	if nl == -1 {
+		return "", s, false
+	}
+	// The opening fence line must be exactly "---" (ignoring a trailing
+	// \r) -- not e.g. "----" or "--- foo" -- so nothing may follow it on
+	// the same line.
+	if strings.TrimSpace(strings.TrimRight(afterFence[:nl], "\r")) != "" {
+		return "", s, false
+	}
+
+	lines := strings.Split(afterFence[nl+1:], "\n")
+	closeIdx := -1
+	for i, line := range lines {
+		if strings.TrimSpace(strings.TrimRight(line, "\r")) == frontMatterFence {
+			closeIdx = i
+			break
+		}
+	}
+	if closeIdx == -1 {
+		return "", s, false
+	}
+
+	body = strings.Join(lines[:closeIdx], "\n")
+	rest = strings.Join(lines[closeIdx+1:], "\n")
+	return body, rest, true
 }
 
 // ParseFrontMatter parses a front-matter body into an ordered slice of raw
@@ -37,5 +73,5 @@ func DetectFrontMatter(s string) (body string, rest string, ok bool) {
 // HTML-comment directives (mirrors Marpit's own reuse of directives/yaml.js
 // for both comment content and front-matter text).
 func ParseFrontMatter(body string) []KV {
-	return nil
+	return ParseYAMLish(body)
 }
