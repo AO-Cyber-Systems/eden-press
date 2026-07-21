@@ -26,7 +26,7 @@ something real.
 - [x] **Objective 1: chase/markdown + chase/directive + chase/theme (Marpit-in-Go)** - Directive resolution, slide-splitting, background-image syntax, inline-SVG mode, and the theme-CSS scoping pipeline with its own tested selector-rewriter. (completed 2026-07-21)
 - [x] **Objective 2: chase/model + chase/profile + profiles/slides** - The structured JSON document model and output-profile interface as first-class packages, with `profiles/slides` as profile #1. (completed 2026-07-21)
 - [x] **Objective 3: press/ Batteries + Public API** - Embedded themes, GFM/slug/sanitize/emoji/highlight/math batteries, and the stable `press.Render()` API with a CI-enforced zero-chromedp boundary. (9/9 TRDs complete — 03-09 capstone: press.Render one-parse-two-sinks compose + no-chromedp gate.)
-- [ ] **Objective 4: CLI (cmd/eden-press)** - `eden-press` convert/watch/serve/preview, theme loading, config file + stdin input.
+- [x] **Objective 4: CLI (cmd/eden-press)** - `eden-press` convert/watch/serve/preview, theme loading, config file + stdin input. (8/8 TRDs complete — 04-08 capstone: preview via pkg/browser + full-stack integration test + CLI-imports CI gate.)
 - [x] **Objective 5: convert/pdf + convert/png (chromedp raster export)** - PDF and PNG/JPEG export via headless Chrome, robust Chrome discovery, deterministic/CI-hardened export. (5/5 TRDs complete — 05-01 discovery/Session, 05-02 determinism substrate, 05-03 PDF (EXP-01), 05-04 PNG/JPEG (EXP-02), 05-05 CI hardening capstone: pinned no-system-Chrome container + PDF re-validation process (EXP-04 complete).) (completed 2026-07-21)
 - [ ] **Objective 6: convert/pptx (native OOXML)** - Hand-rolled, Chrome-free, editable-text-box PPTX export consuming the docmodel directly — sibling to Objective 5, not sequential after it.
 - [ ] **Objective 7: Dart/Flutter Binding (bind/capi + bind/dart)** - One Go core exposed via C-ABI, built three ways (Android `.so`, iOS `.a`, Web `.wasm`), gated only on Objective 3's API stability.
@@ -132,7 +132,7 @@ something real.
 - [x] 04-05-TRD.md — --theme/--theme-set loading into press.Options.ThemeCSS (CLI-05) [wave 2]
 - [x] 04-06-TRD.md — watch mode: scoped fsnotify + debounce + SSE reload channel (CLI-02) [wave 3] — commits da9ab7b/ec6df0a (reload Hub), 99c912b/2d48136 (runWatch)
 - [x] 04-07-TRD.md — serve mode: static + convert-on-request + traversal guard + reuse SSE (CLI-03) [wave 4] — commit 65ad5a5
-- [ ] 04-08-TRD.md — preview (pkg/browser) + integration test + CLI-imports CI gate (CLI-04) [wave 5]
+- [x] 04-08-TRD.md — preview (pkg/browser) + integration test + CLI-imports CI gate (CLI-04) [wave 5] — commits d6097c6/062f625
 
 ### Objective 5: convert/pdf + convert/png (chromedp raster export)
 **Goal**: Deliver PDF and PNG/JPEG export via headless Chrome, isolated as the only Chrome-touching code in the module, with CI-hardened determinism.

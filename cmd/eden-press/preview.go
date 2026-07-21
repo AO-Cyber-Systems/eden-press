@@ -24,8 +24,12 @@ package main
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
+
+	"github.com/AO-Cyber-Systems/eden-press/press"
 )
 
 // newPreviewCmd registers the "preview" subcommand.
@@ -41,8 +45,55 @@ func newPreviewCmd() *cobra.Command {
 	return cmd
 }
 
-// runPreview is a STUB -- filled by TRD 04-08 (github.com/pkg/browser open
-// + integration test + CLI-imports CI gate, CLI-04).
+// openURL is a package var so tests assert the target without launching a
+// real browser -- the ONLY seam preview needs (CLI-04, research
+// Don't-Hand-Roll): github.com/pkg/browser owns the cross-platform
+// open/xdg-open/ShellExecute fallback chain, so runPreview never shells out
+// by hand and never depends on a headless Chrome (no chromedp anywhere in
+// this file).
+var openURL = func(url string) error { return browser.OpenURL(url) }
+
+// runPreview is CLI-04's capstone: convert the input to a standalone HTML
+// document -- reusing 04-03's resolveInput -> buildOptions -> press.Render
+// -> assembleHTML chain verbatim -- write it to a temp file, and open it in
+// the user's default browser through the openURL seam. Like watch (04-06),
+// preview needs a real file path to (re-)open, so stdin ("-") is rejected
+// up front, before any conversion work happens.
 func runPreview(cmd *cobra.Command, args []string) error {
-	return fmt.Errorf("preview: not implemented (04-08)")
+	arg := "-"
+	if len(args) == 1 {
+		arg = args[0]
+	}
+	if arg == "-" {
+		return fmt.Errorf("preview: cannot preview stdin (\"-\"); pass a file path")
+	}
+
+	md, _, err := resolveInput(arg)
+	if err != nil {
+		return err
+	}
+
+	opts, err := buildOptions(cmd)
+	if err != nil {
+		return err
+	}
+
+	out, err := press.Render(md, opts)
+	if err != nil {
+		return err
+	}
+
+	doc := assembleHTML(out, htmlDocOptions{AutoFitScript: cfg.Bool("auto-fit-script")})
+
+	f, err := os.CreateTemp("", "eden-press-*.html")
+	if err != nil {
+		return fmt.Errorf("preview: create temp file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(doc); err != nil {
+		return fmt.Errorf("preview: write temp file %q: %w", f.Name(), err)
+	}
+
+	return openURL("file://" + f.Name())
 }
