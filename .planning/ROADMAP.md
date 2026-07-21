@@ -126,7 +126,7 @@ something real.
   4. `--theme`/`--theme-set` flags load custom themes, a YAML/JSON/TOML config file (via koanf) can supply the same options, and stdin (`-`) works as an input source.
 **Plans**: 8 TRDs in 5 waves
 - [x] 04-01-TRD.md — press.Options.ThemeCSS additive extension + BrowserFitJS re-export (Wave-0 enabler for CLI-05) [wave 1]
-- [ ] 04-02-TRD.md — cobra skeleton + go.mod deps + flag→Options surface + stdin/file input [wave 1]
+- [x] 04-02-TRD.md — cobra skeleton + go.mod deps + flag→Options surface + stdin/file input [wave 1]
 - [ ] 04-03-TRD.md — htmldoc bare-style zero-JS assembly + convert pipeline (CLI-01) [wave 2]
 - [ ] 04-04-TRD.md — koanf config loading: .marprc.* + precedence flags>env>file (CLI-06) [wave 2]
 - [ ] 04-05-TRD.md — --theme/--theme-set loading into press.Options.ThemeCSS (CLI-05) [wave 2]
@@ -161,7 +161,7 @@ something real.
   3. Generated PPTX position/size values are programmatically verified against expected EMU conversions via a dedicated, independently unit-tested EMU-conversion utility, including at least one grouped-shape (`chOff`/`chExt`) case.
   4. The generated file opens correctly in PowerPoint/LibreOffice with elements in their expected positions, verified on both a 16:9 and a 4:3 slide size.
 **Plans**: 5 TRDs in 4 waves
-- [ ] 06-01-TRD.md — chase/model schema-v2: per-section Blocks (paragraph/list/code/math/heading) + press/math raw-TeX accessor — SHARED PREREQUISITE, unblocks Obj-7 DART-04 [wave 1]
+- [x] 06-01-TRD.md — chase/model schema-v2: per-section Blocks (paragraph/list/code/math/heading) + press/math raw-TeX accessor — SHARED PREREQUISITE, unblocks Obj-7 DART-04 [wave 1]
 - [x] 06-02-TRD.md — convert/pptx EMU-conversion utility + 16:9/4:3 slide-size constants + chOff/chExt group-transform, independently unit-tested (EXP-03) [wave 1] — complete 2026-07-21 (commits c5eb144, 6de5619; SUMMARY: 06-02-SUMMARY.md)
 - [ ] 06-03-TRD.md — deterministic OPC zip packager + complete static part graph (12-attr clrMap, 3-entry fmtScheme) + trivial-deck openability on 16:9/4:3 (EXP-03) [wave 2]
 - [ ] 06-04-TRD.md — ToPPTX(model.Document, Options): Section→slide, Blocks/Outline→editable <p:sp> text boxes + grouped shape, no Chrome (EXP-03) [wave 3]
@@ -179,7 +179,7 @@ something real.
   3. The Flutter package renders a deck's math via `flutter_math_fork` and code highlighting via `highlighting`/`flutter_highlighting` — no JavaScript anywhere in the Dart rendering surface.
   4. A shared subset of Objective 0's conformance corpus runs against the compiled capi/wasm artifact through the same JSON entrypoint the Dart code uses (not just the Go-native test run) and passes.
 **Plans**: 5 TRDs in 3 waves
-- [ ] 07-01-TRD.md — DART-01: C-ABI core — RenderJSON pure-Go JSON boundary + cgo PressRender/PressFree [wave 1]
+- [x] 07-01-TRD.md — DART-01: C-ABI core — RenderJSON pure-Go JSON boundary + cgo PressRender/PressFree [wave 1]
 - [ ] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2]
 - [ ] 07-03-TRD.md — DART-02: native builds — Android c-shared .so/ABI, iOS c-archive→xcframework + two-pipeline CI [wave 2]
 - [ ] 07-04-TRD.md — DART-05: boundary conformance — corpus subset through compiled wasm + host capi via same JSON entrypoint [wave 3]
@@ -213,10 +213,10 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
-| 4. CLI (cmd/eden-press) | 1/8 | In Progress | - |
-| 5. convert/pdf + convert/png (chromedp) | 0/5 | Planned     | - |
+| 4. CLI (cmd/eden-press) | 2/8 | In Progress | - |
+| 5. convert/pdf + convert/png (chromedp) | 1/5 | In Progress | - |
 | 6. convert/pptx (native OOXML) | 1/5 | In progress | 06-02: 2026-07-21 |
-| 7. Dart/Flutter Binding | 0/5 | Planned     | - |
+| 7. Dart/Flutter Binding | 1/5 | In Progress | - |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
 
 ---
