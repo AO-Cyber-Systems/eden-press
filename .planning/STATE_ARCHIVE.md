@@ -14,6 +14,7 @@ STATE.md stays lean; this file grows over time.
 - [Objective 01-chase-framework]: headingDivider display-value materialization fixed (Rule 1) at apply.go's data-attribute layer only, leaving the 01-02-locked expanded-range CoerceGlobal contract untouched
 - [Objective 01-chase-framework]: Rasterization proof strategy: human-verify checkpoint (screenshot) now for Objective 1; deterministic headless-Chrome pixel-diff deferred to Objective 5 where chromedp lives, keeping chase/press Chrome-free through Objectives 1-4
 - [Objective 02-model-profile]: chase.Render composes markdown.Parse+RenderDoc+model.Build+profile-parameterized theme.Pack as the one-parse-two-sinks internal entrypoint (MODEL-02); Objective 2 complete
+- [Objective 03-press-batteries-api]: CORE-07 chroma highlighting reuses goldmark-highlighting/v2 (chromahtml.WithClasses(true)) with the ONE bespoke piece being a chroma-short-class to .hljs-* remap table GROUNDED in the acquired themes/{default,gaia,uncover}.css (36 selectors), not recalled from memory; corrected the TRD's illustrative grounding regex ([a-z-]+ -> [a-zA-Z_-]+) to avoid truncating .hljs-built_in
 
 ## Performance Metrics
 
@@ -24,4 +25,5 @@ STATE.md stays lean; this file grows over time.
 | Objective 01-chase-framework P08 | 45min | 3 tasks | 6 files |
 | Objective 02-model-profile P04 | 14min | 3 tasks | 4 files |
 | Objective 03-press-batteries-api P01 | ~8min | 3 tasks | 7 files |
+| Objective 03-press-batteries-api P05 | 15min | 2 tasks | 3 files |
 

@@ -107,7 +107,7 @@ something real.
 - [x] 03-02-TRD.md — compiled-CSS theme extraction + go:embed + name-keyed ThemeSet (CORE-01) [wave 1]
 - [ ] 03-03-TRD.md — strikethrough <s> override + GFM/hard-break/slug verify (CORE-03, CORE-04) [wave 2]
 - [ ] 03-04-TRD.md — emoji: goldmark-emoji Twemoji + bespoke unicode-literal parser (CORE-06) [wave 2]
-- [ ] 03-05-TRD.md — chroma highlight + CSS-grounded chroma→.hljs remap (CORE-07) [wave 2]
+- [x] 03-05-TRD.md — chroma highlight + CSS-grounded chroma→.hljs remap (CORE-07) [wave 2]
 - [ ] 03-06-TRD.md — math baseline: $/$$→MathML + construct-detect + PNG fallback (CORE-08) [wave 2]
 - [ ] 03-07-TRD.md — size/math global directives + auto-fit markers (CORE-02, CORE-09) [wave 2]
 - [ ] 03-08-TRD.md — sanitize: bluemonday Marp-parity policy + adversarial suite (CORE-05) [wave 2]
@@ -189,7 +189,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 6/6 | Complete    | 2026-07-20 |
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
-| 3. press/ Batteries + Public API | 2/9 | In Progress | - |
+| 3. press/ Batteries + Public API | 3/9 | In Progress | - |
 | 4. CLI (cmd/eden-press) | 0/TBD | Not started | - |
 | 5. convert/pdf + convert/png (chromedp) | 0/TBD | Not started | - |
 | 6. convert/pptx (native OOXML) | 0/TBD | Not started | - |
