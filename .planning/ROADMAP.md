@@ -124,7 +124,15 @@ something real.
   2. Watch mode (`fsnotify`, non-recursive directory walk with atomic-save-safe filtering) rebuilds output automatically when the source file changes.
   3. Server mode serves local files with live-reload on request, and preview mode opens the rendered output in the user's default browser.
   4. `--theme`/`--theme-set` flags load custom themes, a YAML/JSON/TOML config file (via koanf) can supply the same options, and stdin (`-`) works as an input source.
-**Plans**: TBD
+**Plans**: 8 TRDs in 5 waves
+- [ ] 04-01-TRD.md — press.Options.ThemeCSS additive extension + BrowserFitJS re-export (Wave-0 enabler for CLI-05) [wave 1]
+- [ ] 04-02-TRD.md — cobra skeleton + go.mod deps + flag→Options surface + stdin/file input [wave 1]
+- [ ] 04-03-TRD.md — htmldoc bare-style zero-JS assembly + convert pipeline (CLI-01) [wave 2]
+- [ ] 04-04-TRD.md — koanf config loading: .marprc.* + precedence flags>env>file (CLI-06) [wave 2]
+- [ ] 04-05-TRD.md — --theme/--theme-set loading into press.Options.ThemeCSS (CLI-05) [wave 2]
+- [ ] 04-06-TRD.md — watch mode: scoped fsnotify + debounce + SSE reload channel (CLI-02) [wave 3]
+- [ ] 04-07-TRD.md — serve mode: static + convert-on-request + traversal guard + reuse SSE (CLI-03) [wave 4]
+- [ ] 04-08-TRD.md — preview (pkg/browser) + integration test + CLI-imports CI gate (CLI-04) [wave 5]
 
 ### Objective 5: convert/pdf + convert/png (chromedp raster export)
 **Goal**: Deliver PDF and PNG/JPEG export via headless Chrome, isolated as the only Chrome-touching code in the module, with CI-hardened determinism.
@@ -136,7 +144,12 @@ something real.
   3. Chrome discovery falls back correctly: system Chrome → `--browser-path`/`CHROME_PATH` env var → a documented pinned-download path — tested in CI against a container with no system Chrome pre-installed; STIX Two Math font-provisioning is documented as a required export-environment asset.
   4. CI runs export tests against a pinned `chromedp/headless-shell` version with `--disable-dev-shm-usage`, non-root execution, and a unique `--user-data-dir` per run, and PDF export specifically (not just PNG) is re-validated whenever the pinned Chrome version bumps.
   5. `go list -deps` on `chase/`, `press/`, and `profiles/` still shows zero `chromedp` after this objective adds `convert/` — the CI check from Objective 3 remains green.
-**Plans**: TBD
+**Plans**: 5 TRDs in 4 waves
+- [ ] 05-01-TRD.md — convert bootstrap (chromedp provisioned, gate stays green) + Chrome discovery chain + one-browser-many-tabs Session (EXP-04) [wave 1]
+- [ ] 05-02-TRD.md — shared determinism recipe (fixed viewport/UTC/locale/animation-kill) + SetDocumentContent loader + STIX Two Math font provisioning (EXP-04) [wave 2]
+- [ ] 05-03-TRD.md — convert/pdf: PrintToPDF via ActionFunc + CSS @page sizing + print-backgrounds + inline-SVG PDF smoke (EXP-01) [wave 3]
+- [ ] 05-04-TRD.md — convert/png: per-slide screenshots (PNG/JPEG) viewport-pinned + inline-SVG capture smoke (EXP-02) [wave 3]
+- [ ] 05-05-TRD.md — CI hardening capstone: no-system-Chrome pinned headless-shell container + PDF re-validation process + no-chromedp/addlicense gates stay green (EXP-04) [wave 4]
 
 ### Objective 6: convert/pptx (native OOXML)
 **Goal**: Deliver editable-text-box PPTX export directly from the structured document model, with no Chrome dependency at all — a sibling workstream to Objective 5, not sequential after it.
@@ -190,7 +203,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
-| 4. CLI (cmd/eden-press) | 0/TBD | Not started | - |
+| 4. CLI (cmd/eden-press) | 0/8 | Planned     | - |
 | 5. convert/pdf + convert/png (chromedp) | 0/TBD | Not started | - |
 | 6. convert/pptx (native OOXML) | 0/TBD | Not started | - |
 | 7. Dart/Flutter Binding | 0/TBD | Not started | - |
