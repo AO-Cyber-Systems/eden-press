@@ -135,3 +135,59 @@ func TestSlideSizeCrossCheckAgainstInches(t *testing.T) {
 		t.Errorf("SlideSize4x3.CY = %d, want Inches(7.5) = %d", got, want)
 	}
 }
+
+// TestGroupTransformIdentity proves the v1 safe-simplification grouped-shape
+// case (06-RESEARCH Pattern 4 / Pitfall 1): chOff == off and chExt == ext,
+// so a child's own off/ext in the group's child coordinate space ARE
+// already literal slide-EMU coordinates -- scale is 1 on both axes and
+// translate is 0. This is OBJECTIVE.md success criterion 3's grouped-shape
+// case, proven here before any grouped shape is ever emitted (06-04).
+func TestGroupTransformIdentity(t *testing.T) {
+	// The group shape itself sits at (914400, 457200) with extent
+	// (3657600, 2743200); chOff/chExt are set identically to off/ext.
+	groupOff := Point{X: 914400, Y: 457200}
+	groupExt := Extent{CX: 3657600, CY: 2743200}
+	transform := IdentityGroupTransform(groupOff, groupExt)
+
+	childOff := Point{X: 1200000, Y: 600000}
+	childExt := Extent{CX: 500000, CY: 300000}
+
+	gotOff, gotExt := transform.MapChild(childOff, childExt)
+
+	if gotOff != childOff {
+		t.Errorf("identity MapChild off = %+v, want unchanged child off %+v", gotOff, childOff)
+	}
+	if gotExt != childExt {
+		t.Errorf("identity MapChild ext = %+v, want unchanged child ext %+v", gotExt, childExt)
+	}
+}
+
+// TestGroupTransformNonIdentityScale locks the general chOff/chExt formula
+// for a future non-identity grouped shape: the group's child coordinate
+// space (chExt) is 2x the group's own slide-space extent (ext), so both
+// axes scale by 0.5. Values are chosen to be exact (no rounding ambiguity),
+// isolating the formula itself from the separate rounding-rule concern
+// already covered by TestInches.
+func TestGroupTransformNonIdentityScale(t *testing.T) {
+	transform := GroupTransform{
+		Off:   Point{X: 100, Y: 200},
+		Ext:   Extent{CX: 1000, CY: 2000},
+		ChOff: Point{X: 0, Y: 0},
+		ChExt: Extent{CX: 2000, CY: 4000},
+	}
+
+	childOff := Point{X: 500, Y: 1000}
+	childExt := Extent{CX: 200, CY: 400}
+
+	wantOff := Point{X: 350, Y: 700}
+	wantExt := Extent{CX: 100, CY: 200}
+
+	gotOff, gotExt := transform.MapChild(childOff, childExt)
+
+	if gotOff != wantOff {
+		t.Errorf("non-identity MapChild off = %+v, want %+v (scaleX=scaleY=0.5)", gotOff, wantOff)
+	}
+	if gotExt != wantExt {
+		t.Errorf("non-identity MapChild ext = %+v, want %+v (scaleX=scaleY=0.5)", gotExt, wantExt)
+	}
+}

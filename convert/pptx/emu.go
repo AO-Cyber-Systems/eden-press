@@ -105,3 +105,73 @@ var (
 	// carries no type attribute in the schema, so Type is left "".
 	NotesSize = SlideSize{CX: 6858000, CY: 9144000}
 )
+
+// Point is an (x, y) EMU coordinate pair, matching a DrawingML <a:off>.
+type Point struct {
+	X, Y int64
+}
+
+// Extent is a (cx, cy) EMU width/height pair, matching a DrawingML <a:ext>.
+type Extent struct {
+	CX, CY int64
+}
+
+// GroupTransform implements the DrawingML grouped-shape chOff/chExt
+// child-to-slide coordinate mapping (ECMA-376 CT_GroupTransform2D, 06-
+// RESEARCH Pattern 4): a child shape's (off, ext), expressed in the GROUP's
+// own child coordinate space (defined by ChOff/ChExt), maps into
+// SLIDE-EMU coordinate space via:
+//
+//	scaleX  = Ext.CX / ChExt.CX
+//	scaleY  = Ext.CY / ChExt.CY
+//	slideX  = Off.X + (child.off.X - ChOff.X) * scaleX
+//	slideY  = Off.Y + (child.off.Y - ChOff.Y) * scaleY
+//	slideCX = child.ext.CX * scaleX
+//	slideCY = child.ext.CY * scaleY
+//
+// This TRD only PROVES the formula; it emits no XML. 06-04 is the consumer
+// that will build a GroupTransform from a real <p:grpSpPr>'s <a:xfrm>
+// off/ext/chOff/chExt and call MapChild for each child shape.
+type GroupTransform struct {
+	// Off/Ext are the group SHAPE's own position/extent in slide-EMU space
+	// (the group's <a:off>/<a:ext>).
+	Off Point
+	Ext Extent
+
+	// ChOff/ChExt are the group's CHILD coordinate-space origin/size (the
+	// group's <a:chOff>/<a:chExt>).
+	ChOff Point
+	ChExt Extent
+}
+
+// IdentityGroupTransform builds the v1 safe-simplification group transform
+// (06-RESEARCH Pattern 4 / Pitfall 1): ChOff == off and ChExt == ext, so
+// MapChild always scales by 1 and translates by 0 -- a child's own off/ext
+// ARE already literal slide-EMU coordinates, unchanged. This is the case
+// 06-04 uses for its first grouped shape; only construct a non-identity
+// GroupTransform directly once a real, non-1:1 nested group is needed.
+func IdentityGroupTransform(off Point, ext Extent) GroupTransform {
+	return GroupTransform{Off: off, Ext: ext, ChOff: off, ChExt: ext}
+}
+
+// MapChild maps a child shape's (off, ext), expressed in this group's child
+// coordinate space (ChOff/ChExt), into slide-EMU coordinate space.
+//
+// Order of operations matters and mirrors CT_GroupTransform2D exactly:
+// subtract ChOff from the child's raw offset FIRST, THEN scale, THEN add
+// Off. Applying scale to the raw child offset before subtracting ChOff is
+// the classic transform bug this ordering avoids.
+func (t GroupTransform) MapChild(off Point, ext Extent) (Point, Extent) {
+	scaleX := float64(t.Ext.CX) / float64(t.ChExt.CX)
+	scaleY := float64(t.Ext.CY) / float64(t.ChExt.CY)
+
+	slideOff := Point{
+		X: t.Off.X + round(float64(off.X-t.ChOff.X)*scaleX),
+		Y: t.Off.Y + round(float64(off.Y-t.ChOff.Y)*scaleY),
+	}
+	slideExt := Extent{
+		CX: round(float64(ext.CX) * scaleX),
+		CY: round(float64(ext.CY) * scaleY),
+	}
+	return slideOff, slideExt
+}
