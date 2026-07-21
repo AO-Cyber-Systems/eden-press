@@ -20,7 +20,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-.PHONY: build vet test check-no-chromedp
+.PHONY: build vet test check-no-chromedp export-test check-chrome-export
 
 # build / vet / test mirror the CI gates for local convenience.
 build:
@@ -38,3 +38,29 @@ test:
 # the addlicense header check.
 check-no-chromedp:
 	bash scripts/check-no-chromedp.sh
+
+# CHROME_VERSION is the SINGLE pinned chromedp/headless-shell tag eden-press's
+# export path is validated against -- NEVER "latest" (05-RESEARCH Pitfall
+# A/11: two independently-documented Chrome regressions hit the PDF export
+# path ONLY, so a silent version drift can regress PDF export while every
+# PNG/screenshot-path test keeps passing). This is the canonical value;
+# .github/workflows/ci.yml's `export` job container tag references this SAME
+# version -- bump both together, then re-run `make check-chrome-export`
+# (which enforces the PDF-path re-validation rule) before accepting the
+# bump. See convert/EXPORT.md for the full process.
+CHROME_VERSION := 151.0.7922.34
+
+# export-test runs convert/'s export test suite (convert/chrome,
+# convert/pdf, convert/png, and the 05-05 press.Render->ToPDF/ToImages
+# capstone), expecting Chrome to be discovered via the EXP-04 fallback
+# chain. Chrome-presence-gated: cleanly t.Skips outside a provisioned
+# Chrome/container.
+export-test:
+	CHROME_VERSION=$(CHROME_VERSION) go test ./convert/... -v
+
+# check-chrome-export runs scripts/check-chrome-export.sh: the same export
+# test suite PLUS the mechanically-enforced EXP-04 Chrome-version-pin +
+# PDF-path re-validation process rule. Wired into the pinned
+# no-system-Chrome CI export job (.github/workflows/ci.yml).
+check-chrome-export:
+	CHROME_VERSION=$(CHROME_VERSION) bash scripts/check-chrome-export.sh

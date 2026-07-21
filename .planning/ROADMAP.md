@@ -27,7 +27,7 @@ something real.
 - [x] **Objective 2: chase/model + chase/profile + profiles/slides** - The structured JSON document model and output-profile interface as first-class packages, with `profiles/slides` as profile #1. (completed 2026-07-21)
 - [x] **Objective 3: press/ Batteries + Public API** - Embedded themes, GFM/slug/sanitize/emoji/highlight/math batteries, and the stable `press.Render()` API with a CI-enforced zero-chromedp boundary. (9/9 TRDs complete — 03-09 capstone: press.Render one-parse-two-sinks compose + no-chromedp gate.)
 - [ ] **Objective 4: CLI (cmd/eden-press)** - `eden-press` convert/watch/serve/preview, theme loading, config file + stdin input.
-- [ ] **Objective 5: convert/pdf + convert/png (chromedp raster export)** - PDF and PNG/JPEG export via headless Chrome, robust Chrome discovery, deterministic/CI-hardened export. (3/5 TRDs complete — 05-01: convert/ bootstrap + Chrome discovery/Session; 05-02: shared determinism substrate + STIX Two Math font; 05-04: convert/png.ToImages per-slide PNG/JPEG screenshot export, EXP-02 complete.)
+- [x] **Objective 5: convert/pdf + convert/png (chromedp raster export)** - PDF and PNG/JPEG export via headless Chrome, robust Chrome discovery, deterministic/CI-hardened export. (5/5 TRDs complete — 05-01 discovery/Session, 05-02 determinism substrate, 05-03 PDF (EXP-01), 05-04 PNG/JPEG (EXP-02), 05-05 CI hardening capstone: pinned no-system-Chrome container + PDF re-validation process (EXP-04 complete).) (completed 2026-07-21)
 - [ ] **Objective 6: convert/pptx (native OOXML)** - Hand-rolled, Chrome-free, editable-text-box PPTX export consuming the docmodel directly — sibling to Objective 5, not sequential after it.
 - [ ] **Objective 7: Dart/Flutter Binding (bind/capi + bind/dart)** - One Go core exposed via C-ABI, built three ways (Android `.so`, iOS `.a`, Web `.wasm`), gated only on Objective 3's API stability.
 - [ ] **Objective 8: Math-Fidelity Hardening + Auto-Fit Resolution** - The five math-converter root-cause fixes, a concrete MathML fallback-trigger rule, bundled STIX Two Math, and the final auto-fit mechanism decision.
@@ -214,7 +214,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
 | 4. CLI (cmd/eden-press) | 6/8 | In Progress | - |
-| 5. convert/pdf + convert/png (chromedp) | 4/5 | In Progress | - |
+| 5. convert/pdf + convert/png (chromedp) | 5/5 | Complete   | 2026-07-21 |
 | 6. convert/pptx (native OOXML) | 4/5 | In Progress | - |
 | 7. Dart/Flutter Binding | 5/5 | Complete    | 2026-07-21 |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
