@@ -82,13 +82,19 @@ func (e *ext) Extend(m goldmark.Markdown) {
 		// then consumes uniformly alongside any author-written "---"
 		// breaks (01-RESEARCH.md "headingDivider ordering").
 		//
-		// The directive-apply transformer (TRD 01-06, PARSE-04) runs LAST
+		// The directive-apply transformer (TRD 01-06, PARSE-04) runs THIRD
 		// (300), strictly after slide-split (200): it requires the
 		// document's top-level children to already be *Section nodes.
+		//
+		// The inline-SVG transformer (TRD 01-07, PARSE-06/PARSE-07) runs
+		// LAST (400), strictly after directive-apply (300): every Section
+		// must already carry its directive-derived Attrs before
+		// svgTransformer wraps it (or extracts its background images).
 		parser.WithASTTransformers(
 			util.Prioritized(newHeadingDividerTransformer(), 100),
 			util.Prioritized(newSlideSplitTransformer(), 200),
 			util.Prioritized(newDirectiveApplyTransformer(), 300),
+			util.Prioritized(newSvgTransformer(), 400),
 		),
 	)
 	m.Renderer().AddOptions(

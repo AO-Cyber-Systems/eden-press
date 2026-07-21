@@ -59,6 +59,8 @@ func (r *nodeRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(KindCommentInline, r.renderComment)
 	reg.Register(KindHeaderElement, r.renderHeader)
 	reg.Register(KindFooterElement, r.renderFooter)
+	reg.Register(KindSvg, r.renderSvg)
+	reg.Register(KindForeignObject, r.renderForeignObject)
 }
 
 // renderDocument wraps the entire rendered slide run in
@@ -125,6 +127,50 @@ func (r *nodeRenderer) renderFooter(w util.BufWriter, source []byte, n ast.Node,
 		_, _ = w.Write(util.EscapeHTML([]byte(f.Content)))
 	} else {
 		_, _ = w.WriteString(`</footer>`)
+	}
+	return ast.WalkContinue, nil
+}
+
+// renderSvg renders a *Svg (inline-SVG mode's per-slide wrapper,
+// inlinesvg.go) as <svg data-marpit-svg viewBox="0 0 W H">...</svg>.
+func (r *nodeRenderer) renderSvg(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		s := n.(*Svg)
+		_, _ = w.WriteString(`<svg data-marpit-svg="" viewBox="0 0 `)
+		_, _ = w.WriteString(strconv.Itoa(s.ViewBoxWidth))
+		_, _ = w.WriteString(` `)
+		_, _ = w.WriteString(strconv.Itoa(s.ViewBoxHeight))
+		_, _ = w.WriteString(`">`)
+	} else {
+		_, _ = w.WriteString(`</svg>`)
+	}
+	return ast.WalkContinue, nil
+}
+
+// renderForeignObject renders a *ForeignObject (the base wrap layer, or one
+// of the three advanced-background layers -- inlinesvg.go/advancedbg.go) as
+// <foreignObject width="W" height="H" [x="X"] [data-marpit-advanced-background="DataAttr"]>...</foreignObject>.
+func (r *nodeRenderer) renderForeignObject(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	fo := n.(*ForeignObject)
+	if entering {
+		_, _ = w.WriteString(`<foreignObject width="`)
+		_, _ = w.Write(util.EscapeHTML([]byte(fo.Width)))
+		_, _ = w.WriteString(`" height="`)
+		_, _ = w.Write(util.EscapeHTML([]byte(fo.Height)))
+		_, _ = w.WriteString(`"`)
+		if fo.X != "" {
+			_, _ = w.WriteString(` x="`)
+			_, _ = w.Write(util.EscapeHTML([]byte(fo.X)))
+			_, _ = w.WriteString(`"`)
+		}
+		if fo.DataAttr != "" {
+			_, _ = w.WriteString(` data-marpit-advanced-background="`)
+			_, _ = w.Write(util.EscapeHTML([]byte(fo.DataAttr)))
+			_, _ = w.WriteString(`"`)
+		}
+		_, _ = w.WriteString(`>`)
+	} else {
+		_, _ = w.WriteString(`</foreignObject>`)
 	}
 	return ast.WalkContinue, nil
 }

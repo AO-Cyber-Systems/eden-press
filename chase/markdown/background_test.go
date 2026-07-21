@@ -22,7 +22,16 @@
 
 package markdown
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+)
 
 // Test-list case 1: bg -> background flag; bg fit -> size=contain (fit
 // alias); bg left:40% -> split left @40%; bg vertical -> direction
@@ -101,5 +110,106 @@ func TestBgOptionParseFilters(t *testing.T) {
 	shadow := ParseBgOptions("bg drop-shadow")
 	if got := shadow.FilterCSS(); got != "drop-shadow(0 5px 10px rgba(0,0,0,.4))" {
 		t.Fatalf("FilterCSS() = %q, want %q", got, "drop-shadow(0 5px 10px rgba(0,0,0,.4))")
+	}
+}
+
+// Test-list case 4 (Task 2): with inline-SVG mode explicitly enabled (no
+// background images on the slide), svgTransformer wraps the untouched
+// *Section in <svg data-marpit-svg viewBox="0 0 1280 720">
+// <foreignObject width="1280" height="720">...</foreignObject></svg>.
+func TestInlineSvgWrapsPlainSlide(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	pc := parser.NewContext()
+	pc.Set(SvgOptionsKey, &SvgOptions{Enabled: true})
+	source := []byte("# A\n")
+
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader, parser.WithContext(pc))
+
+	svg := doc.FirstChild()
+	if svg == nil || svg.Kind() != KindSvg {
+		t.Fatalf("expected doc's first child to be *Svg, got %T", svg)
+	}
+	fo := svg.FirstChild()
+	if fo == nil || fo.Kind() != KindForeignObject {
+		t.Fatalf("expected *Svg's first child to be *ForeignObject, got %T", fo)
+	}
+	sec := fo.FirstChild()
+	if sec == nil || sec.Kind() != KindSection {
+		t.Fatalf("expected *ForeignObject's first child to be the original *Section, got %T", sec)
+	}
+
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, source, doc); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, `<svg data-marpit-svg="" viewBox="0 0 1280 720">`) {
+		t.Fatalf("missing svg viewBox wrap, got: %s", html)
+	}
+	if !strings.Contains(html, `<foreignObject width="1280" height="720">`) {
+		t.Fatalf("missing foreignObject wrap, got: %s", html)
+	}
+	if !strings.Contains(html, `<section id="1">`) {
+		t.Fatalf("expected section id=1 preserved inside foreignObject, got: %s", html)
+	}
+}
+
+// Test-list case 5 (Task 2): the viewBox/foreignObject dimensions follow
+// SvgOptionsKey's overridden Width/Height (e.g. a 4:3 theme resolving to
+// 960x720), NOT the 1280x720 default -- and chase/markdown never imports
+// chase/theme to get there (the value always arrives via the parser.Context
+// key, per RESEARCH's zero-import boundary).
+func TestInlineSvgViewBoxOverride(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	pc := parser.NewContext()
+	pc.Set(SvgOptionsKey, &SvgOptions{Enabled: true, Width: 960, Height: 720})
+	source := []byte("# A\n")
+
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader, parser.WithContext(pc))
+
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, source, doc); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, `viewBox="0 0 960 720"`) {
+		t.Fatalf("expected overridden viewBox 960x720, got: %s", html)
+	}
+	if !strings.Contains(html, `<foreignObject width="960" height="720">`) {
+		t.Fatalf("expected overridden foreignObject 960x720, got: %s", html)
+	}
+}
+
+// Test-list case 6 (Task 2): with inline-SVG mode left at its default
+// (disabled), a single `![bg](...)` image materializes as a backgroundImage
+// local directive on the slide's *Section (reusing apply.go's
+// applyDirectivesToSection directly) -- no svg/foreignObject structure is
+// emitted, and the image itself is removed from the visible content tree.
+func TestNonSvgBackgroundImageDirective(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	source := []byte("![bg](https://example.com/bg.jpg)\n")
+
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader)
+
+	if got := doc.FirstChild(); got == nil || got.Kind() != KindSection {
+		t.Fatalf("default (SVG disabled) must leave doc's first child as *Section, got %T", got)
+	}
+	if img := findNode(doc, ast.KindImage); img != nil {
+		t.Fatalf("expected the bg-marked image to be removed from the content tree, still found: %v", img)
+	}
+
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, source, doc); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, `background-image:url(&quot;https://example.com/bg.jpg&quot;)`) {
+		t.Fatalf("expected background-image style with escaped url, got: %s", html)
+	}
+	if strings.Contains(html, "<svg") || strings.Contains(html, "<foreignObject") {
+		t.Fatalf("non-SVG mode must not emit svg/foreignObject wrap, got: %s", html)
 	}
 }
