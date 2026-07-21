@@ -45,7 +45,7 @@
 - [x] **CORE-03**: GFM tables + strikethrough (config `<s>` to match Marp, not goldmark's `<del>`) + line-break→`<br>`
 - [x] **CORE-04**: Heading slug `id`s on `h1`–`h6`
 - [ ] **CORE-05**: HTML allow-list sanitization matching Marp's `xss` policy (behavioral parity: strip-vs-escape semantics; hand-filter the GFM disallowed tags `<script>`/`<iframe>`/… that goldmark does not filter)
-- [ ] **CORE-06**: Emoji — shortcodes + unicode → twemoji, native (shortcode table + regex), no JS
+- [x] **CORE-06**: Emoji — shortcodes + unicode → twemoji, native (shortcode table + regex), no JS
 - [ ] **CORE-07**: Syntax highlighting via `chroma`, with a bounded chroma-class ↔ highlight.js-class reconciliation so the bundled themes style code correctly
 - [x] **CORE-08**: Math (`$…$`, `$$…$$`) via vendored/forked `latex2mathml` → native MathML; construct-detection (`\tag`/`\label`/complex `aligned`) auto-routes to the `codeberg.org/go-latex/latex` SVG/PNG fallback
 - [ ] **CORE-09**: Auto-fit markers (`# <!--fit-->`, code/math shrink) emitted for the viewer-side helper; `@auto-scaling` honored as theme-CSS-only
@@ -157,7 +157,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | CORE-03 | Objective 3 | Complete |
 | CORE-04 | Objective 3 | Complete |
 | CORE-05 | Objective 3 | Pending |
-| CORE-06 | Objective 3 | Pending |
+| CORE-06 | Objective 3 | Complete |
 | CORE-07 | Objective 3 | Pending |
 | CORE-08 | Objective 3 (hardened further in Objective 8) | Complete |
 | CORE-09 | Objective 3 (hardened further in Objective 8) | Pending |
