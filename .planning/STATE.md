@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Objective: 2 of 9 (chase/model + chase/profile + profiles/slides) — COMPLETE; Objectives 0-1 also complete
-Job: 4 of 4 complete (02-01 chase/model docmodel builder (MODEL-01), 02-02 chase/profile interface + registry (MODEL-03), 02-03 profiles/slides + de-hardcode chase/theme + grep-gate (MODEL-04), 02-04 chase.go one-parse-two-sinks entrypoint (MODEL-02) — wave 3/3 done)
-Status: Objective 2 complete — ready for Objective 3 planning (press/ Batteries + Public API)
-Last activity: 2026-07-21 — 02-04-TRD executed (capstone): chase/markdown.RenderDoc added (render an already-parsed doc, no re-parse); chase.Render(md) implemented as the internal one-parse-two-sinks entrypoint returning Output{HTML, CSS, Model, Meta} — ONE markdown.Parse call forks to RenderDoc (HTML) + model.Build (Model) on the SAME *ast.Document, CSS packed via profile-parameterized theme.Pack; MODEL-02 proven structurally (byte-identical HTML before/after Build) plus a 4-case Objective-1 corpus smoke test (marp-basic/slide-split/paginate/header-footer) with zero HTML regression; 3 task commits (8c10088, 9f0d142, 1e2629d) + 1 docs commit (1b2a0f7); whole-repo build/vet/test, gofmt, addlicense, Obj-1 cssdiff/corpus gates, and Obj-2 grep-gate all green throughout
+Objective: 3 of 9 (press/ Batteries + Public API) — IN PROGRESS; Objectives 0-2 complete
+Job: 1 of 9 complete (03-02 compiled-CSS theme extraction + go:embed + name-keyed ThemeSet (CORE-01) — wave 1; other TRDs pending/parallel)
+Status: Objective 3 in progress — 03-02 (CORE-01) executed in an isolated worktree; awaiting orchestrator merge/reconciliation
+Last activity: 2026-07-21 — 03-02-TRD executed: extended the tools/corpus-gen npm oracle with extract-themes.mjs to pull marp-core v4.4.0's OWN fully-compiled per-theme CSS (marp.themeSet.get(name).css) VERBATIM into themes/{default,gaia,uncover}.css (leading /*! @theme */ block hoisted so chase/theme.Load parses it), vendored lib/browser.js as themes/browser-fit.js (Marp MIT header), go:embed'd them (themes/embed.go) and built press/themes.ThemeSet (name-keyed, mirrors chase.go packCSS's NewThemeSet+Load+Add) — 7 press/themes tests green incl. a format-insensitive corpus shared-rule gate (gaia 64/84 rules+20/21 hljs, uncover 52/68+15/15); NOTICE credits the 3 themes + github-markdown-css (4th asset) + browser-fit.js, CI addlicense -ignore 'themes/**'; 3 task commits (b623195, 0b29b86, 2289ca1); whole-repo build/vet/test, gofmt, addlicense, Obj-1 cssdiff/corpus, Obj-2 grep-gate, and no-chromedp check all green
 
-Progress: [██████████] 100% (18/18 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4; Objective 3 not yet planned)
+Progress: [█████████░] 95% (19/20 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4, Objective 3: 1/9 [03-02 done])
 
 ## Accumulated Context
 
@@ -34,6 +34,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-21 (02-04-TRD execution — final/capstone TRD of Objective 2)
-Stopped at: Completed 02-model-profile-04-TRD.md (MODEL-02); Objective 2 now fully complete (4/4). SUMMARY committed 1b2a0f7. Objective 3 (press/ Batteries + Public API) planning next.
+Last session: 2026-07-21 (03-02-TRD execution — bundled Marp themes / CORE-01, wave 1 of Objective 3)
+Stopped at: Completed 03-02-TRD.md (CORE-01) in an isolated worktree. SUMMARY committed alongside 3 task commits (b623195, 0b29b86, 2289ca1). themes/*.css + browser-fit.js embedded; press/themes.ThemeSet wired to chase/theme.Pack. Remaining Objective-3 TRDs (03-01, 03-03..03-09) pending — orchestrator merges this worktree then advances the wave.
 Resume file: None
