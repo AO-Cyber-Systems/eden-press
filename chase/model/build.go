@@ -38,6 +38,20 @@ import (
 	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
 )
 
+// rawMath is the duck-typed seam by which Build recovers a math construct's RAW
+// TeX + display flag WITHOUT chase/model importing press/math. press/math's
+// (unexported) *mathNode satisfies it via its additive MathRaw()/MathDisplay()
+// getters (press/math/math.go), so chase/model reaches the raw TeX with no
+// direct import -- no dependency-closure coupling, no import cycle, and the
+// no-chromedp closure of press/chase/profiles is unaffected. ANY ast.Node
+// implementing these two methods is materialized as a math Block; the raw TeX
+// is the lossless surface Objective 7's DART-04 consumes (never the presentation
+// MathML in Output.HTML, which carries no <annotation> TeX).
+type rawMath interface {
+	MathRaw() string
+	MathDisplay() bool
+}
+
 // Build walks doc and returns the Document it describes.
 //
 // doc and pc MUST be exactly the two return values of markdown.Parse(source)
@@ -110,12 +124,18 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 			// A paragraph (or a list-item's TextBlock, though those are never
 			// reached here -- the *ast.List case below skips its children)
 			// contributes its concatenated plain text as an editable paragraph
-			// Block. Skip a whitespace-only paragraph: a display-math-only
-			// paragraph (goldmark wraps `$$…$$` in a Paragraph whose only child
-			// is the math node, which has no text) must yield the math Block
-			// alone, not an empty paragraph -- the math case (03-06 accessor
-			// seam) owns that node.
-			if entering && sectionIdx >= 0 {
+			// Block. TWO paragraphs are skipped so they don't emit a spurious
+			// text Block:
+			//   - a whitespace-only paragraph; and
+			//   - a MATH-ONLY paragraph. goldmark wraps a standalone `$$…$$` /
+			//     `$…$` line in a Paragraph whose only child is the math node,
+			//     yet Paragraph.Text reconstructs the RAW `$$…$$` source (the
+			//     math node does not strip it), so a naive text check would
+			//     double-emit the raw TeX as prose. The math node itself is
+			//     materialized as a math Block when the walk descends into this
+			//     paragraph (the rawMath case in default, below) -- preserving
+			//     document order + the display flag (error_recovery).
+			if entering && sectionIdx >= 0 && !isMathOnlyParagraph(n, source) {
 				if txt := string(n.Text(source)); strings.TrimSpace(txt) != "" {
 					d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
 						Kind: BlockParagraph,
@@ -175,11 +195,47 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 			if entering && sectionIdx >= 0 && isNote(node.Raw) {
 				d.Sections[sectionIdx].Notes = append(d.Sections[sectionIdx].Notes, node.Raw)
 			}
+		default:
+			// Math construct: reached via the duck-typed rawMath seam (press/
+			// math's *mathNode satisfies it) so chase/model never imports press/
+			// math. Present ONLY under a math-battery engine (press.Render);
+			// under the default chase engine `$$x$$` is plain text -> a
+			// paragraph Block, which is expected + correct. Text is the RAW TeX,
+			// Display the $$…$$ (block) vs. $…$ (inline) flag.
+			if entering && sectionIdx >= 0 {
+				if mn, ok := n.(rawMath); ok {
+					d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+						Kind:    BlockMath,
+						Text:    mn.MathRaw(),
+						Display: mn.MathDisplay(),
+					})
+				}
+			}
 		}
 		return ast.WalkContinue, nil
 	})
 
 	return d
+}
+
+// isMathOnlyParagraph reports whether n is a paragraph/text-block whose only
+// non-whitespace content is math node(s) -- e.g. a standalone `$$E=mc^2$$` or
+// `$x$` line goldmark wraps in a Paragraph. Such a paragraph must NOT emit a
+// text Block (its Paragraph.Text reconstructs the raw `$$…$$` source); the math
+// node it wraps is emitted as a math Block by the walk instead. Returns false
+// for a paragraph that mixes prose with math, or one with no math at all.
+func isMathOnlyParagraph(n ast.Node, source []byte) bool {
+	hasMath := false
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		if _, ok := c.(rawMath); ok {
+			hasMath = true
+			continue
+		}
+		if strings.TrimSpace(string(c.Text(source))) != "" {
+			return false // a non-math, non-whitespace child -> real prose
+		}
+	}
+	return hasMath
 }
 
 // rawLinesText reconstructs a code block's RAW source by concatenating the

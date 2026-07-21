@@ -32,6 +32,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 
 	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
+	pmath "github.com/AO-Cyber-Systems/eden-press/press/math"
 )
 
 // structuralSignature renders a deterministic, order-stable string
@@ -450,6 +451,64 @@ func TestBuildBlocksPreserveExistingOutput(t *testing.T) {
 	}
 	if hs := blocksOfKind(d.Sections[0].Blocks, BlockHeading); len(hs) != 1 || hs[0].Text != "Slide" {
 		t.Errorf("heading blocks = %+v, want one %q", hs, "Slide")
+	}
+}
+
+// TestBuildMathBlocks covers Test-list case 7: driven with a MATH-BATTERY
+// engine (mirroring press.Render's markdown.NewEngine(pmath.Option("mathml"))),
+// Build extracts each `$…$`/`$$…$$` construct as a Block{Kind: math} carrying
+// its RAW TeX (not the rendered MathML) and its display flag -- reached via the
+// duck-typed rawMath seam, with chase/model NOT importing press/math in its
+// non-test code.
+//
+// The math node exists ONLY under the battery engine; the default
+// markdown.Parse (no math battery) leaves `$$x$$` as literal paragraph text
+// (exercised by the other build tests). This is why the battery engine is
+// wired explicitly here, via the additive markdown.ParseWithEngine seam.
+func TestBuildMathBlocks(t *testing.T) {
+	engine := markdown.NewEngine(pmath.Option("mathml"))
+	md := "# Math\n\n$$E=mc^2$$\n\n$x$\n"
+
+	doc, pc := markdown.ParseWithEngine(md, engine)
+	d := Build(doc, []byte(md), pc)
+
+	if len(d.Sections) != 1 {
+		t.Fatalf("len(Sections) = %d, want 1", len(d.Sections))
+	}
+	maths := blocksOfKind(d.Sections[0].Blocks, BlockMath)
+	if len(maths) != 2 {
+		t.Fatalf("math blocks = %d, want 2 (all: %+v)", len(maths), d.Sections[0].Blocks)
+	}
+
+	// Display math $$E=mc^2$$ -> RAW TeX + Display true.
+	if maths[0].Text != "E=mc^2" {
+		t.Errorf("display math Text = %q, want %q (RAW TeX)", maths[0].Text, "E=mc^2")
+	}
+	if !maths[0].Display {
+		t.Errorf("display math Display = false, want true for $$…$$")
+	}
+
+	// Inline math $x$ -> RAW TeX + Display false.
+	if maths[1].Text != "x" {
+		t.Errorf("inline math Text = %q, want %q", maths[1].Text, "x")
+	}
+	if maths[1].Display {
+		t.Errorf("inline math Display = true, want false for $…$")
+	}
+
+	// The Text is RAW TeX, never the lossy rendered MathML.
+	for _, m := range maths {
+		if strings.Contains(m.Text, "<math") || strings.Contains(m.Text, "<mrow") {
+			t.Errorf("math Text must be RAW TeX, not MathML: %q", m.Text)
+		}
+	}
+
+	// The display-math-only paragraph did NOT ALSO double-emit its raw TeX as a
+	// paragraph Block (error_recovery: the math case owns that node).
+	for _, p := range blocksOfKind(d.Sections[0].Blocks, BlockParagraph) {
+		if strings.Contains(p.Text, "E=mc^2") || strings.Contains(p.Text, "$") {
+			t.Errorf("math raw TeX leaked into a paragraph Block: %q", p.Text)
+		}
 	}
 }
 
