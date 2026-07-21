@@ -83,9 +83,15 @@ something real.
   2. One call to the shared entrypoint returns both rendered HTML+CSS and the JSON-serializable Model from a single parse pass (one parse, two sinks), not two separate render calls.
   3. `chase/profile` exists as its own package exposing a `Profile` interface (boundary detection, container wrapping, size table, pagination rules, profile-only directives) validated bottom-up — it is exactly what `profiles/slides` needs, not a speculative superset built before a second profile exists to test it against.
   4. `profiles/slides` is the only registered `profile.Profile` implementation, fully reproduces Marp-compatible slide behavior (16:9 default, `section` container, `paginate` semantics) against Objective 0's corpus, and neither `chase/model` nor `chase/theme` contains slide-specific naming or hardcoded assumptions (`Slide` type names, a hardcoded `section` selector) — grep-verifiable, confirming the anti-pattern research flags most strongly was avoided.
-**Plans**: TBD
+**Plans**: 4 TRDs in 3 waves
+- [ ] 02-01-TRD.md — chase/model: structured docmodel builder via direct finalized-AST walk (MODEL-01) [wave 1]
+- [ ] 02-02-TRD.md — chase/profile: Profile interface + registry + exported-vs-internal decision (MODEL-03) [wave 1]
+- [ ] 02-03-TRD.md — profiles/slides (only impl) + de-hardcode chase/theme + grep-proof (MODEL-04) [wave 2]
+- [ ] 02-04-TRD.md — chase.go one-parse-two-sinks entrypoint: HTML+CSS+Model (MODEL-02) [wave 3]
 
 > **Decision gate to resolve in this objective:** `chase/*` internal vs. exported Go — decide and document explicitly whether `chase/` gets an `internal/` prefix (forcing every consumer through `press/`) or stays independently importable for advanced consumers (e.g. a future `profiles/paged` built by someone other than Eden Press). Apply the decision consistently before Objective 3 builds the public API on top of it.
+>
+> **Resolved (during Objective 2 planning):** `chase/*` stays **EXPORTED** (no `internal/` prefix) — independently importable for advanced consumers / future profiles, per the library-first thesis; documented in `chase/profile/doc.go` (TRD 02-02).
 
 ### Objective 3: press/ Batteries + Public API
 **Goal**: Deliver the Marp-Core-equivalent batteries and the stable, importable `press.Render()` API — the point at which Eden Press becomes embeddable in any Go service with zero Chrome dependency, and the gate every downstream consumer (CLI, exporters, Dart) waits on.
