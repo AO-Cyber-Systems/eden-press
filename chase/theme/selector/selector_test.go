@@ -146,3 +146,25 @@ func TestSplitList_EmptyIsNoOp(t *testing.T) {
 		t.Errorf("SplitList(whitespace-only) = %d compounds, want 0", len(got))
 	}
 }
+
+// Test-list case 9 (continued): an ALREADY fully-scoped selector chain
+// round-trips through SplitList/String unchanged — segmentation and
+// re-serialization are safe/idempotent on already-scoped text, not just
+// on empty input. (The other reading of "already-scoped is a no-op" —
+// that scope.go's Prepend must not double-prepend an intermediate
+// placeholder — is covered in Task 2's TestPrepend_AlreadyPlaceholdered,
+// since Prepend does not exist yet at this point in the file's history.)
+func TestSplitList_AlreadyScopedIsNoOp(t *testing.T) {
+	const already = "div.marpit > svg > foreignObject > section"
+	tokens, err := ParseSelectorTokens(already)
+	if err != nil {
+		t.Fatalf("ParseSelectorTokens: %v", err)
+	}
+	got := SplitList(tokens)
+	if len(got) != 1 {
+		t.Fatalf("SplitList(%q) = %d compounds, want 1", already, len(got))
+	}
+	if s := String(got[0]); s != already {
+		t.Errorf("round-trip = %q, want unchanged %q", s, already)
+	}
+}
