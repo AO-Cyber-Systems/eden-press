@@ -153,16 +153,16 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | MODEL-03 | Objective 2 | Complete |
 | MODEL-04 | Objective 2 | Complete |
 | CORE-01 | Objective 3 — press/ Batteries + Public API | Complete |
-| CORE-02 | Objective 3 | Pending |
+| CORE-02 | Objective 3 | Complete |
 | CORE-03 | Objective 3 | Complete |
 | CORE-04 | Objective 3 | Complete |
-| CORE-05 | Objective 3 | Pending |
+| CORE-05 | Objective 3 | Complete |
 | CORE-06 | Objective 3 | Complete |
-| CORE-07 | Objective 3 | Pending |
+| CORE-07 | Objective 3 | Complete |
 | CORE-08 | Objective 3 (hardened further in Objective 8) | Complete |
-| CORE-09 | Objective 3 (hardened further in Objective 8) | Pending |
-| API-01 | Objective 3 | Pending |
-| API-02 | Objective 3 | Pending |
+| CORE-09 | Objective 3 (hardened further in Objective 8) | Complete |
+| API-01 | Objective 3 | Complete |
+| API-02 | Objective 3 | Complete |
 | API-03 | Objective 3 | Complete |
 | CLI-01 | Objective 4 — CLI (cmd/eden-press) | Pending |
 | CLI-02 | Objective 4 | Pending |
