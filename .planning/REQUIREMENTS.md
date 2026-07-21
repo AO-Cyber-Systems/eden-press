@@ -41,14 +41,14 @@
 ### Batteries (`press/` — Marp-Core equivalent)
 
 - [x] **CORE-01**: Bundle the three official themes (default/gaia/uncover) **verbatim** via `go:embed`, with preserved MIT headers
-- [ ] **CORE-02**: `size` and `math` global directives (Marp-Core-level, not Marpit)
+- [x] **CORE-02**: `size` and `math` global directives (Marp-Core-level, not Marpit)
 - [ ] **CORE-03**: GFM tables + strikethrough (config `<s>` to match Marp, not goldmark's `<del>`) + line-break→`<br>`
 - [ ] **CORE-04**: Heading slug `id`s on `h1`–`h6`
 - [ ] **CORE-05**: HTML allow-list sanitization matching Marp's `xss` policy (behavioral parity: strip-vs-escape semantics; hand-filter the GFM disallowed tags `<script>`/`<iframe>`/… that goldmark does not filter)
 - [ ] **CORE-06**: Emoji — shortcodes + unicode → twemoji, native (shortcode table + regex), no JS
 - [ ] **CORE-07**: Syntax highlighting via `chroma`, with a bounded chroma-class ↔ highlight.js-class reconciliation so the bundled themes style code correctly
 - [ ] **CORE-08**: Math (`$…$`, `$$…$$`) via vendored/forked `latex2mathml` → native MathML; construct-detection (`\tag`/`\label`/complex `aligned`) auto-routes to the `codeberg.org/go-latex/latex` SVG/PNG fallback
-- [ ] **CORE-09**: Auto-fit markers (`# <!--fit-->`, code/math shrink) emitted for the viewer-side helper; `@auto-scaling` honored as theme-CSS-only
+- [x] **CORE-09**: Auto-fit markers (`# <!--fit-->`, code/math shrink) emitted for the viewer-side helper; `@auto-scaling` honored as theme-CSS-only
 
 ### Library API (`press/`)
 
@@ -153,14 +153,14 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | MODEL-03 | Objective 2 | Complete |
 | MODEL-04 | Objective 2 | Complete |
 | CORE-01 | Objective 3 — press/ Batteries + Public API | Complete |
-| CORE-02 | Objective 3 | Pending |
+| CORE-02 | Objective 3 | Complete |
 | CORE-03 | Objective 3 | Pending |
 | CORE-04 | Objective 3 | Pending |
 | CORE-05 | Objective 3 | Pending |
 | CORE-06 | Objective 3 | Pending |
 | CORE-07 | Objective 3 | Pending |
 | CORE-08 | Objective 3 (hardened further in Objective 8) | Pending |
-| CORE-09 | Objective 3 (hardened further in Objective 8) | Pending |
+| CORE-09 | Objective 3 (hardened further in Objective 8) | Complete |
 | API-01 | Objective 3 | Pending |
 | API-02 | Objective 3 | Pending |
 | API-03 | Objective 3 | Complete |

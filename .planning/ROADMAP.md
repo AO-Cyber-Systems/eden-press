@@ -109,7 +109,7 @@ something real.
 - [ ] 03-04-TRD.md — emoji: goldmark-emoji Twemoji + bespoke unicode-literal parser (CORE-06) [wave 2]
 - [ ] 03-05-TRD.md — chroma highlight + CSS-grounded chroma→.hljs remap (CORE-07) [wave 2]
 - [ ] 03-06-TRD.md — math baseline: $/$$→MathML + construct-detect + PNG fallback (CORE-08) [wave 2]
-- [ ] 03-07-TRD.md — size/math global directives + auto-fit markers (CORE-02, CORE-09) [wave 2]
+- [x] 03-07-TRD.md — size/math global directives + auto-fit markers (CORE-02, CORE-09) [wave 2]
 - [ ] 03-08-TRD.md — sanitize: bluemonday Marp-parity policy + adversarial suite (CORE-05) [wave 2]
 - [ ] 03-09-TRD.md — press.Render compose (API-01) + no-chromedp CI gate (API-02) + capstone [wave 3]
 
