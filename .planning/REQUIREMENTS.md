@@ -28,7 +28,7 @@
 
 - [ ] **THEME-01**: Build an in-memory `Stylesheet{Meta,Rules,Atoms}` model from `tdewolff/parse` css token stream (it is a token stream, not a node-AST)
 - [ ] **THEME-02**: Parse theme metadata comments — `@theme` (required), `@size`, `@auto-scaling`
-- [ ] **THEME-03**: The scoping pipeline, in verified order: nesting down-level → `:root` remap/specificity-fix → selector-scope to container → `@import`/`@import-theme` resolve → render-time pagination + advanced-background injection
+- [x] **THEME-03**: The scoping pipeline, in verified order: nesting down-level → `:root` remap/specificity-fix → selector-scope to container → `@import`/`@import-theme` resolve → render-time pagination + advanced-background injection
 - [ ] **THEME-04**: A dedicated, independently tested **selector-rewriter** subsystem (no Go equivalent exists)
 
 ### Document model & profiles (`chase/model`, `chase/profile`) — first-class from day one
@@ -146,7 +146,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | PARSE-07 | Objective 1 | Pending |
 | THEME-01 | Objective 1 | Pending |
 | THEME-02 | Objective 1 | Pending |
-| THEME-03 | Objective 1 | Pending |
+| THEME-03 | Objective 1 | Complete |
 | THEME-04 | Objective 1 | Pending |
 | MODEL-01 | Objective 2 — chase/model + chase/profile + profiles/slides | Pending |
 | MODEL-02 | Objective 2 | Pending |
