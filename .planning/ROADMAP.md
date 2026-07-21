@@ -127,7 +127,7 @@ something real.
 **Plans**: 8 TRDs in 5 waves
 - [x] 04-01-TRD.md — press.Options.ThemeCSS additive extension + BrowserFitJS re-export (Wave-0 enabler for CLI-05) [wave 1]
 - [x] 04-02-TRD.md — cobra skeleton + go.mod deps + flag→Options surface + stdin/file input [wave 1]
-- [ ] 04-03-TRD.md — htmldoc bare-style zero-JS assembly + convert pipeline (CLI-01) [wave 2]
+- [x] 04-03-TRD.md — htmldoc bare-style zero-JS assembly + convert pipeline (CLI-01) [wave 2]
 - [ ] 04-04-TRD.md — koanf config loading: .marprc.* + precedence flags>env>file (CLI-06) [wave 2]
 - [ ] 04-05-TRD.md — --theme/--theme-set loading into press.Options.ThemeCSS (CLI-05) [wave 2]
 - [ ] 04-06-TRD.md — watch mode: scoped fsnotify + debounce + SSE reload channel (CLI-02) [wave 3]
@@ -213,7 +213,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
-| 4. CLI (cmd/eden-press) | 2/8 | In Progress | - |
+| 4. CLI (cmd/eden-press) | 2/8 | In Progress|  |
 | 5. convert/pdf + convert/png (chromedp) | 1/5 | In Progress | - |
 | 6. convert/pptx (native OOXML) | 1/5 | In progress | 06-02: 2026-07-21 |
 | 7. Dart/Flutter Binding | 1/5 | In Progress | - |
