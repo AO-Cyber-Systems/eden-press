@@ -104,7 +104,7 @@ something real.
   4. `Options`/`Output` types are documented and stable enough that a consumer only ever imports `press/` — never reaches into `chase/`/`profiles/` directly — to render a complete deck; this is the explicit gate at which Objective 7 (Dart binding) may begin.
 **Plans**: 9 TRDs in 3 waves
 - [x] 03-01-TRD.md — chase/markdown.ParseWithEngine seam + press Options/Output + deps + emoji-compat spike (API-03) [wave 1]
-- [ ] 03-02-TRD.md — compiled-CSS theme extraction + go:embed + name-keyed ThemeSet (CORE-01) [wave 1]
+- [x] 03-02-TRD.md — compiled-CSS theme extraction + go:embed + name-keyed ThemeSet (CORE-01) [wave 1]
 - [ ] 03-03-TRD.md — strikethrough <s> override + GFM/hard-break/slug verify (CORE-03, CORE-04) [wave 2]
 - [ ] 03-04-TRD.md — emoji: goldmark-emoji Twemoji + bespoke unicode-literal parser (CORE-06) [wave 2]
 - [ ] 03-05-TRD.md — chroma highlight + CSS-grounded chroma→.hljs remap (CORE-07) [wave 2]
@@ -189,7 +189,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 6/6 | Complete    | 2026-07-20 |
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
-| 3. press/ Batteries + Public API | 0/9 | Not started | - |
+| 3. press/ Batteries + Public API | 2/9 | In Progress | - |
 | 4. CLI (cmd/eden-press) | 0/TBD | Not started | - |
 | 5. convert/pdf + convert/png (chromedp) | 0/TBD | Not started | - |
 | 6. convert/pptx (native OOXML) | 0/TBD | Not started | - |
