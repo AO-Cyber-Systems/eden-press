@@ -341,7 +341,7 @@ func TestIncreasingSpecificity_NestedMarker(t *testing.T) {
 
 	var foundDepth = -1
 	Walk(replaced, func(tok css.Token, index int, depth int) bool {
-		if tok.TokenType == css.Colon && index+1 < len(replaced) &&
+		if tok.TokenType == css.ColonToken && index+1 < len(replaced) &&
 			replaced[index+1].TokenType == css.IdentToken &&
 			string(replaced[index+1].Data) == "marpit-root" {
 			foundDepth = depth
@@ -355,5 +355,108 @@ func TestIncreasingSpecificity_NestedMarker(t *testing.T) {
 	got := String(IncreasingSpecificity(replaced))
 	if got != want {
 		t.Errorf("nested-marker pipeline = %q, want %q", got, want)
+	}
+}
+
+// ---------------------------------------------------------------------
+// Task 3 — standalone regression suite against gaia-shaped selectors.
+// No import of chase/theme or chase/markdown: this table exercises the
+// exact selector shapes found in
+// conformance/corpus/cases/marp-theme-gaia/expected.css using only this
+// package's own Task 1/2 primitives (SplitList/Prepend/Replace/JoinList)
+// — the ROADMAP-criterion-5 deliverable: the subsystem's OWN suite, not
+// folded into theme-loading integration tests.
+// ---------------------------------------------------------------------
+
+// scopeList runs SplitList -> Prepend -> Replace -> JoinList over a full
+// (possibly comma-separated) unscoped selector-list string, in
+// inline-SVG mode — the render mode marp-theme-gaia's corpus fixture was
+// captured in.
+func scopeList(t *testing.T, sel string) string {
+	t.Helper()
+	tokens, err := ParseSelectorTokens(sel)
+	if err != nil {
+		t.Fatalf("ParseSelectorTokens(%q): %v", sel, err)
+	}
+	compounds := SplitList(tokens)
+	scoped := make([][]css.Token, len(compounds))
+	for i, c := range compounds {
+		scoped[i] = Replace(Prepend(c), InlineSVGContainerChain(), SlideChain())
+	}
+	return JoinList(scoped)
+}
+
+func TestGaiaRegression_ScopedSelectors(t *testing.T) {
+	// Every "want" string below was extracted verbatim from
+	// conformance/corpus/cases/marp-theme-gaia/expected.css (grep for the
+	// literal selector text immediately preceding its declaration block)
+	// — these are REAL Marpit output, not hand-invented fixtures.
+	tests := []struct {
+		name string
+		sel  string
+		want string
+	}{
+		{
+			name: "plain section rule",
+			sel:  "section",
+			want: "div.marpit > svg > foreignObject > section",
+		},
+		{
+			name: "pseudo-element on section",
+			sel:  "section::after",
+			want: "div.marpit > svg > foreignObject > section::after",
+		},
+		{
+			name: "attribute selector + pseudo-element",
+			sel:  "section:not([data-marpit-pagination])::after",
+			want: "div.marpit > svg > foreignObject > section:not([data-marpit-pagination])::after",
+		},
+		{
+			name: "six-entry :is() heading comma-list",
+			sel:  ":is(h1, marp-h1), :is(h2, marp-h2), :is(h3, marp-h3), :is(h4, marp-h4), :is(h5, marp-h5), :is(h6, marp-h6)",
+			want: "div.marpit > svg > foreignObject > section :is(h1, marp-h1)," +
+				"div.marpit > svg > foreignObject > section :is(h2, marp-h2)," +
+				"div.marpit > svg > foreignObject > section :is(h3, marp-h3)," +
+				"div.marpit > svg > foreignObject > section :is(h4, marp-h4)," +
+				"div.marpit > svg > foreignObject > section :is(h5, marp-h5)," +
+				"div.marpit > svg > foreignObject > section :is(h6, marp-h6)",
+		},
+		{
+			name: "fused :where(.lead) prefix + six-entry :is() list",
+			sel: "section:where(.lead) :is(h1, marp-h1), section:where(.lead) :is(h2, marp-h2), " +
+				"section:where(.lead) :is(h3, marp-h3), section:where(.lead) :is(h4, marp-h4), " +
+				"section:where(.lead) :is(h5, marp-h5), section:where(.lead) :is(h6, marp-h6)",
+			want: "div.marpit > svg > foreignObject > section:where(.lead) :is(h1, marp-h1)," +
+				"div.marpit > svg > foreignObject > section:where(.lead) :is(h2, marp-h2)," +
+				"div.marpit > svg > foreignObject > section:where(.lead) :is(h3, marp-h3)," +
+				"div.marpit > svg > foreignObject > section:where(.lead) :is(h4, marp-h4)," +
+				"div.marpit > svg > foreignObject > section:where(.lead) :is(h5, marp-h5)," +
+				"div.marpit > svg > foreignObject > section:where(.lead) :is(h6, marp-h6)",
+		},
+		{
+			name: "adjacent pseudo-classes on a descendant, comma-listed",
+			sel:  "section blockquote:after, section blockquote:before",
+			want: "div.marpit > svg > foreignObject > section blockquote:after," +
+				"div.marpit > svg > foreignObject > section blockquote:before",
+		},
+		{
+			name: "fused attribute selector with quoted value",
+			sel:  `section[data-marpit-advanced-background="background"]`,
+			want: `div.marpit > svg > foreignObject > section[data-marpit-advanced-background="background"]`,
+		},
+		{
+			name: "nested :is() inside :where(), two levels deep",
+			sel:  "section :where(:is(h1, marp-h1))",
+			want: "div.marpit > svg > foreignObject > section :where(:is(h1, marp-h1))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := scopeList(t, tt.sel)
+			if got != tt.want {
+				t.Errorf("scopeList(%q) =\n  %q\nwant\n  %q", tt.sel, got, tt.want)
+			}
+		})
 	}
 }
