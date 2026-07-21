@@ -165,7 +165,7 @@ something real.
 - [x] 06-02-TRD.md — convert/pptx EMU-conversion utility + 16:9/4:3 slide-size constants + chOff/chExt group-transform, independently unit-tested (EXP-03) [wave 1] — complete 2026-07-21 (commits c5eb144, 6de5619; SUMMARY: 06-02-SUMMARY.md)
 - [x] 06-03-TRD.md — deterministic OPC zip packager + complete static part graph (12-attr clrMap, 3-entry fmtScheme) + trivial-deck openability on 16:9/4:3 (EXP-03) [wave 2] — complete 2026-07-21 (commits eb2ada9, 5a98584, b209398, 95fe34c; SUMMARY: 06-03-SUMMARY.md)
 - [x] 06-04-TRD.md — ToPPTX(model.Document, Options): Section→slide, Blocks/Outline→editable <p:sp> text boxes + grouped shape, no Chrome (EXP-03) [wave 3]
-- [ ] 06-05-TRD.md — speaker notes (Section.Notes→notesSlideN) + comprehensive openability/position verification on 16:9 + 4:3 (EXP-03) [wave 4]
+- [x] 06-05-TRD.md — speaker notes (Section.Notes→notesSlideN) + comprehensive openability/position verification on 16:9 + 4:3 (EXP-03) [wave 4] — complete 2026-07-21 (commits 11dc9be, d0a1766; SUMMARY: 06-05-SUMMARY.md) — Objective 6 COMPLETE (5/5), EXP-03 satisfied
 
 > **Decision gate (must be confirmed before this objective's design doc is written):** hand-rolled OOXML (stdlib `archive/zip` + `encoding/xml`) is the confirmed approach — `unioffice` and any of its forks are explicitly rejected (AGPLv3/commercial-license-key requirement, incompatible with Eden Press's MIT/embeddable positioning). Re-confirm at planning time that no new permissive Go PPTX library has emerged since the research date.
 
@@ -215,7 +215,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
 | 4. CLI (cmd/eden-press) | 6/8 | In Progress | - |
 | 5. convert/pdf + convert/png (chromedp) | 4/5 | In Progress | - |
-| 6. convert/pptx (native OOXML) | 4/5 | In Progress | - |
+| 6. convert/pptx (native OOXML) | 5/5 | Complete    | 2026-07-21 |
 | 7. Dart/Flutter Binding | 5/5 | Complete    | 2026-07-21 |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
 
