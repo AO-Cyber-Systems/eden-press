@@ -173,7 +173,12 @@ something real.
   2. Android and iOS builds are verified independently in CI as two separately-toolchained pipelines, specifically including a run on an Apple-Silicon runner with Android NDK also present (the confirmed toolchain-panic case) — both succeed.
   3. The Flutter package renders a deck's math via `flutter_math_fork` and code highlighting via `highlighting`/`flutter_highlighting` — no JavaScript anywhere in the Dart rendering surface.
   4. A shared subset of Objective 0's conformance corpus runs against the compiled capi/wasm artifact through the same JSON entrypoint the Dart code uses (not just the Go-native test run) and passes.
-**Plans**: TBD
+**Plans**: 5 TRDs in 3 waves
+- [ ] 07-01-TRD.md — DART-01: C-ABI core — RenderJSON pure-Go JSON boundary + cgo PressRender/PressFree [wave 1]
+- [ ] 07-02-TRD.md — DART-03: web binding — GOOS=js/wasm syscall/js shim + version-pinned wasm_exec.js [wave 2]
+- [ ] 07-03-TRD.md — DART-02: native builds — Android c-shared .so/ABI, iOS c-archive→xcframework + two-pipeline CI [wave 2]
+- [ ] 07-04-TRD.md — DART-05: boundary conformance — corpus subset through compiled wasm + host capi via same JSON entrypoint [wave 3]
+- [ ] 07-05-TRD.md — DART-04: JS-free Dart surface — flutter_math_fork + flutter_highlighting; consumes Obj6/06-01 schema-v2 [wave 3]
 
 > **Decision gate (resolve before writing any WASM-specific code):** standard Go vs. TinyGo for the WASM target — decide based on a compatibility audit of goldmark, `yaml.v3` front-matter parsing, and the JSON-AST emitter against TinyGo's partial reflection/`encoding/json` support (a functional-correctness risk, not merely a binary-size/perf tradeoff). If TinyGo is chosen, pin its bundled `wasm_exec.js` to the exact compiler version.
 
