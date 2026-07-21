@@ -214,7 +214,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete    | 2026-07-21 |
 | 3. press/ Batteries + Public API | 9/9 | Complete    | 2026-07-21 |
 | 4. CLI (cmd/eden-press) | 5/8 | In Progress | - |
-| 5. convert/pdf + convert/png (chromedp) | 2/5 | In Progress | - |
+| 5. convert/pdf + convert/png (chromedp) | 3/5 | In Progress|  |
 | 6. convert/pptx (native OOXML) | 3/5 | In Progress | - |
 | 7. Dart/Flutter Binding | 3/5 | In Progress | - |
 | 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
