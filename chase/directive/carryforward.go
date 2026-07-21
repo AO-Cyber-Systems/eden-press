@@ -51,13 +51,85 @@ type Event struct {
 
 // EventsFromKV converts an ordered slice of raw key/value pairs (as produced
 // by ParseComment/ParseFrontMatter) into an ordered slice of
-// DirectiveCommentEvent Events, preserving declaration order.
+// DirectiveCommentEvent Events, preserving declaration order (RESEARCH
+// anti-pattern: merge order is significant -- never re-derive it from an
+// unordered map).
 func EventsFromKV(kvs []KV) []Event {
-	return nil
+	events := make([]Event, len(kvs))
+	for i, kv := range kvs {
+		events[i] = Event{Kind: DirectiveCommentEvent, Key: kv.Key, Raw: kv.Val}
+	}
+	return events
 }
 
-// Resolve walks an ordered event stream and returns one resolved directive
-// map per slide (in slide order).
+// Resolve walks an ordered event stream (SlideOpen / SlideClose /
+// DirectiveCommentEvent) and returns one resolved directive map per slide,
+// applying Marpit's exact carry-forward semantics -- verbatim from
+// directives/parse.js's 'marpit_directives_parse' +
+// 'marpit_directives_global_parse' core rules (01-RESEARCH.md "chase/directive
+// carry-forward state machine"):
+//
+//   - local directives persist in cursor.local across slides -- never reset
+//     except by being overridden by a later directive of the same key.
+//   - spot directives (a DirectiveCommentEvent whose Key is "_"-prefixed)
+//     are collected into cursor.spot, merged into ONLY the current slide at
+//     SlideClose, then cursor.spot is reset to empty -- this reset is what
+//     makes spot directives single-slide-only.
+//   - global directives are resolved (via CoerceGlobal) across the WHOLE
+//     event stream and stamped onto EVERY slide identically, AFTER the
+//     local/spot loop -- mirroring parse.js's trailing
+//     `for (const token of slides) token.meta.marpitDirectives = {...}` loop.
+//
+// A DirectiveCommentEvent occurring BEFORE the first SlideOpen (i.e. a
+// front-matter-derived event) is treated exactly like a comment at the top
+// of the document: it can seed cursor.local (if the key is a recognized
+// local directive) AND/OR contribute to the document-wide globals map (if
+// the key is a recognized global directive) -- mirroring Marpit's
+// `if (frontMatterObject.yaml) applyDirectives(...)` call, which appears in
+// BOTH the global-parse and local-parse core rules.
 func Resolve(events []Event, themeExists ThemeExists) []map[string]any {
-	return nil
+	globals := map[string]any{}
+	local := map[string]any{}
+	spot := map[string]any{}
+
+	var slides []map[string]any
+	current := -1
+
+	for _, ev := range events {
+		switch ev.Kind {
+		case SlideOpen:
+			slides = append(slides, map[string]any{})
+			current = len(slides) - 1
+		case SlideClose:
+			if current < 0 {
+				continue // malformed stream: close without a matching open
+			}
+			for k, v := range local {
+				slides[current][k] = v
+			}
+			for k, v := range spot {
+				slides[current][k] = v
+			}
+			spot = map[string]any{}
+		case DirectiveCommentEvent:
+			if v, isKnown := CoerceGlobal(ev.Key, ev.Raw, themeExists); isKnown && v != nil {
+				globals[ev.Key] = v
+			}
+			if v, isKnown := CoerceLocal(ev.Key, ev.Raw); isKnown && v != nil {
+				local[ev.Key] = v
+			}
+			if base, ok := SpotKey(ev.Key); ok {
+				if v, isKnown := CoerceLocal(base, ev.Raw); isKnown && v != nil {
+					spot[base] = v
+				}
+			}
+		}
+	}
+
+	for _, s := range slides {
+		for k, v := range globals {
+			s[k] = v
+		}
+	}
+	return slides
 }
