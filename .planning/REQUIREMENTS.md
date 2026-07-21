@@ -58,7 +58,7 @@
 
 ### CLI (`cmd/eden-press`)
 
-- [ ] **CLI-01**: `eden-press <in.md>` → HTML output (default `bare`-style zero-JS static HTML)
+- [x] **CLI-01**: `eden-press <in.md>` → HTML output (default `bare`-style zero-JS static HTML)
 - [ ] **CLI-02**: Watch mode (`fsnotify`) — rebuild on change
 - [ ] **CLI-03**: Server mode with live-reload (serve local files, convert on request)
 - [ ] **CLI-04**: Preview (open output in a browser)
@@ -164,7 +164,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | API-01 | Objective 3 | Complete |
 | API-02 | Objective 3 | Complete |
 | API-03 | Objective 3 | Complete |
-| CLI-01 | Objective 4 — CLI (cmd/eden-press) | Pending |
+| CLI-01 | Objective 4 — CLI (cmd/eden-press) | Complete |
 | CLI-02 | Objective 4 | Pending |
 | CLI-03 | Objective 4 | Pending |
 | CLI-04 | Objective 4 | Pending |
