@@ -62,7 +62,15 @@ something real.
   3. A deck splits into `<section>`-wrapped slides on `---`/`headingDivider` (with the setext-H2 trap resolved correctly), `![bg ...]` syntax resolves to CSS backgrounds or the advanced-background SVG layer, and inline-SVG mode (`<svg><foreignObject><section>`) renders correctly both as an HTML string AND rasterized (not string-diff alone).
   4. Theme CSS runs through the full ordered scoping pipeline (meta parse → `:root` remap/specificity fix-up → selector-scope → `@import`/`@import-theme` resolve → render-time pagination/background injection) and passes Objective 0's CSS-AST diff gate for all 3 bundled themes plus a synthetic theme stress-testing `:is()`/`:where()`/native CSS nesting.
   5. The selector-rewriter exists as its own independently unit-tested subsystem (dedicated test suite, not folded into theme-loading integration tests) — reflecting that it has no upstream Go analogue.
-**Plans**: TBD
+**Plans**: 8 TRDs in 5 waves
+- [ ] 01-01-TRD.md — chase/theme/selector: standalone selector-rewriter (THEME-04) [wave 1]
+- [ ] 01-02-TRD.md — chase/directive: directive state machine + front-matter/comment syntaxes (PARSE-02, PARSE-03) [wave 1]
+- [ ] 01-03-TRD.md — chase/theme: Stylesheet model + @theme/@size/@auto-scaling metadata (THEME-01, THEME-02) [wave 1]
+- [ ] 01-04-TRD.md — chase/theme: ordered two-tier scoping pipeline (Load + Pack) (THEME-03) [wave 2]
+- [ ] 01-05-TRD.md — chase/markdown: two-phase seam + comment wiring + slide-split + container (PARSE-05) [wave 2]
+- [ ] 01-06-TRD.md — chase/markdown: directive application + directive-set materialization (PARSE-04) [wave 3]
+- [ ] 01-07-TRD.md — chase/markdown: background images + inline-SVG advanced backgrounds (PARSE-06, PARSE-07) [wave 4]
+- [ ] 01-08-TRD.md — integration: two-phase seam + Marp corpus + cssdiff gates + inline-SVG raster check (PARSE-01) [wave 5]
 
 > **Planning note (internal parallelism):** `chase/directive` (pure carry-forward state machine, zero goldmark import) and `chase/theme` (CSS `Stylesheet` model over `tdewolff/parse/v2/css`, zero dependency on the Markdown/AST side) share no dependency edge and can be planned/executed as separate jobs within this objective; `chase/markdown` (goldmark Extenders wiring directive resolution, slide-splitting, `![bg]`, inline-SVG) depends on `chase/directive`'s output via `parser.Context` and should be sequenced after it.
 
@@ -164,7 +172,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | Objective | Jobs Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 6/6 | Complete    | 2026-07-20 |
-| 1. chase/markdown + chase/directive + chase/theme | 0/TBD | Not started | - |
+| 1. chase/markdown + chase/directive + chase/theme | 0/8 | Not started | - |
 | 2. chase/model + chase/profile + profiles/slides | 0/TBD | Not started | - |
 | 3. press/ Batteries + Public API | 0/TBD | Not started | - |
 | 4. CLI (cmd/eden-press) | 0/TBD | Not started | - |
