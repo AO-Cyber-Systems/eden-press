@@ -11,6 +11,13 @@
 # C-ABI (cgo) host build output (scripts/build-capi-host.sh)
 /bind/capi/build/
 
+# Native mobile build products (scripts/build-android.sh / build-ios.sh) --
+# outputs of DART-02, never committed; CI/local builds regenerate them.
+*.so
+*.a
+*.dylib
+*.xcframework/
+
 # Node tooling used only by the throwaway corpus generator (tools/corpus-gen)
 /node_modules/
 tools/corpus-gen/node_modules/
