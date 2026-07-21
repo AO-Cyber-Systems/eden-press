@@ -24,7 +24,7 @@ something real.
 
 - [x] **Objective 0: Conformance Corpus, Acceptance Gate & Attribution Bootstrap** - Golden corpus (Marp's own MIT fixtures + full CommonMark/GFM sweep), DOM-normalized HTML diff runner, new CSS-AST diff tooling, upstream-drift CI check, and day-one LICENSE/NOTICE/attribution. (completed 2026-07-20)
 - [x] **Objective 1: chase/markdown + chase/directive + chase/theme (Marpit-in-Go)** - Directive resolution, slide-splitting, background-image syntax, inline-SVG mode, and the theme-CSS scoping pipeline with its own tested selector-rewriter. (completed 2026-07-21)
-- [ ] **Objective 2: chase/model + chase/profile + profiles/slides** - The structured JSON document model and output-profile interface as first-class packages, with `profiles/slides` as profile #1.
+- [x] **Objective 2: chase/model + chase/profile + profiles/slides** - The structured JSON document model and output-profile interface as first-class packages, with `profiles/slides` as profile #1. (completed 2026-07-21)
 - [ ] **Objective 3: press/ Batteries + Public API** - Embedded themes, GFM/slug/sanitize/emoji/highlight/math batteries, and the stable `press.Render()` API with a CI-enforced zero-chromedp boundary.
 - [ ] **Objective 4: CLI (cmd/eden-press)** - `eden-press` convert/watch/serve/preview, theme loading, config file + stdin input.
 - [ ] **Objective 5: convert/pdf + convert/png (chromedp raster export)** - PDF and PNG/JPEG export via headless Chrome, robust Chrome discovery, deterministic/CI-hardened export.
@@ -84,10 +84,10 @@ something real.
   3. `chase/profile` exists as its own package exposing a `Profile` interface (boundary detection, container wrapping, size table, pagination rules, profile-only directives) validated bottom-up — it is exactly what `profiles/slides` needs, not a speculative superset built before a second profile exists to test it against.
   4. `profiles/slides` is the only registered `profile.Profile` implementation, fully reproduces Marp-compatible slide behavior (16:9 default, `section` container, `paginate` semantics) against Objective 0's corpus, and neither `chase/model` nor `chase/theme` contains slide-specific naming or hardcoded assumptions (`Slide` type names, a hardcoded `section` selector) — grep-verifiable, confirming the anti-pattern research flags most strongly was avoided.
 **Plans**: 4 TRDs in 3 waves
-- [ ] 02-01-TRD.md — chase/model: structured docmodel builder via direct finalized-AST walk (MODEL-01) [wave 1]
-- [ ] 02-02-TRD.md — chase/profile: Profile interface + registry + exported-vs-internal decision (MODEL-03) [wave 1]
-- [ ] 02-03-TRD.md — profiles/slides (only impl) + de-hardcode chase/theme + grep-proof (MODEL-04) [wave 2]
-- [ ] 02-04-TRD.md — chase.go one-parse-two-sinks entrypoint: HTML+CSS+Model (MODEL-02) [wave 3]
+- [x] 02-01-TRD.md — chase/model: structured docmodel builder via direct finalized-AST walk (MODEL-01) [wave 1]
+- [x] 02-02-TRD.md — chase/profile: Profile interface + registry + exported-vs-internal decision (MODEL-03) [wave 1]
+- [x] 02-03-TRD.md — profiles/slides (only impl) + de-hardcode chase/theme + grep-proof (MODEL-04) [wave 2]
+- [x] 02-04-TRD.md — chase.go one-parse-two-sinks entrypoint: HTML+CSS+Model (MODEL-02) [wave 3]
 
 > **Decision gate to resolve in this objective:** `chase/*` internal vs. exported Go — decide and document explicitly whether `chase/` gets an `internal/` prefix (forcing every consumer through `press/`) or stays independently importable for advanced consumers (e.g. a future `profiles/paged` built by someone other than Eden Press). Apply the decision consistently before Objective 3 builds the public API on top of it.
 >
@@ -179,7 +179,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 |-------|----------------|--------|-----------|
 | 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 6/6 | Complete    | 2026-07-20 |
 | 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
-| 2. chase/model + chase/profile + profiles/slides | 0/TBD | Not started | - |
+| 2. chase/model + chase/profile + profiles/slides | 4/4 | Complete   | 2026-07-21 |
 | 3. press/ Batteries + Public API | 0/TBD | Not started | - |
 | 4. CLI (cmd/eden-press) | 0/TBD | Not started | - |
 | 5. convert/pdf + convert/png (chromedp) | 0/TBD | Not started | - |

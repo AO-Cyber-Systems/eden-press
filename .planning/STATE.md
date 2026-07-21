@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** Render Marp-compatible documents from Markdown inside a Go service or CLI with no JavaScript runtime, no Node, and no browser for HTML/structured output — while emitting the document as structured data, not just HTML.
-**Current focus:** Objective 1 — chase/markdown + chase/directive + chase/theme (Marpit-in-Go)
+**Current focus:** Objective 2 — chase/model + chase/profile + profiles/slides (Marpit-in-Go) — COMPLETE; Objective 3 (press/ Batteries + Public API) planning next
 
 ## Current Position
 
-Objective: 1 of 9 (chase/markdown + chase/directive + chase/theme (Marpit-in-Go)) — COMPLETE; Objective 0 also complete
-Job: 8 of 8 complete (01-01 selector-rewriter, 01-02 directive state machine, 01-03 Stylesheet model, 01-04 CSS scoping pipeline, 01-05 two-phase seam/slide-split/container, 01-06 directive apply, 01-07 backgrounds/inline-SVG, 01-08 integration — corpus + cssdiff gates + raster check (PARSE-01) all executed; wave 5/5 done)
-Status: Objective 1 complete — ready for Objective 2 planning (chase/model + chase/profile + profiles/slides)
-Last activity: 2026-07-21 — 01-08-TRD executed: two-phase Parse()/Render() seam (PARSE-01) formalized in chase/markdown/seam.go; NEW conformance/runner/chase_corpus_test.go drives the 18-case Marp corpus through the chase engine (10 PASS incl. all 9 Marpit-mechanic cases + marp-gfm-table, 8 BLOCKED on Objective-3 CORE-* batteries via explicit skip-map, 0 unexplained failures); chase/theme/pack_conformance_test.go cssdiff.Equal gate green for stress+scaffold; inline-SVG rasterization human-verified (auto-approved, autonomous run) via browser screenshot; [Rule 1] headingDivider display-value bug fixed in apply.go; 4 task commits (16fcc47, 902e93d, e9adebf, dd68671) + 1 docs commit (729a9ef)
+Objective: 2 of 9 (chase/model + chase/profile + profiles/slides) — COMPLETE; Objectives 0-1 also complete
+Job: 4 of 4 complete (02-01 chase/model docmodel builder (MODEL-01), 02-02 chase/profile interface + registry (MODEL-03), 02-03 profiles/slides + de-hardcode chase/theme + grep-gate (MODEL-04), 02-04 chase.go one-parse-two-sinks entrypoint (MODEL-02) — wave 3/3 done)
+Status: Objective 2 complete — ready for Objective 3 planning (press/ Batteries + Public API)
+Last activity: 2026-07-21 — 02-04-TRD executed (capstone): chase/markdown.RenderDoc added (render an already-parsed doc, no re-parse); chase.Render(md) implemented as the internal one-parse-two-sinks entrypoint returning Output{HTML, CSS, Model, Meta} — ONE markdown.Parse call forks to RenderDoc (HTML) + model.Build (Model) on the SAME *ast.Document, CSS packed via profile-parameterized theme.Pack; MODEL-02 proven structurally (byte-identical HTML before/after Build) plus a 4-case Objective-1 corpus smoke test (marp-basic/slide-split/paginate/header-footer) with zero HTML regression; 3 task commits (8c10088, 9f0d142, 1e2629d) + 1 docs commit (1b2a0f7); whole-repo build/vet/test, gofmt, addlicense, Obj-1 cssdiff/corpus gates, and Obj-2 grep-gate all green throughout
 
-Progress: [██████████] 100% (14/14 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8; Objective 2 not yet planned)
+Progress: [██████████] 100% (18/18 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4; Objective 3 not yet planned)
 
 ## Accumulated Context
 
@@ -34,6 +34,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-21 (01-08-TRD execution — final TRD of Objective 1)
-Stopped at: Completed 01-chase-framework-08-TRD.md (PARSE-01); Objective 1 now fully complete (8/8). SUMMARY committed 729a9ef. Objective 2 (chase/model + chase/profile + profiles/slides) planning next.
+Last session: 2026-07-21 (02-04-TRD execution — final/capstone TRD of Objective 2)
+Stopped at: Completed 02-model-profile-04-TRD.md (MODEL-02); Objective 2 now fully complete (4/4). SUMMARY committed 1b2a0f7. Objective 3 (press/ Batteries + Public API) planning next.
 Resume file: None
