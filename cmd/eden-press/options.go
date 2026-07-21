@@ -52,25 +52,20 @@ func applyConfig(cmd *cobra.Command) error {
 // ""->front-matter->"default" (etc.) fallback chain; buildOptions must
 // never re-implement it (anti-pattern, research Pattern 1).
 //
-// themeCSS(cmd) (the 04-05 stub in themeset.go) is called here so this is
-// the one call site every downstream mode shares; it returns (nil, nil)
-// today.
-//
-// NOTE on press.Options.ThemeCSS: that field is added by the sibling
-// Wave-1 TRD 04-01 (press.Options additive extension), executed in its own
-// parallel worktree and not yet merged into this one -- so it does not
-// exist on press.Options here. themeCSS's result (tcss) is intentionally
-// not yet assigned to an Options field; once 04-01 merges, wire it in as
-// `ThemeCSS: tcss` below (04-03's own error_recovery documents this same
-// same-module ordering constraint for press.BrowserFitJS, confirming 04-01
-// must merge before Wave-2 TRDs run).
+// themeCSS(cmd) (filled by 04-05 in themeset.go) is called here so this is
+// the one call site every downstream mode shares; its result (tcss) is
+// assigned verbatim to press.Options.ThemeCSS (04-01's additive field) --
+// buildOptions does no further interpretation of it, matching the "CLI reads
+// files, press/ registers them" boundary 04-01/04-05 establish.
 func buildOptions(cmd *cobra.Command) (press.Options, error) {
-	if _, err := themeCSS(cmd); err != nil {
+	tcss, err := themeCSS(cmd)
+	if err != nil {
 		return press.Options{}, err
 	}
 
 	return press.Options{
 		Theme:          cfg.String("theme"),
+		ThemeCSS:       tcss,
 		Profile:        cfg.String("profile"),
 		MathMode:       cfg.String("math"),
 		NoHighlight:    cfg.Bool("no-highlight"),
