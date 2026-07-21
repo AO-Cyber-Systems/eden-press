@@ -22,16 +22,19 @@
 
 package profile
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 // ---------------------------------------------------------------------
 // Task 1 — Test-list case 5. Written FIRST, before profile.go exists:
 // this file intentionally fails to compile until the Profile interface
 // (and its SizeTable/PaginationRule value types) are defined.
 //
-// Task 2 (registry.go) will extend this file with Register/Get/Default
-// behavior tests (Test-list cases 1-4); those are added alongside
-// registry.go itself, once this interface-satisfaction test is green.
+// Task 2 — Test-list cases 1-4, below. Written FIRST, before
+// registry.go exists: these tests intentionally fail to compile until
+// Register/Get/Default/resetForTest exist.
 // ---------------------------------------------------------------------
 
 // fakeProfile is a hand-built, minimal Profile implementation used only
@@ -83,4 +86,96 @@ func TestInterfaceSatisfaction(t *testing.T) {
 	if got, want := p.ID(), "fake"; got != want {
 		t.Fatalf("ID() = %q, want %q", got, want)
 	}
+}
+
+// ---------------------------------------------------------------------
+// Task 2 — registry behavior (Register/Get/Default). The registry is
+// package-level mutable state (registry.go), so every test below calls
+// resetForTest() first for isolation — an unexported test-only hook
+// (see registry.go's doc), never part of the public surface.
+// ---------------------------------------------------------------------
+
+// Test-list case 1: Register(fakeProfile{id:"x"}) then Get("x") ->
+// returns that profile, found==true.
+func TestRegisterAndGet(t *testing.T) {
+	resetForTest()
+	Register(fakeProfile{id: "x"})
+
+	got, found := Get("x")
+	if !found {
+		t.Fatalf("Get(%q) found = false, want true", "x")
+	}
+	if got.ID() != "x" {
+		t.Fatalf("Get(%q).ID() = %q, want %q", "x", got.ID(), "x")
+	}
+}
+
+// Test-list case 2: Get("nope") -> found==false, nil profile.
+func TestGetUnknownIDNotFound(t *testing.T) {
+	resetForTest()
+	Register(fakeProfile{id: "x"})
+
+	got, found := Get("nope")
+	if found {
+		t.Fatalf("Get(%q) found = true, want false", "nope")
+	}
+	if got != nil {
+		t.Fatalf("Get(%q) profile = %#v, want nil", "nope", got)
+	}
+}
+
+// Test-list case 3: Default() returns the registered default (the
+// first distinct ID ever registered) deterministically — not
+// map-iteration-order dependent.
+func TestDefaultIsDeterministicFirstRegistered(t *testing.T) {
+	resetForTest()
+	Register(fakeProfile{id: "first"})
+	Register(fakeProfile{id: "second"})
+
+	if got := Default(); got == nil || got.ID() != "first" {
+		t.Fatalf("Default().ID() = %v, want %q", got, "first")
+	}
+}
+
+// Test-list case 4: duplicate-ID register is documented behavior:
+// last-wins REPLACE (chosen over reject-with-error — see registry.go's
+// Register doc for rationale). Re-registering the SAME ID must not
+// change which ID is Default.
+func TestDuplicateIDRegisterReplaces(t *testing.T) {
+	resetForTest()
+	Register(fakeProfile{id: "x", unitElement: "section"})
+	Register(fakeProfile{id: "x", unitElement: "page"})
+
+	got, found := Get("x")
+	if !found {
+		t.Fatalf("Get(%q) found = false, want true", "x")
+	}
+	if got.UnitElement() != "page" {
+		t.Fatalf("Get(%q).UnitElement() = %q, want %q (last-wins replace)", "x", got.UnitElement(), "page")
+	}
+	if def := Default(); def.ID() != "x" {
+		t.Fatalf("Default().ID() = %q, want %q (re-register must not change default)", def.ID(), "x")
+	}
+}
+
+// Concurrent Get/Default access must be race-free — press.Render is
+// expected to be called concurrently across goroutines
+// (ARCHITECTURE.md's scaling note), so registry reads must be safe
+// under `go test -race`. Registration itself is expected once at
+// process/package-init time (profiles register themselves in
+// init/New), not exercised concurrently here.
+func TestRegistryConcurrentReadsAreRaceFree(t *testing.T) {
+	resetForTest()
+	Register(fakeProfile{id: "concurrent"})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = Get("concurrent")
+			_ = Default()
+		}()
+	}
+	wg.Wait()
 }
