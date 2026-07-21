@@ -23,6 +23,8 @@
 package markdown
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/yuin/goldmark"
@@ -229,5 +231,70 @@ func TestTwoPhaseSeamSectionsExistBeforeRender(t *testing.T) {
 	// seam is real, not merely the same effective execution order.
 	if doc.FirstChild() == nil || doc.FirstChild().Kind() != KindSection {
 		t.Fatalf("expected doc's first child to be *Section immediately after Parse(), got %T", doc.FirstChild())
+	}
+}
+
+// Test-list case 7 (Task 3): the full two-phase seam, driven exactly as
+// callers must -- Parser().Parse() followed, in a SEPARATE step, by
+// Renderer().Render() -- proving the rendered HTML wraps sections in a
+// ".marpit" container (must_haves: "A deck splits into slides on `---`
+// thematic breaks; each slide renders as <section id=\"{index+1}\"> inside
+// a <div class=\"marpit\"> container").
+func TestTwoPhaseSeamRendersMarpitContainerAndSections(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	source := []byte("# A\n\nfirst\n\n---\n\n# B\n\nsecond\n")
+
+	// Phase 1: Parse.
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader)
+
+	// Inspect the finalized AST BETWEEN phases, before any rendering has
+	// happened -- this is the seam the TRD requires to be provable.
+	if got, want := countChildrenOfKind(doc, KindSection), 2; got != want {
+		t.Fatalf("between phases: got %d Section children, want %d", got, want)
+	}
+
+	// Phase 2: Render (separate call, same doc/source).
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, source, doc); err != nil {
+		t.Fatalf("Render() error: %v", err)
+	}
+	out := buf.String()
+
+	if !strings.HasPrefix(out, `<div class="marpit">`) {
+		t.Fatalf("output does not open with .marpit container, got:\n%s", out)
+	}
+	if !strings.HasSuffix(strings.TrimRight(out, "\n"), `</div>`) {
+		t.Fatalf("output does not close .marpit container, got:\n%s", out)
+	}
+	if !strings.Contains(out, `<section id="1">`) {
+		t.Fatalf("output missing <section id=\"1\">, got:\n%s", out)
+	}
+	if !strings.Contains(out, `<section id="2">`) {
+		t.Fatalf("output missing <section id=\"2\">, got:\n%s", out)
+	}
+	if !strings.Contains(out, "first") || !strings.Contains(out, "second") {
+		t.Fatalf("output missing expected slide content, got:\n%s", out)
+	}
+}
+
+// Test-list: a hidden comment must never leak into rendered HTML output.
+// Uses the two-phase seam directly (Parse then Render) -- never
+// md.Convert() -- consistent with every other production-shaped call in
+// this suite.
+func TestCommentNeverLeaksIntoRenderedOutput(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	source := []byte("<!-- foo: bar -->\n\ntext <!-- x --> more\n")
+
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader)
+
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, source, doc); err != nil {
+		t.Fatalf("Render() error: %v", err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "foo") || strings.Contains(out, "bar") || strings.Contains(out, "<!--") {
+		t.Fatalf("hidden comment leaked into rendered output:\n%s", out)
 	}
 }
