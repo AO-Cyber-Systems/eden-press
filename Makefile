@@ -20,7 +20,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-.PHONY: build vet test check-no-chromedp export-test check-chrome-export
+.PHONY: build vet test check-no-chromedp check-cli-imports export-test check-chrome-export
 
 # build / vet / test mirror the CI gates for local convenience.
 build:
@@ -38,6 +38,15 @@ test:
 # the addlicense header check.
 check-no-chromedp:
 	bash scripts/check-no-chromedp.sh
+
+# check-cli-imports enforces CLI-04 (04-08-TRD.md): cmd/eden-press's OWN
+# source must import ONLY press/ from the engine -- never chase/, profiles/,
+# or chromedp directly (a transitive scan legitimately shows chase/profiles
+# VIA press; this checks .Imports, the CLI's own DIRECT imports, only). See
+# scripts/check-cli-imports.sh; wired into .github/workflows/ci.yml beside
+# check-no-chromedp.
+check-cli-imports:
+	bash scripts/check-cli-imports.sh
 
 # CHROME_VERSION is the SINGLE pinned chromedp/headless-shell tag eden-press's
 # export path is validated against -- NEVER "latest" (05-RESEARCH Pitfall

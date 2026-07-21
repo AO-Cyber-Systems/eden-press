@@ -77,6 +77,13 @@ jobs:
         # mechanically enforces that boundary on every push/PR.
         run: make check-no-chromedp
 
+      - name: Check CLI imports (CLI-04)
+        # 04-08-TRD.md: cmd/eden-press's OWN source must import ONLY press/
+        # from the engine -- never chase/, profiles/, or chromedp directly.
+        # Mirrors the check-no-chromedp gate above, one level down at the
+        # CLI-is-a-consumer-of-press-only boundary.
+        run: make check-cli-imports
+
   export:
     name: export (pinned no-system-Chrome headless-shell container, EXP-04)
     runs-on: ubuntu-latest
