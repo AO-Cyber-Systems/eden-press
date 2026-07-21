@@ -76,7 +76,7 @@
 
 - [ ] **DART-01**: A single Go C-ABI core with a JSON-in/JSON-out boundary (not mirrored structs)
 - [ ] **DART-02**: Native binding via `dart:ffi` — Android `-buildmode=c-shared` (`.so`), iOS `-buildmode=c-archive` (`.a`); **no `gomobile bind`**
-- [ ] **DART-03**: Web binding via `GOOS=js/wasm` + `wasm_exec.js` loader
+- [x] **DART-03**: Web binding via `GOOS=js/wasm` + `wasm_exec.js` loader
 - [ ] **DART-04**: JS-free Dart rendering surface — math via `flutter_math_fork`, highlight via `highlighting`/`flutter_highlighting`
 - [ ] **DART-05**: Bindings pass a shared subset of the conformance corpus
 
@@ -176,7 +176,7 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | EXP-03 | Objective 6 — convert/pptx (native OOXML) | Pending |
 | DART-01 | Objective 7 — Dart/Flutter Binding | Pending |
 | DART-02 | Objective 7 | Pending |
-| DART-03 | Objective 7 | Pending |
+| DART-03 | Objective 7 | Complete |
 | DART-04 | Objective 7 | Pending |
 | DART-05 | Objective 7 | Pending |
 
