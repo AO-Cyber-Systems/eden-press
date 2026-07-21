@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Objective: 2 of 9 (chase/model + chase/profile + profiles/slides) — COMPLETE; Objectives 0-1 also complete
-Job: 4 of 4 complete (02-01 chase/model docmodel builder (MODEL-01), 02-02 chase/profile interface + registry (MODEL-03), 02-03 profiles/slides + de-hardcode chase/theme + grep-gate (MODEL-04), 02-04 chase.go one-parse-two-sinks entrypoint (MODEL-02) — wave 3/3 done)
-Status: Objective 2 complete — ready for Objective 3 planning (press/ Batteries + Public API)
-Last activity: 2026-07-21 — 02-04-TRD executed (capstone): chase/markdown.RenderDoc added (render an already-parsed doc, no re-parse); chase.Render(md) implemented as the internal one-parse-two-sinks entrypoint returning Output{HTML, CSS, Model, Meta} — ONE markdown.Parse call forks to RenderDoc (HTML) + model.Build (Model) on the SAME *ast.Document, CSS packed via profile-parameterized theme.Pack; MODEL-02 proven structurally (byte-identical HTML before/after Build) plus a 4-case Objective-1 corpus smoke test (marp-basic/slide-split/paginate/header-footer) with zero HTML regression; 3 task commits (8c10088, 9f0d142, 1e2629d) + 1 docs commit (1b2a0f7); whole-repo build/vet/test, gofmt, addlicense, Obj-1 cssdiff/corpus gates, and Obj-2 grep-gate all green throughout
+Objective: 3 of 9 (press/ Batteries + Public API) — IN PROGRESS; Objectives 0-2 complete
+Job: 1 of 9 complete (03-01 chase/markdown.ParseWithEngine seam + frozen press.Options/Output API-03 surface + six battery deps + goldmark-emoji compat spike (API-03) — wave 1/3)
+Status: Objective 3 in progress — 03-01 (wave-1 foundation) done; wave-1 03-02 and wave-2 battery TRDs unblocked (go.mod owned + provisioned, press types + ParseWithEngine seam available)
+Last activity: 2026-07-21 — 03-01-TRD executed (wave-1 foundation): chase/markdown.ParseWithEngine added (ADDITIVE engine-parameterized twin of Parse — same SvgOptionsKey + resolved HeadingDividerKey pre-seed, parses via caller-supplied engine; seam.go/chase.go byte-for-byte untouched); press.Options + press.Output defined as the frozen API-03 surface (zero value = Marp-Core default, NoHighlight inverted, Sanitize nil = built-in policy); six battery deps provisioned into go.mod additively (chroma/v2 v2.27.0, goldmark-emoji v1.0.6, goldmark-highlighting/v2, bluemonday v1.0.27, latex2mathml, codeberg.org/go-latex/latex v0.3.0 — go-latex provisioned ONLINE, no defer/BLOCKER); goldmark-emoji↔goldmark v1.8.4 compat spike (research riskiest-item #3) closed with a passing test; 3 task commits (8af93ad, 9b74483, 60a12a4); whole-repo build/vet/test, gofmt, Go-source addlicense, Obj-1 corpus/cssdiff gates, Obj-2 grep-gate, and no-chromedp invariant all green
 
-Progress: [██████████] 100% (18/18 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4; Objective 3 not yet planned)
+Progress: [█████████░] 95% (19/27 TRDs across currently-planned objectives — Objective 0: 6/6, Objective 1: 8/8, Objective 2: 4/4, Objective 3: 1/9)
 
 ## Accumulated Context
 
@@ -34,6 +34,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-21 (02-04-TRD execution — final/capstone TRD of Objective 2)
-Stopped at: Completed 02-model-profile-04-TRD.md (MODEL-02); Objective 2 now fully complete (4/4). SUMMARY committed 1b2a0f7. Objective 3 (press/ Batteries + Public API) planning next.
+Last session: 2026-07-21 (03-01-TRD execution — wave-1 foundation of Objective 3)
+Stopped at: Completed 03-01-TRD.md (API-03): ParseWithEngine seam + frozen press.Options/Output + six battery deps + emoji compat spike; SUMMARY committed on worktree branch. Wave-1 03-02 and the wave-2 battery TRDs are unblocked. Objective 3 at 1/9.
 Resume file: None

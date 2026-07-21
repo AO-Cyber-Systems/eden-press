@@ -103,7 +103,7 @@ something real.
   3. HTML sanitization matches Marp's `xss` allow-list *behaviorally* (strip-vs-escape semantics documented and deliberately chosen, not assumed identical) via an adversarial round-trip test suite, explicitly including the GFM disallowed-raw-HTML-tag filter (`<script>`, `<iframe>`, `<style>`, `<textarea>`, etc.) that goldmark's GFM extension does not provide automatically, and the always-on directive/comment-parsing code path is validated as its own trust boundary.
   4. `Options`/`Output` types are documented and stable enough that a consumer only ever imports `press/` — never reaches into `chase/`/`profiles/` directly — to render a complete deck; this is the explicit gate at which Objective 7 (Dart binding) may begin.
 **Plans**: 9 TRDs in 3 waves
-- [ ] 03-01-TRD.md — chase/markdown.ParseWithEngine seam + press Options/Output + deps + emoji-compat spike (API-03) [wave 1]
+- [x] 03-01-TRD.md — chase/markdown.ParseWithEngine seam + press Options/Output + deps + emoji-compat spike (API-03) [wave 1]
 - [ ] 03-02-TRD.md — compiled-CSS theme extraction + go:embed + name-keyed ThemeSet (CORE-01) [wave 1]
 - [ ] 03-03-TRD.md — strikethrough <s> override + GFM/hard-break/slug verify (CORE-03, CORE-04) [wave 2]
 - [ ] 03-04-TRD.md — emoji: goldmark-emoji Twemoji + bespoke unicode-literal parser (CORE-06) [wave 2]
