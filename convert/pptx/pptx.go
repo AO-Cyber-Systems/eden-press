@@ -22,12 +22,17 @@
 
 // pptx.go is the PUBLIC surface of the whole convert/pptx objective: ToPPTX
 // composes 06-01 (Section.Blocks -> editable body text), 06-02 (EMU placement +
-// grouped-shape transform), and 06-03 (deterministic OPC packager + static part
-// scaffold) into a real, editable-text-box .pptx built DIRECTLY from the
-// chase/model docmodel -- zero rendered HTML, zero chromedp. Each Section
-// becomes one ppt/slides/slideN.xml (slide.go), wired into presentation.xml's
-// sldIdLst, presentation.xml.rels, and [Content_Types].xml Overrides three-fold
-// per slide, then assembled by 06-03's fixed-timestamp/zip.Store packager.
+// grouped-shape transform), 06-03 (deterministic OPC packager + static part
+// scaffold), and 06-05 (notes.go: Section.Notes -> notesSlideN.xml) into a
+// real, editable-text-box .pptx built DIRECTLY from the chase/model docmodel
+// -- zero rendered HTML, zero chromedp. Each Section becomes one
+// ppt/slides/slideN.xml (slide.go), wired into presentation.xml's sldIdLst,
+// presentation.xml.rels, and [Content_Types].xml Overrides three-fold per
+// slide; a Section WITH notes additionally gets a ppt/notesSlides/notesSlideN.xml
+// (+ rels -> slideN + notesMaster1) and the slide's own rels gain a ->
+// notesSlideN entry, with the once-per-deck ppt/notesMasters/notesMaster1.xml
+// emitted iff any section has notes. Assembled by 06-03's
+// fixed-timestamp/zip.Store packager, in a FIXED order (determinism).
 package pptx
 
 import (
@@ -77,6 +82,16 @@ func ToPPTX(doc *model.Document, opts Options) ([]byte, error) {
 
 	slides := make([]slideRef, 0, n)
 	renderedSlides := make([]slidePart, 0, n)
+	// notesSlideParts holds the notesSlideN.xml + rels for every section
+	// that HAS notes, appended in the SAME order sections are visited below
+	// (i.e. slide order) -- the fixed, deterministic order the anti_patterns
+	// section requires for conditional notes emission.
+	notesSlideParts := make([]slidePart, 0, n)
+	// notesOverrides holds the per-notesSlide content-type Override, in the
+	// same slide order, appended to overrides AFTER every ctSlide Override
+	// (deterministic, never map-ranged).
+	notesOverrides := make([]contentTypeOverride, 0, n)
+	hasNotes := false
 
 	// overrides begins with every fixed non-.rels part's content-type Override,
 	// then gains one ctSlide Override per slide below -- the third of the
@@ -106,21 +121,53 @@ func ToPPTX(doc *model.Document, opts Options) ([]byte, error) {
 		// (3) content-types Override for the slide part.
 		overrides = append(overrides, contentTypeOverride{PartName: "/" + xmlName, ContentType: ctSlide})
 
+		// Notes are CONDITIONAL: only a section with Notes gains a
+		// notesSlideN.xml + the extra slide-rels entry pointing at it
+		// (anti_patterns: never emit a notes part for a notes-free section).
+		if len(section.Notes) > 0 {
+			hasNotes = true
+			relsXML = buildSlideRelsWithNotes(num)
+
+			notesXMLName := fmt.Sprintf("ppt/notesSlides/notesSlide%d.xml", num)
+			notesRelsName := fmt.Sprintf("ppt/notesSlides/_rels/notesSlide%d.xml.rels", num)
+			notesSlideParts = append(notesSlideParts, slidePart{
+				xmlName: notesXMLName, relsName: notesRelsName,
+				xml: buildNotesSlide(section.Notes), rels: buildNotesSlideRels(num),
+			})
+			notesOverrides = append(notesOverrides, contentTypeOverride{PartName: "/" + notesXMLName, ContentType: ctNotesSlide})
+		}
+
 		renderedSlides = append(renderedSlides, slidePart{
 			xmlName: xmlName, relsName: relsName, xml: slideXML, rels: relsXML,
 		})
 	}
 
+	// notesMaster1 is emitted at most ONCE, iff any section has notes, with
+	// its own content-type Override and its presentation.xml.rels entry at
+	// the first unused rId (one past the last slide's rId6..rId(5+n)).
+	var notesMasterRelID string
+	if hasNotes {
+		notesMasterRelID = fmt.Sprintf("rId%d", firstSlideRelNum+n)
+		overrides = append(overrides, contentTypeOverride{PartName: "/ppt/notesMasters/notesMaster1.xml", ContentType: ctNotesMaster})
+	}
+	overrides = append(overrides, notesOverrides...)
+
+	presRels := presentationRelsXML(slides)
+	if hasNotes {
+		presRels = presentationRelsXML(slides, relationship{ID: notesMasterRelID, Type: relTypeNotesMaster, Target: "notesMasters/notesMaster1.xml"})
+	}
+
 	// Assemble the full part graph in a FIXED order (determinism, 06-RESEARCH
-	// Pitfall 4): the singleton static parts first, then each slide's content +
-	// .rels in slide order.
+	// Pitfall 4): the singleton static parts first, then (iff any notes exist)
+	// the once-per-deck notesMaster, then each slide's content + .rels in
+	// slide order, then each notes slide's content + .rels in slide order.
 	parts := []part{
 		{name: "[Content_Types].xml", content: buildContentTypesXML(overrides)},
 		{name: "_rels/.rels", content: rootRelsXML()},
 		{name: "docProps/core.xml", content: docPropsCoreXML()},
 		{name: "docProps/app.xml", content: docPropsAppXML(n)},
 		{name: "ppt/presentation.xml", content: presentationXML(size, slides)},
-		{name: "ppt/_rels/presentation.xml.rels", content: presentationRelsXML(slides)},
+		{name: "ppt/_rels/presentation.xml.rels", content: presRels},
 		{name: "ppt/presProps.xml", content: presPropsXML()},
 		{name: "ppt/viewProps.xml", content: viewPropsXML()},
 		{name: "ppt/tableStyles.xml", content: tableStylesXML()},
@@ -130,7 +177,19 @@ func ToPPTX(doc *model.Document, opts Options) ([]byte, error) {
 		{name: "ppt/slideLayouts/slideLayout1.xml", content: slideLayout1XML()},
 		{name: "ppt/slideLayouts/_rels/slideLayout1.xml.rels", content: slideLayout1RelsXML()},
 	}
+	if hasNotes {
+		parts = append(parts,
+			part{name: "ppt/notesMasters/notesMaster1.xml", content: buildNotesMaster()},
+			part{name: "ppt/notesMasters/_rels/notesMaster1.xml.rels", content: buildNotesMasterRels()},
+		)
+	}
 	for _, s := range renderedSlides {
+		parts = append(parts,
+			part{name: s.xmlName, content: s.xml},
+			part{name: s.relsName, content: s.rels},
+		)
+	}
+	for _, s := range notesSlideParts {
 		parts = append(parts,
 			part{name: s.xmlName, content: s.xml},
 			part{name: s.relsName, content: s.rels},
