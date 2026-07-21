@@ -22,13 +22,45 @@
 
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"os"
 
-// themeCSS is a STUB -- filled by TRD 04-05 (--theme/--theme-set loading
-// into press.Options.ThemeCSS, CLI-05). It will resolve the --theme-set
-// flag's (and eventually config's) file paths into raw theme-CSS text that
-// buildOptions assigns to press.Options.ThemeCSS. buildOptions already
-// calls this stub, so 04-05 needs to fill ONLY this function body.
+	"github.com/spf13/cobra"
+)
+
+// themeCSS resolves --theme-set (a repeatable StringSlice flag, also
+// settable via config once 04-04 layers a file/env provider ahead of
+// posflag) into raw custom-theme CSS TEXT: one entry per path, in the order
+// the paths resolve through cfg. buildOptions assigns the returned slice
+// directly to press.Options.ThemeCSS (04-01's additive field) -- press.Render
+// registers each entry via the same chase/theme.Load + ThemeSet.Add path the
+// 3 embedded themes use, so a custom theme becomes selectable by its own
+// leading `/* @theme <name> */` name through --theme <name>.
+//
+// This function reads BYTES ONLY: it does not parse or validate the CSS, or
+// the theme's own `@theme` metadata -- that is press.Render's job (via
+// chase/theme.Load), so a malformed file surfaces press.Render's own clear
+// "load custom theme CSS" error at render time, not a CLI-side one. An
+// unreadable path is the one error this function DOES own, wrapped as
+// "theme-set: read <path>: <err>" so the failure names the offending file.
+//
+// An empty/unset --theme-set (cfg.Strings returns an empty, non-nil slice
+// when the key is absent) returns (nil, nil): a true no-op, matching
+// Options.ThemeCSS's nil zero value and packThemeCSS's `range nil` no-op.
 func themeCSS(cmd *cobra.Command) ([]string, error) {
-	return nil, nil
+	paths := cfg.Strings("theme-set")
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return nil, fmt.Errorf("theme-set: read %s: %w", p, err)
+		}
+		out = append(out, string(b))
+	}
+	return out, nil
 }
