@@ -83,7 +83,10 @@ func TestDirectiveClassCarriesForward(t *testing.T) {
 	md := goldmark.New(goldmark.WithExtensions(New()))
 	out := renderDoc(md, "<!-- class: lead -->\n\n# A\n\n---\n\n# B\n")
 
-	if strings.Count(out, `class="lead"`) != 2 {
+	// Leading space distinguishes the standalone `class="lead"` attribute
+	// from the `data-class="lead"` attribute (which also contains the
+	// substring `class="lead"`).
+	if strings.Count(out, ` class="lead"`) != 2 {
 		t.Fatalf(`expected class="lead" on BOTH slides (carry-forward), got:\n%s`, out)
 	}
 }
@@ -94,7 +97,7 @@ func TestDirectiveSpotClassAppliesOnlyToCurrentSlide(t *testing.T) {
 	md := goldmark.New(goldmark.WithExtensions(New()))
 	out := renderDoc(md, "<!-- _class: lead -->\n\n# A\n\n---\n\n# B\n")
 
-	if strings.Count(out, `class="lead"`) != 1 {
+	if strings.Count(out, ` class="lead"`) != 1 {
 		t.Fatalf(`expected class="lead" on slide 1 ONLY (spot), got:\n%s`, out)
 	}
 	// The second section must carry NO class/data-class/style at all.
