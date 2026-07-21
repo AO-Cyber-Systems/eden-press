@@ -95,3 +95,57 @@ func TestBrowserFitJSReexport(t *testing.T) {
 		t.Errorf("BrowserFitJS() does not look like JavaScript (no %q substring found)", "function")
 	}
 }
+
+// brandxCSS is a minimal, self-naming custom theme block used by Test-list
+// cases 3 and 4: it self-names via its own leading `/* @theme brandx */`
+// comment (theme.Load's requirement -- see chase/theme/parse.go's
+// ParseTheme), and carries one rule whose color survives Pack's scoping
+// pass, so a passing test proves the custom theme was actually packed (not
+// merely registered without effect).
+const brandxCSS = "/* @theme brandx */\nsection { color: #d4a853; }"
+
+// TestCustomThemeByFrontMatter is Test-list case 3: a deck whose front
+// matter selects `theme: brandx` packs the caller-supplied ThemeCSS block's
+// scoped rule into Output.CSS, with no error -- proving
+// opts.ThemeCSS -> theme.Load -> ts.Add makes a custom theme resolvable
+// through the SAME front-matter `theme:` chain the 3 embedded themes use.
+func TestCustomThemeByFrontMatter(t *testing.T) {
+	deck := "---\ntheme: brandx\n---\n# Hi\n"
+	out, err := Render(deck, Options{ThemeCSS: []string{brandxCSS}})
+	if err != nil {
+		t.Fatalf("Render with front-matter custom theme: unexpected error: %v", err)
+	}
+	if !strings.Contains(out.CSS, "#d4a853") {
+		t.Errorf("Output.CSS does not contain the custom theme's scoped rule (#d4a853): CSS=%d bytes", len(out.CSS))
+	}
+}
+
+// TestCustomThemeByOptsOverride is Test-list case 4: opts.Theme="brandx"
+// selects the custom theme with NO front-matter `theme:` directive present
+// -- proving opts.Theme overrides (here: supplies, absent any front matter)
+// the theme name exactly as it does for the 3 embedded themes
+// (TestThemeResolution in press_test.go).
+func TestCustomThemeByOptsOverride(t *testing.T) {
+	out, err := Render("# Hi\n", Options{Theme: "brandx", ThemeCSS: []string{brandxCSS}})
+	if err != nil {
+		t.Fatalf("Render with opts.Theme override to custom theme: unexpected error: %v", err)
+	}
+	if !strings.Contains(out.CSS, "#d4a853") {
+		t.Errorf("Output.CSS does not contain the custom theme's scoped rule (#d4a853): CSS=%d bytes", len(out.CSS))
+	}
+}
+
+// TestMalformedThemeCSSErrors is Test-list case 5: a ThemeCSS entry lacking
+// the required leading `/* @theme name */` header makes Render return a
+// wrapped "load custom theme CSS" error -- never a panic -- so a consumer
+// like CLI-05's `--theme-set` gets a clean, surfaced failure for a bad file.
+func TestMalformedThemeCSSErrors(t *testing.T) {
+	malformed := "section { color: red; }" // no leading @theme comment
+	_, err := Render("# Hi\n", Options{ThemeCSS: []string{malformed}})
+	if err == nil {
+		t.Fatal("Render with a malformed ThemeCSS block returned no error, want a wrapped load error")
+	}
+	if !strings.Contains(err.Error(), "load custom theme CSS") {
+		t.Errorf("error = %q, want it to contain %q", err.Error(), "load custom theme CSS")
+	}
+}

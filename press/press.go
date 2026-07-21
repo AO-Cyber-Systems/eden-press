@@ -219,6 +219,22 @@ func packThemeCSS(p profile.Profile, pc parser.Context, meta model.Meta, opts Op
 		return "", fmt.Errorf("press: Render: build theme set: %w", err)
 	}
 
+	// Register any caller-supplied custom themes (opts.ThemeCSS, TRD 04-01)
+	// through the EXACT SAME intake path the 3 embedded themes just used
+	// above: theme.Load (requires + records the block's own leading
+	// `/* @theme name */` metadata) then ts.Add, so a custom theme becomes
+	// just another registered name the opts.Theme/front-matter resolution
+	// chain below can select. `range nil` is a no-op, so an empty/nil
+	// opts.ThemeCSS (the Options{} zero value) leaves ts exactly as
+	// themes.ThemeSet built it -- today's behavior, unchanged.
+	for _, css := range opts.ThemeCSS {
+		th, err := theme.Load(css, p.UnitElement(), p.Sizes().ByName)
+		if err != nil {
+			return "", fmt.Errorf("press: Render: load custom theme CSS: %w", err)
+		}
+		ts.Add(th) // registered under th.Name (= the block's own @theme name)
+	}
+
 	name := resolveThemeName(opts.Theme, meta)
 	inlineSVG := svgEnabled(pc) || opts.InlineSVG
 	css, err := ts.Pack(name, theme.PackOptions{InlineSVG: inlineSVG})
