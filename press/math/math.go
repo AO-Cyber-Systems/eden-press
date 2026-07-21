@@ -38,6 +38,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
@@ -159,15 +160,18 @@ func (p *mathInlineParser) parseDisplay(block text.Reader, line []byte) ast.Node
 }
 
 // mathExtension is the goldmark.Extender the math battery ships. It registers
-// the bespoke $-parser here; TRD 03-06 Task 2 wires on the NodeRenderer that
-// routes each mathNode through the detection predicate to MathML (mathml.go) or
-// the PNG fallback (fallback.go).
+// the bespoke $-parser AND the routing NodeRenderer (mathRenderer, mathml.go)
+// that sends each mathNode through the detection predicate to MathML (mathml.go)
+// or the PNG fallback (fallback.go).
 type mathExtension struct{}
 
 // Extend implements goldmark.Extender.
 func (e *mathExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(parser.WithInlineParsers(
 		util.Prioritized(&mathInlineParser{}, 500),
+	))
+	m.Renderer().AddOptions(renderer.WithNodeRenderers(
+		util.Prioritized(&mathRenderer{}, 500),
 	))
 }
 

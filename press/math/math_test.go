@@ -23,6 +23,7 @@
 package math
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -133,5 +134,89 @@ func TestMathOff(t *testing.T) {
 	nodes := parseMathNodes(t, Option("off"), `$x^2$`)
 	if len(nodes) != 0 {
 		t.Errorf("MathMode off: got %d math nodes, want 0 (math disabled)", len(nodes))
+	}
+}
+
+// TestMathML exercises the native-MathML render path (latex2mathml). Simple
+// constructs must produce a well-formed <math> element with the right display
+// mode. Per error_recovery, BASELINE only asserts well-formedness of simple
+// cases — the 8 known latex2mathml converter bugs are Objective 8's fix.
+func TestMathML(t *testing.T) {
+	inline := renderMathML("x^2", false)
+	if !strings.HasPrefix(inline, "<math") || !strings.Contains(inline, "</math>") {
+		t.Errorf("renderMathML inline: not a well-formed <math> element: %q", inline)
+	}
+	if !strings.Contains(inline, `display="inline"`) {
+		t.Errorf("renderMathML inline: missing display=\"inline\": %q", inline)
+	}
+	if !strings.Contains(inline, "<msup>") {
+		t.Errorf("renderMathML(x^2): expected an <msup> superscript: %q", inline)
+	}
+
+	block := renderMathML(`\frac{a}{b}`, true)
+	if !strings.Contains(block, `display="block"`) {
+		t.Errorf("renderMathML block: missing display=\"block\": %q", block)
+	}
+	if !strings.Contains(block, "<mfrac>") {
+		t.Errorf("renderMathML(\\frac): expected an <mfrac>: %q", block)
+	}
+}
+
+// TestFallback exercises the PNG-only fallback render path (go-latex/latex).
+// A construct go-latex CAN raster (\frac) proves the real base64 PNG data-URI
+// path; a construct it CANNOT (\begin{aligned}, which panics inside mtex)
+// proves the graceful documented stub — an alt-only <img>, never a crash and
+// never a silent drop. Both are PNG-only: drawtex has no SVG canvas.
+func TestFallback(t *testing.T) {
+	// Real raster path (called directly; in production \frac routes to MathML).
+	img := renderFallbackIMG(`\frac{a}{b}`, false)
+	if !strings.Contains(img, "<img") || !strings.Contains(img, `class="math-fallback"`) {
+		t.Errorf("renderFallbackIMG: not a math-fallback <img>: %q", img)
+	}
+	if !strings.Contains(img, "data:image/png;base64,") {
+		t.Errorf("renderFallbackIMG(\\frac): expected a base64 PNG data-URI (real raster path): %q", img)
+	}
+
+	// Graceful stub path: go-latex panics on \begin{aligned}; must degrade to
+	// an alt-only <img>, not crash.
+	stub := renderFallbackIMG(`\begin{aligned}a&=b\\c&=d\end{aligned}`, true)
+	if !strings.Contains(stub, "<img") || !strings.Contains(stub, "math-fallback") {
+		t.Errorf("renderFallbackIMG(aligned): expected a graceful math-fallback <img> stub: %q", stub)
+	}
+	if !strings.Contains(stub, "alt=") {
+		t.Errorf("renderFallbackIMG(aligned): stub must carry alt text of the raw LaTeX: %q", stub)
+	}
+}
+
+// renderHTML runs the full goldmark pipeline (parse + the wired NodeRenderer).
+func renderHTML(t *testing.T, opt goldmark.Option, src string) string {
+	t.Helper()
+	md := goldmark.New(opt)
+	var buf bytes.Buffer
+	if err := md.Convert([]byte(src), &buf); err != nil {
+		t.Fatalf("Convert(%q): %v", src, err)
+	}
+	return buf.String()
+}
+
+// TestMathRender is the end-to-end routing assertion: with the battery wired,
+// `$x^2$` renders native MathML and `$$\begin{aligned}…$$` routes to the PNG
+// fallback <img> — the routing decision made on the RAW source by needsFallback
+// BEFORE any conversion.
+func TestMathRender(t *testing.T) {
+	mathml := renderHTML(t, Option(""), `$x^2$`)
+	if !strings.Contains(mathml, "<math") {
+		t.Errorf("`$x^2$` should render native MathML: %q", mathml)
+	}
+	if strings.Contains(mathml, "<img") {
+		t.Errorf("`$x^2$` should NOT route to the fallback <img>: %q", mathml)
+	}
+
+	fallback := renderHTML(t, Option(""), `$$\begin{aligned}a&=b\\c&=d\end{aligned}$$`)
+	if !strings.Contains(fallback, "<img") || !strings.Contains(fallback, "math-fallback") {
+		t.Errorf("heavy `\\begin{aligned}` should route to the fallback <img>: %q", fallback)
+	}
+	if strings.Contains(fallback, "<math") {
+		t.Errorf("heavy `\\begin{aligned}` should NOT emit MathML: %q", fallback)
 	}
 }
