@@ -109,3 +109,94 @@ func TestYamlParseScalarsAndFlowList(t *testing.T) {
 		t.Fatalf("expected footer: CONFIDENTIAL (quotes stripped), got %#v", kvs[2])
 	}
 }
+
+// --- Task 2: directive tables + value coercion + spot rule ---
+// (PARSE-02 tables). Test-list cases 5, 8.
+
+// Test-list case 5: global coercion -- headingDivider: 2 -> [1,2];
+// headingDivider: false -> false; unknown theme: nope (predicate false) ->
+// dropped.
+func TestCoerceGlobalHeadingDividerAndTheme(t *testing.T) {
+	v, known := CoerceGlobal("headingDivider", "2", nil)
+	if !known {
+		t.Fatalf("expected headingDivider to be a known global directive")
+	}
+	got, ok := v.([]int)
+	if !ok || len(got) != 2 || got[0] != 1 || got[1] != 2 {
+		t.Fatalf("expected headingDivider: 2 -> [1 2], got %#v", v)
+	}
+
+	v, known = CoerceGlobal("headingDivider", "false", nil)
+	if !known {
+		t.Fatalf("expected headingDivider to be a known global directive")
+	}
+	if b, ok := v.(bool); !ok || b != false {
+		t.Fatalf("expected headingDivider: false -> false, got %#v", v)
+	}
+
+	themeExists := func(name string) bool { return name == "gaia" }
+	v, known = CoerceGlobal("theme", "nope", themeExists)
+	if !known {
+		t.Fatalf("expected theme to be a known global directive name")
+	}
+	if v != nil {
+		t.Fatalf("expected unknown theme name to be silently dropped, got %#v", v)
+	}
+
+	v, known = CoerceGlobal("theme", "gaia", themeExists)
+	if !known || v != "gaia" {
+		t.Fatalf("expected theme: gaia to resolve to \"gaia\", got %#v known=%v", v, known)
+	}
+
+	if _, known := CoerceGlobal("notADirective", "x", nil); known {
+		t.Fatalf("expected an unrecognized global key to report isKnown=false")
+	}
+}
+
+// Test-list case 8: local coercion -- paginate: hold -> "hold";
+// paginate: true -> true; class: [a, b] -> "a b"; non-string footer
+// rejected.
+func TestCoerceLocalPaginateClassFooter(t *testing.T) {
+	v, known := CoerceLocal("paginate", "hold")
+	if !known || v != "hold" {
+		t.Fatalf("expected paginate: hold -> \"hold\", got %#v known=%v", v, known)
+	}
+
+	v, known = CoerceLocal("paginate", "true")
+	if b, ok := v.(bool); !known || !ok || !b {
+		t.Fatalf("expected paginate: true -> true, got %#v known=%v", v, known)
+	}
+
+	v, known = CoerceLocal("class", []string{"a", "b"})
+	if !known || v != "a b" {
+		t.Fatalf("expected class: [a, b] -> \"a b\", got %#v known=%v", v, known)
+	}
+
+	v, known = CoerceLocal("footer", []string{"a", "b"})
+	if !known {
+		t.Fatalf("expected footer to be a known local directive name")
+	}
+	if v != nil {
+		t.Fatalf("expected non-string footer to be rejected, got %#v", v)
+	}
+
+	v, known = CoerceLocal("footer", "Eden Press")
+	if !known || v != "Eden Press" {
+		t.Fatalf("expected string footer to pass through, got %#v known=%v", v, known)
+	}
+}
+
+// Spot-rule coverage: an underscore-prefixed key maps to its base local
+// directive name.
+func TestSpotKeyMapsToBaseLocalDirective(t *testing.T) {
+	base, ok := SpotKey("_class")
+	if !ok || base != "class" {
+		t.Fatalf("expected _class -> class, got base=%q ok=%v", base, ok)
+	}
+	if _, ok := SpotKey("class"); ok {
+		t.Fatalf("expected a non-underscore-prefixed key to not be a spot key")
+	}
+	if _, ok := SpotKey("_"); ok {
+		t.Fatalf("expected a bare underscore (empty base) to not be a spot key")
+	}
+}
