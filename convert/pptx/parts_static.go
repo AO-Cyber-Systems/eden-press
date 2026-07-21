@@ -331,8 +331,12 @@ func presentationXML(size SlideSize, slides []slideRef) []byte {
 
 // presentationRelsXML builds "ppt/_rels/presentation.xml.rels": the fixed
 // singleton relationships (master, theme, presProps, viewProps,
-// tableStyles) plus one relationship per slide in slides, in order.
-func presentationRelsXML(slides []slideRef) []byte {
+// tableStyles), one relationship per slide in slides (in order), then any
+// caller-supplied extra relationships appended last (in order) -- 06-05
+// uses this trailing extra slot to add the notesMaster1 relationship
+// exactly once, without duplicating this fixed-relationship list. extra is
+// variadic so every pre-existing call site (0 extra args) is unaffected.
+func presentationRelsXML(slides []slideRef, extra ...relationship) []byte {
 	rels := []relationship{
 		{ID: rIDMaster1, Type: relTypeSlideMaster, Target: "slideMasters/slideMaster1.xml"},
 		{ID: rIDTheme1, Type: relTypeTheme, Target: "theme/theme1.xml"},
@@ -343,5 +347,6 @@ func presentationRelsXML(slides []slideRef) []byte {
 	for _, s := range slides {
 		rels = append(rels, relationship{ID: s.RelID, Type: relTypeSlide, Target: s.Target})
 	}
+	rels = append(rels, extra...)
 	return buildRelsXML(rels)
 }
