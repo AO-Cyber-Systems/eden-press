@@ -22,7 +22,29 @@
 
 package markdown
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/text"
+)
+
+// renderDoc runs the full two-phase seam (Parse then Render, NEVER
+// md.Convert()) and returns the rendered HTML string. Shared helper for the
+// directive-materialization tests below.
+func renderDoc(md goldmark.Markdown, src string) string {
+	source := []byte(src)
+	reader := text.NewReader(source)
+	doc := md.Parser().Parse(reader)
+
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, source, doc); err != nil {
+		panic(err)
+	}
+	return buf.String()
+}
 
 // Test-list case 8: InlineStyle order -- setting the same property twice
 // keeps the LAST value at the FIRST-seen position; distinct properties keep
@@ -52,5 +74,88 @@ func TestInlineStyleEmpty(t *testing.T) {
 	s.Set("color", "red")
 	if s.Empty() {
 		t.Fatalf("Empty() = true after Set, want false")
+	}
+}
+
+// Test-list case 1: `<!-- class: lead -->` (non-spot, local) on slide 1
+// carries forward onto slide 2 as well.
+func TestDirectiveClassCarriesForward(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	out := renderDoc(md, "<!-- class: lead -->\n\n# A\n\n---\n\n# B\n")
+
+	if strings.Count(out, `class="lead"`) != 2 {
+		t.Fatalf(`expected class="lead" on BOTH slides (carry-forward), got:\n%s`, out)
+	}
+}
+
+// Test-list case 2: `<!-- _class: lead -->` (spot) applies to the current
+// slide ONLY; the next slide has no class at all.
+func TestDirectiveSpotClassAppliesOnlyToCurrentSlide(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	out := renderDoc(md, "<!-- _class: lead -->\n\n# A\n\n---\n\n# B\n")
+
+	if strings.Count(out, `class="lead"`) != 1 {
+		t.Fatalf(`expected class="lead" on slide 1 ONLY (spot), got:\n%s`, out)
+	}
+	// The second section must carry NO class/data-class/style at all.
+	secondIdx := strings.Index(out, `<section id="2"`)
+	if secondIdx < 0 {
+		t.Fatalf("missing <section id=\"2\">, got:\n%s", out)
+	}
+	if !strings.HasPrefix(out[secondIdx:], `<section id="2">`) {
+		t.Fatalf(`expected bare <section id="2"> with no directive attrs, got:\n%s`, out[secondIdx:secondIdx+80])
+	}
+}
+
+// Test-list case 3: `<!-- color: red -->` -> style has BOTH the generic
+// `--color:red` CSS var AND the special `color:red` CSS override, in that
+// exact order (generic loop runs before the fixed-order specials block --
+// ported verbatim from directives/apply.js).
+func TestDirectiveColorSpecialOverride(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	out := renderDoc(md, "<!-- color: red -->\n\n# A\n")
+
+	want := `style="--color:red;color:red;"`
+	if !strings.Contains(out, want) {
+		t.Fatalf("expected %s in output, got:\n%s", want, out)
+	}
+}
+
+// Test-list case 4: backgroundColor sets background-color AND clears any
+// inherited background-image (background-image:none), per apply.js's
+// `.set('background-color', v).set('background-image', 'none')` chain.
+func TestDirectiveBackgroundColorSpecialOverride(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	out := renderDoc(md, "<!-- backgroundColor: #fff -->\n\n# A\n")
+
+	want := `style="--background-color:#fff;background-color:#fff;background-image:none;"`
+	if !strings.Contains(out, want) {
+		t.Fatalf("expected %s in output, got:\n%s", want, out)
+	}
+}
+
+// Test-list case 5: backgroundImage sets background-image plus
+// position:center / repeat:no-repeat / size:cover defaults.
+func TestDirectiveBackgroundImageSpecialOverride(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	out := renderDoc(md, "<!-- backgroundImage: url(x) -->\n\n# A\n")
+
+	want := `style="--background-image:url(x);background-image:url(x);background-position:center;background-repeat:no-repeat;background-size:cover;"`
+	if !strings.Contains(out, want) {
+		t.Fatalf("expected %s in output, got:\n%s", want, out)
+	}
+}
+
+// Test-list case 6: a global directive (`theme: gaia` in front-matter) is
+// stamped on EVERY slide's section identically.
+func TestDirectiveGlobalThemeStampedOnEverySlide(t *testing.T) {
+	md := goldmark.New(goldmark.WithExtensions(New()))
+	out := renderDoc(md, "---\ntheme: gaia\n---\n\n# A\n\n---\n\n# B\n")
+
+	if strings.Count(out, `data-theme="gaia"`) != 2 {
+		t.Fatalf(`expected data-theme="gaia" stamped on BOTH slides, got:\n%s`, out)
+	}
+	if strings.Count(out, `--theme:gaia`) != 2 {
+		t.Fatalf(`expected --theme:gaia stamped on BOTH slides, got:\n%s`, out)
 	}
 }
