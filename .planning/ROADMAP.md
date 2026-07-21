@@ -67,10 +67,10 @@ something real.
 - [x] 01-02-TRD.md — chase/directive: directive state machine + front-matter/comment syntaxes (PARSE-02, PARSE-03) [wave 1]
 - [x] 01-03-TRD.md — chase/theme: Stylesheet model + @theme/@size/@auto-scaling metadata (THEME-01, THEME-02) [wave 1]
 - [x] 01-04-TRD.md — chase/theme: ordered two-tier scoping pipeline (Load + Pack) (THEME-03) [wave 2]
-- [ ] 01-05-TRD.md — chase/markdown: two-phase seam + comment wiring + slide-split + container (PARSE-05) [wave 2]
-- [ ] 01-06-TRD.md — chase/markdown: directive application + directive-set materialization (PARSE-04) [wave 3]
-- [ ] 01-07-TRD.md — chase/markdown: background images + inline-SVG advanced backgrounds (PARSE-06, PARSE-07) [wave 4]
-- [ ] 01-08-TRD.md — integration: two-phase seam + Marp corpus + cssdiff gates + inline-SVG raster check (PARSE-01) [wave 5]
+- [x] 01-05-TRD.md — chase/markdown: two-phase seam + comment wiring + slide-split + container (PARSE-05) [wave 2]
+- [x] 01-06-TRD.md — chase/markdown: directive application + directive-set materialization (PARSE-04) [wave 3]
+- [x] 01-07-TRD.md — chase/markdown: background images + inline-SVG advanced backgrounds (PARSE-06, PARSE-07) [wave 4]
+- [x] 01-08-TRD.md — integration: two-phase seam + Marp corpus + cssdiff gates + inline-SVG raster check (PARSE-01) [wave 5]
 
 > **Planning note (internal parallelism):** `chase/directive` (pure carry-forward state machine, zero goldmark import) and `chase/theme` (CSS `Stylesheet` model over `tdewolff/parse/v2/css`, zero dependency on the Markdown/AST side) share no dependency edge and can be planned/executed as separate jobs within this objective; `chase/markdown` (goldmark Extenders wiring directive resolution, slide-splitting, `![bg]`, inline-SVG) depends on `chase/directive`'s output via `parser.Context` and should be sequenced after it.
 
@@ -172,7 +172,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | Objective | Jobs Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Conformance Corpus, Acceptance Gate & Attribution Bootstrap | 6/6 | Complete    | 2026-07-20 |
-| 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete   | 2026-07-21 |
+| 1. chase/markdown + chase/directive + chase/theme | 8/8 | Complete    | 2026-07-21 |
 | 2. chase/model + chase/profile + profiles/slides | 0/TBD | Not started | - |
 | 3. press/ Batteries + Public API | 0/TBD | Not started | - |
 | 4. CLI (cmd/eden-press) | 0/TBD | Not started | - |
