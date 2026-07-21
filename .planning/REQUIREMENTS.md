@@ -129,25 +129,25 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 
 | Requirement | Objective | Status |
 |-------------|-----------|--------|
-| CONF-01 | Objective 0 — Conformance Corpus, Acceptance Gate & Attribution Bootstrap | Pending |
+| CONF-01 | Objective 0 — Conformance Corpus, Acceptance Gate & Attribution Bootstrap | Complete |
 | CONF-02 | Objective 0 | Complete |
-| CONF-03 | Objective 0 | Pending |
-| CONF-04 | Objective 0 | Pending |
+| CONF-03 | Objective 0 | Complete |
+| CONF-04 | Objective 0 | Complete |
 | LIC-01 | Objective 0 | Complete |
 | LIC-02 | Objective 0 | Complete |
 | LIC-03 | Objective 0 (enforcement mechanism) + Objective 3 (per-file Marp headers applied, with CORE-01) | Complete |
 | LIC-04 | Objective 0 | Complete |
 | PARSE-01 | Objective 1 — chase/markdown + chase/directive + chase/theme | Complete |
-| PARSE-02 | Objective 1 | Pending |
-| PARSE-03 | Objective 1 | Pending |
-| PARSE-04 | Objective 1 | Pending |
-| PARSE-05 | Objective 1 | Pending |
-| PARSE-06 | Objective 1 | Pending |
-| PARSE-07 | Objective 1 | Pending |
-| THEME-01 | Objective 1 | Pending |
-| THEME-02 | Objective 1 | Pending |
+| PARSE-02 | Objective 1 | Complete |
+| PARSE-03 | Objective 1 | Complete |
+| PARSE-04 | Objective 1 | Complete |
+| PARSE-05 | Objective 1 | Complete |
+| PARSE-06 | Objective 1 | Complete |
+| PARSE-07 | Objective 1 | Complete |
+| THEME-01 | Objective 1 | Complete |
+| THEME-02 | Objective 1 | Complete |
 | THEME-03 | Objective 1 | Complete |
-| THEME-04 | Objective 1 | Pending |
+| THEME-04 | Objective 1 | Complete |
 | MODEL-01 | Objective 2 — chase/model + chase/profile + profiles/slides | Complete |
 | MODEL-02 | Objective 2 | Complete |
 | MODEL-03 | Objective 2 | Complete |
@@ -165,19 +165,19 @@ Each v1 requirement maps to exactly one objective in `.planning/ROADMAP.md`.
 | API-02 | Objective 3 | Complete |
 | API-03 | Objective 3 | Complete |
 | CLI-01 | Objective 4 — CLI (cmd/eden-press) | Complete |
-| CLI-02 | Objective 4 | Pending |
+| CLI-02 | Objective 4 | Complete |
 | CLI-03 | Objective 4 | Complete |
 | CLI-04 | Objective 4 | Complete |
-| CLI-05 | Objective 4 | Pending |
-| CLI-06 | Objective 4 | Pending |
+| CLI-05 | Objective 4 | Complete |
+| CLI-06 | Objective 4 | Complete |
 | EXP-01 | Objective 5 — convert/pdf + convert/png (chromedp) | Complete |
-| EXP-02 | Objective 5 | Pending |
+| EXP-02 | Objective 5 | Complete |
 | EXP-04 | Objective 5 | Complete |
-| EXP-03 | Objective 6 — convert/pptx (native OOXML) | Pending |
-| DART-01 | Objective 7 — Dart/Flutter Binding | Pending |
-| DART-02 | Objective 7 | Pending |
+| EXP-03 | Objective 6 — convert/pptx (native OOXML) | Complete |
+| DART-01 | Objective 7 — Dart/Flutter Binding | Complete |
+| DART-02 | Objective 7 | Complete |
 | DART-03 | Objective 7 | Complete |
-| DART-04 | Objective 7 | Pending |
+| DART-04 | Objective 7 | Complete |
 | DART-05 | Objective 7 | Complete |
 
 Objective 8 (Math-Fidelity Hardening + Auto-Fit Resolution) owns no new v1 requirement ID — it
