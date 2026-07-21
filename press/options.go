@@ -77,6 +77,23 @@ type Options struct {
 	// caller may supply a stricter/looser *bluemonday.Policy, but never turn
 	// it off by leaving this nil.
 	Sanitize *bluemonday.Policy
+
+	// ThemeCSS is raw custom-theme CSS TEXT, additive to press.Render (TRD
+	// 04-01): each entry is a self-contained theme stylesheet that names
+	// itself via its own leading `/* @theme <name> */` comment (the same
+	// requirement chase/theme.Load enforces for the 3 bundled themes). The
+	// caller (e.g. the CLI's `--theme-set`) reads any theme file(s) from
+	// disk; press/ NEVER touches the filesystem itself -- Render stays a
+	// pure function of (md, opts). A nil/empty slice (the zero value) is a
+	// no-op: no custom themes are registered, and press.Render(md,
+	// Options{}) behaves exactly as it did before this field existed.
+	//
+	// Each entry is registered via the SAME chase/theme.Load +
+	// ThemeSet.Add path the 3 embedded themes (default/gaia/uncover) use,
+	// so a custom theme becomes selectable by name through the normal
+	// opts.Theme / front-matter `theme:` resolution chain -- it is not a
+	// separate lookup mechanism.
+	ThemeCSS []string
 }
 
 // Output is press.Render's result -- the frozen API-03 output contract, the
