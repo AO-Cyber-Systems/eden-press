@@ -71,6 +71,34 @@ go-latex/latex (https://codeberg.org/go-latex/latex)
 License: [verify exact license in the math objective — out of scope for Objective 0]
 
 ================================================================================
+Bundled fonts (export-environment MATH rendering — EXP-04)
+================================================================================
+
+STIX Two Math (https://github.com/stipub/stixfonts)
+Copyright 2001-2021 The STIX Fonts Project Authors (https://github.com/stipub/stixfonts)
+License: SIL Open Font License, Version 1.1 (OFL-1.1)
+  - convert/chrome/fonts/STIXTwoMath-Regular.otf is bundled VERBATIM (not
+    modified, not recompiled, not pulled from a third-party CDN mirror) so
+    convert/'s Chrome-driven PDF/PNG exporters (05-03, 05-04) can render MATH
+    glyphs deterministically without any network fetch, matching the same
+    self-contained-rendering posture as convert/chrome's other determinism
+    guarantees (fixed viewport/timezone/locale, reduced motion). Embedded via
+    go:embed and injected as a base64 @font-face data-URI by
+    convert/chrome/fonts.go's FontFaceDataURI(), never referenced by a live
+    URL. Source: the project's own v2.13 tag,
+    fonts/static_otf/STIXTwoMath-Regular.otf (the compiled font binaries are
+    not present on the master branch, which .gitignores build output).
+  - OFL-1.1 permits verbatim bundling and redistribution; the font's own
+    embedded `name` table metadata carries its copyright/license notice
+    alongside this NOTICE entry. Reserved Font Name restrictions on
+    "STIX Two Math" / "STIX Fonts Project" apply to MODIFIED versions only —
+    this repo makes no modification. The .otf binary itself is intentionally
+    NOT addlicense-stamped (excluded via -ignore
+    'convert/chrome/fonts/**' in the addlicense invocation), matching the
+    themes/** precedent for other verbatim-bundled third-party assets above.
+  - Full OFL-1.1 text: https://scripts.sil.org/OFL
+
+================================================================================
 Corpus / specification data sources
 ================================================================================
 

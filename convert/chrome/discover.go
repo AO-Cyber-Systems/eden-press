@@ -21,8 +21,13 @@
 // SPDX-License-Identifier: MIT
 
 // Package chrome implements the EXP-04 Chrome-discovery fallback chain
-// (Discover) and the one-browser-many-tabs Session pool primitive that every
-// convert/ exporter (convert/pdf, convert/png) drives its rendering through.
+// (Discover), the one-browser-many-tabs Session pool primitive that every
+// convert/ exporter (convert/pdf, convert/png) drives its rendering through,
+// and the SHARED determinism substrate (determinism.go, load.go, fonts.go)
+// those same exporters fold in exactly once: ComposeCSS/PageCSSInches (pure
+// CSS transforms), ApplyDeterminism (the ordered CDP recipe), LoadHTML (the
+// SetDocumentContent loader), and the embedded STIX Two Math font (EXP-04
+// font provisioning).
 package chrome
 
 import (
