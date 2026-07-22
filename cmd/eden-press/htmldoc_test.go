@@ -71,32 +71,6 @@ func TestAssembleHTMLZeroJSGolden(t *testing.T) {
 	}
 }
 
-// TestAssembleHTMLAutoFitScript is test-list case 2: AutoFitScript:true
-// splices exactly one <script> carrying press.BrowserFitJS(), placed AFTER
-// out.HTML.
-func TestAssembleHTMLAutoFitScript(t *testing.T) {
-	out := fixtureOutput()
-
-	got := assembleHTML(out, htmlDocOptions{AutoFitScript: true})
-
-	if n := strings.Count(got, "<script"); n != 1 {
-		t.Fatalf("<script> count = %d, want exactly 1: %q", n, got)
-	}
-
-	bodyIdx := strings.Index(got, out.HTML)
-	scriptIdx := strings.Index(got, "<script")
-	if bodyIdx == -1 {
-		t.Fatal("out.HTML not found in assembled document")
-	}
-	if scriptIdx < bodyIdx {
-		t.Errorf("<script> at %d appears BEFORE out.HTML at %d, want after", scriptIdx, bodyIdx)
-	}
-
-	if !strings.Contains(got, press.BrowserFitJS()) {
-		t.Error("assembled document missing press.BrowserFitJS() body")
-	}
-}
-
 // TestAssembleHTMLInjectScriptsSeam is test-list case 3: InjectScripts
 // splices each script after out.HTML -- the seam watch/serve (04-06/07)
 // reuse for the SSE reload client.

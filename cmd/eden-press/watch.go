@@ -262,7 +262,6 @@ func rebuildOnce(cmd *cobra.Command, path string, hub *reload.Hub) {
 	}
 
 	doc := assembleHTML(out, htmlDocOptions{
-		AutoFitScript: cfg.Bool("auto-fit-script"),
 		InjectScripts: []string{reload.ClientJS(hub.URL())},
 	})
 

@@ -29,11 +29,10 @@ import "github.com/spf13/cobra"
 // ROOT command and every subcommand inherits persistent flags). These are
 // exactly the flags buildOptions reads through cfg -- see options.go.
 //
-// --auto-fit-script lives here, not per-mode, even though it is a CLI-only
-// (non-press.Options) flag: convert (04-03), watch (04-06), and serve
-// (04-07) ALL read cfg.Bool("auto-fit-script") to decide whether to splice
-// press.BrowserFitJS() into the assembled document, so it must resolve
-// identically regardless of which subcommand is invoked.
+// No opt-in browser-side auto-fit splice flag exists here (Objective 8,
+// 08-06): auto-fit is Flutter-only via the Dart binding's native
+// TextPainter fit (08-07). The assembled HTML document never ships
+// viewer-side auto-fit JavaScript.
 func registerPersistentFlags(root *cobra.Command) {
 	f := root.PersistentFlags()
 
@@ -45,7 +44,6 @@ func registerPersistentFlags(root *cobra.Command) {
 	f.String("highlight-style", "", `chroma highlight style name; "" resolves chroma's own default`)
 	f.Bool("inline-svg", false, "select the inline-<svg><foreignObject> container mode (forward-compat; effectively always-on today)")
 	f.String("config", "", "explicit config file path override (read by 04-04's loadConfigSources)")
-	f.Bool("auto-fit-script", false, "splice press.BrowserFitJS() into the assembled document (convert/watch/serve)")
 	f.String("format", "html", "output format: html (default) | json | pptx (convert/default mode)")
 }
 

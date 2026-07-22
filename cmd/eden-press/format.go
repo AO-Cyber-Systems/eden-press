@@ -137,7 +137,7 @@ func cliFail(cmd *cobra.Command, code int, err error) error {
 func emitFormat(cmd *cobra.Command, out press.Output) error {
 	switch f := cfg.String("format"); f {
 	case "", "html":
-		doc := assembleHTML(out, htmlDocOptions{AutoFitScript: cfg.Bool("auto-fit-script")})
+		doc := assembleHTML(out, htmlDocOptions{})
 		return writeOutput(cmd, doc)
 	case "json":
 		return writeJSON(cmd, out)

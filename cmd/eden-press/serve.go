@@ -145,7 +145,6 @@ func serveMarkdown(w http.ResponseWriter, r *http.Request, p string, cmd *cobra.
 	}
 
 	doc := assembleHTML(out, htmlDocOptions{
-		AutoFitScript: cfg.Bool("auto-fit-script"),
 		InjectScripts: []string{reload.ClientJS("/__reload")}, // 04-06 client, reused verbatim
 	})
 
