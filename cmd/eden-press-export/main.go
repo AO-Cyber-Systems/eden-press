@@ -162,9 +162,10 @@ exits 3 with a remedy message instead of attempting a launch.`,
 // registerExportFlags registers every flag this binary understands: the
 // render knobs (mapped 1:1 onto press.Options by buildPressOptions,
 // output.go) plus the export-specific --format/--output/--browser-path
-// trio. There is no --theme-set, --config, or --auto-fit-script here --
-// this binary is a lean turnkey exporter with no koanf/config-file
-// machinery (that full surface stays in cmd/eden-press).
+// trio. There is no --theme-set or --config here -- this binary is a lean
+// turnkey exporter with no koanf/config-file machinery (that full surface
+// stays in cmd/eden-press). Auto-fit is Flutter-only (Objective 8, 08-06/
+// 08-07) and was never a flag on this exporter either way.
 func registerExportFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
 

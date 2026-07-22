@@ -17,20 +17,24 @@ Marp Core (https://github.com/marp-team/marp-core)
 Copyright (c) 2018 Marp team (marp-team@marp.app)
 License: MIT
   - The three bundled themes (themes/default.css, themes/gaia.css,
-    themes/uncover.css) and the browser fit/auto-scaling helper
-    (themes/browser-fit.js) are reused VERBATIM under their original MIT license
+    themes/uncover.css) are reused VERBATIM under their original MIT license
     and copyright (LANDED in Objective 3, CORE-01). Provenance: @marp-team/marp-core
     tag v4.4.0 (matches UPSTREAM-VERSIONS.txt). The .css files are marp-core's OWN
     fully-compiled per-theme CSS — NOT a hand-recompile of its Sass source —
     extracted through the real npm package by tools/corpus-gen/extract-themes.mjs
-    (`marp.themeSet.get(<name>).css`); browser-fit.js is marp-core's shipped
-    lib/browser.js verbatim. Each .css file preserves Marp's own
+    (`marp.themeSet.get(<name>).css`). Each .css file preserves Marp's own
     `/*! @theme <name> … @author … */` block as its leading comment (which is
     ALSO the copyright header — so these files are NOT AO-Cyber addlicense-stamped;
     they are excluded via .github/workflows/ci.yml's -ignore 'themes/**').
-    browser-fit.js carries Marp's MIT header (year 2018) per CONTRIBUTING.md's
-    verbatim-asset template. Re-extract: `cd tools/corpus-gen && npm ci && node
-    extract-themes.mjs`.
+    Re-extract: `cd tools/corpus-gen && npm ci && node extract-themes.mjs`.
+  - The vendored viewer-side auto-fit/auto-scaling script (marp-core's
+    shipped lib/browser.js, reused verbatim under the same license/copyright
+    above) was REMOVED in Objective 8 (08-06): auto-fit is now Flutter-only
+    via the Dart binding's native TextPainter fit (08-07); plain HTML/PDF
+    output never ships viewer-side auto-fit JavaScript. The CORE-09
+    `<!--fit-->`/shrink marker emission (press/autofit.go) is unaffected and
+    stays emitted — inert on the web path, consumed by the Flutter binding
+    instead.
 
 github-markdown-css (https://github.com/sindresorhus/github-markdown-css)
 Copyright (c) Sindre Sorhus (sindresorhus@gmail.com)

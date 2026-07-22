@@ -243,21 +243,3 @@ func TestNames(t *testing.T) {
 		t.Errorf("Names() = %v, want %v", got, wantThemes)
 	}
 }
-
-// TestBrowserFitJS proves the viewer-side helper (CORE-09) is embedded and
-// carries Marp's preserved MIT header (year 2018), never an Eden header.
-func TestBrowserFitJS(t *testing.T) {
-	js := BrowserFitJS()
-	if strings.TrimSpace(js) == "" {
-		t.Fatal("BrowserFitJS() is empty")
-	}
-	if !strings.Contains(js, "Marp team (marp-team@marp.app)") {
-		t.Error("BrowserFitJS() missing preserved Marp copyright header")
-	}
-	if !strings.Contains(js, "2018") {
-		t.Error("BrowserFitJS() header missing Marp's 2018 copyright year")
-	}
-	if strings.Contains(js, "AO Cyber Systems") {
-		t.Error("BrowserFitJS() must NOT carry an AO Cyber header (verbatim Marp asset)")
-	}
-}
