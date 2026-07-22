@@ -9,5 +9,8 @@
     "job_check": true,
     "verifier": true,
     "auto_advance": true
+  },
+  "gates": {
+    "editGate": "warn"
   }
 }
