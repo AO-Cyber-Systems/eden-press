@@ -32,7 +32,7 @@ something real.
 - [x] **Objective 5.1: CLI Raster Export Binary (eden-press-export)** [INSERTED] - separate Chrome-permitting `eden-press-export --format pdf|png` binary; core `eden-press` stays chromedp-free (2/2 TRDs complete — 05.1-01 binary + gate re-scope, 05.1-02 CI smoke + docs). (completed 2026-07-22)
 - [x] **Objective 6: convert/pptx (native OOXML)** - Hand-rolled, Chrome-free, editable-text-box PPTX export consuming the docmodel directly — sibling to Objective 5, not sequential after it. (5/5 TRDs complete; verified passed 2026-07-21)
 - [x] **Objective 7: Dart/Flutter Binding (bind/capi + bind/dart)** - One Go core exposed via C-ABI, built three ways (Android `.so`, iOS `.a`, Web `.wasm`), gated only on Objective 3's API stability. (5/5 TRDs complete; verified passed 2026-07-21)
-- [ ] **Objective 8: Math-Fidelity Hardening + Auto-Fit Resolution** - The five math-converter root-cause fixes, a concrete MathML fallback-trigger rule, bundled STIX Two Math, and the final auto-fit mechanism decision.
+- [x] **Objective 8: Math-Fidelity Hardening + Auto-Fit Resolution** - The five math-converter root-cause fixes, a concrete MathML fallback-trigger rule, bundled STIX Two Math, and the final auto-fit mechanism decision. (7/7 TRDs complete: latex2mathml fork + all 8 spike cases at KaTeX-parity, structural-ceiling fallback rule, STIX WOFF2 + MATH-table smoke, Flutter-only auto-fit / zero-JS HTML). (completed 2026-07-22)
 
 ## Objective Details
 
@@ -226,7 +226,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 5. convert/pdf + convert/png (chromedp) | 5/5 | Complete    | 2026-07-21 |
 | 6. convert/pptx (native OOXML) | 5/5 | Complete    | 2026-07-21 |
 | 7. Dart/Flutter Binding | 5/5 | Complete    | 2026-07-21 |
-| 8. Math-Fidelity Hardening + Auto-Fit Resolution | 2/7 | In progress | - |
+| 8. Math-Fidelity Hardening + Auto-Fit Resolution | 7/7 | Complete    | 2026-07-22 |
 
 ---
 *Roadmap created: 2026-07-20*
