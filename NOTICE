@@ -121,6 +121,38 @@ License: SIL Open Font License, Version 1.1 (OFL-1.1)
     'convert/chrome/fonts/**' in the addlicense invocation), matching the
     themes/** precedent for other verbatim-bundled third-party assets above.
   - Full OFL-1.1 text: https://scripts.sil.org/OFL
+  - WOFF2 companion (Objective 8, 08-05): convert/chrome/fonts/
+    STIXTwoMath-Regular.woff2 is the OFFICIAL stipub/stixfonts WOFF2 build
+    for the SAME v2.13 tag as the OTF above (research Open Q4, resolved
+    YES — an official build exists, so no local conversion tool was
+    needed). Source: https://github.com/stipub/stixfonts, tag v2.13,
+    fonts/static_otf_woff2/STIXTwoMath-Regular.woff2 (the WOFF2 sibling of
+    the SAME fonts/static_otf/ build family the OTF above is sourced from
+    — NOT a third-party CDN mirror, NOT a re-conversion). Fetched verbatim
+    via `curl` from raw.githubusercontent.com at that exact tag; not
+    modified, not subsetted, not recompiled.
+  - MATH-table survival, VERIFIED (not assumed): decompressing this WOFF2
+    (`fonttools ttLib.woff2 decompress`) yields an OTF with the identical
+    6760-glyph count and the SAME table set as STIXTwoMath-Regular.otf
+    (CFF, GDEF, GPOS, GSUB, MATH, OS/2, cmap, head, hhea, hmtx, maxp, name,
+    post — the OTF additionally carries a DSIG signature table, which
+    stipub's own WOFF2 build process drops, as is conventional for WOFF2
+    conversions since the signature does not apply to the transformed
+    container; DSIG is not rendering-relevant). convert/chrome/
+    fonts_test.go's TestWoff2MathTableSurvivesConversion additionally
+    decodes the shipped WOFF2's table directory directly (Go stdlib only,
+    per the W3C WOFF2 spec's Known-Table-Tags array) and asserts a MATH
+    entry is present, as a standing CI guard against any future
+    accidental re-sourcing from a subsetting-prone mirror. convert/chrome/
+    fonts_test.go's Chrome-gated TestStixMathTableSmoke goes one step
+    further and renders a real MathML stretchy construct through this
+    exact WOFF2 via headless Chrome, empirically confirming the MATH
+    table's stretchy-construction data is actually consulted (not just
+    present in the directory).
+  - Embedded via go:embed and exposed as a base64 @font-face data-URI by
+    convert/chrome/fonts.go's FontFaceDataURIWoff2() (format('woff2')) —
+    additive alongside the existing OTF-based FontFaceDataURI()
+    (format('opentype')), which remains unchanged and available.
 
 ================================================================================
 Corpus / specification data sources
