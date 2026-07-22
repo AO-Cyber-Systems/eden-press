@@ -765,10 +765,14 @@ func renderHTML(t *testing.T, opt goldmark.Option, src string) string {
 	return buf.String()
 }
 
-// TestMathRender is the end-to-end routing assertion: with the battery wired,
-// `$x^2$` renders native MathML and `$$\begin{aligned}…$$` routes to the PNG
-// fallback <img> — the routing decision made on the RAW source by needsFallback
-// BEFORE any conversion.
+// TestMathRender is the end-to-end routing assertion (08-04, Test-list cases
+// 1-2): with the battery wired, `$x^2$` and `$$\begin{aligned}…$$` both render
+// native MathML (aligned routes native post-08-03 — this assertion is
+// INVERTED from the pre-08-04 baseline, which routed aligned to the PNG
+// fallback before the converter fix landed), while `$$…\tag{1}$$` — a
+// permanent structural-ceiling construct (no <mlabeledtr> in MathML Core) —
+// routes to the PNG fallback <img>. The routing decision is made on the RAW
+// source by needsFallback BEFORE any conversion is attempted.
 func TestMathRender(t *testing.T) {
 	mathml := renderHTML(t, Option(""), `$x^2$`)
 	if !strings.Contains(mathml, "<math") {
@@ -778,12 +782,20 @@ func TestMathRender(t *testing.T) {
 		t.Errorf("`$x^2$` should NOT route to the fallback <img>: %q", mathml)
 	}
 
-	fallback := renderHTML(t, Option(""), `$$\begin{aligned}a&=b\\c&=d\end{aligned}$$`)
+	aligned := renderHTML(t, Option(""), `$$\begin{aligned}a&=b\\c&=d\end{aligned}$$`)
+	if !strings.Contains(aligned, "<math") {
+		t.Errorf("`\\begin{aligned}` should render native MathML post-08-03: %q", aligned)
+	}
+	if strings.Contains(aligned, "<img") {
+		t.Errorf("`\\begin{aligned}` should NOT route to the fallback <img> (fixed 08-03): %q", aligned)
+	}
+
+	fallback := renderHTML(t, Option(""), `$$a=b\tag{1}$$`)
 	if !strings.Contains(fallback, "<img") || !strings.Contains(fallback, "math-fallback") {
-		t.Errorf("heavy `\\begin{aligned}` should route to the fallback <img>: %q", fallback)
+		t.Errorf("`\\tag` (permanent structural ceiling) should route to the fallback <img>: %q", fallback)
 	}
 	if strings.Contains(fallback, "<math") {
-		t.Errorf("heavy `\\begin{aligned}` should NOT emit MathML: %q", fallback)
+		t.Errorf("`\\tag` should NOT emit MathML: %q", fallback)
 	}
 }
 
