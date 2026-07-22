@@ -205,7 +205,7 @@ something real.
   - [ ] 08-04-TRD.md - Finalize the fallback-trigger detector to the structural ceiling + routing corpus test (criterion 2) [wave 4]
   - [ ] 08-05-TRD.md - STIX Two Math WOFF2 companion + Chrome-gated MATH-table pixel-check smoke (criterion 3) [wave 2]
   - [ ] 08-06-TRD.md - Remove viewer-side JS auto-fit from the HTML/CLI path (flag + BrowserFitJS + browser-fit.js) (criterion 4, web half) [wave 3]
-  - [ ] 08-07-TRD.md - Native Flutter TextPainter auto-fit (shrink-only) for headings (criterion 4, Flutter half) [wave 1]
+  - [x] 08-07-TRD.md - Native Flutter TextPainter auto-fit (shrink-only) for headings (criterion 4, Flutter half) [wave 1]
 
 > **Decision gates:** (1) the concrete MathML fallback-trigger rule — which exact TeX constructs (confirmed candidates: `\tag`, `\label`, complex multi-column `aligned`) auto-route to the SVG/PNG fallback, as a testable detection function, not a vague heuristic; (2) the final auto-fit mechanism — native Flutter `TextPainter` fit (client-side, Objective 7's binding) vs. a CSS-only `cqw`/SVG-text spike for browser/PDF output (Objective 5's export path) vs. dropping auto-fit entirely if neither pixel-matches acceptably.
 

@@ -33,3 +33,5 @@ None.
 Last session: 2026-07-22 — Objective 4.1 (CLI Agent Interface) built + merged; formal verifiers run for Objectives 4/5/6/7 (all passed).
 Stopped at: Objective 4.1 complete on main. Objective 8 is the only remaining roadmap objective.
 Resume file: None
+
+08-07-TRD.md (Flutter-native shrink-only auto-fit, bind/dart — criterion 4 Flutter half) complete on this worktree branch: `computeFitFontSize` + `FitText` widget wired into `EdenPressView`'s heading case, zero JS, TDD unit + widget tests green; see 08-07-SUMMARY.md. Awaits merge/reconciliation with sibling Objective-8 wave TRDs.

@@ -32,11 +32,16 @@
 /// - `code` blocks render via `flutter_highlighting`'s `HighlightView` from
 ///   the raw source in [Block.text] and the fenced info-string in
 ///   [Block.language].
-/// - `paragraph`/`heading`/`list`/unknown blocks render as plain Flutter
-///   text -- not this TRD's focus, but rendered so the surface is complete.
+/// - `heading` blocks render via [FitText] (08-07-TRD.md, RESOLVED DECISION
+///   #4's Flutter half): a native `TextPainter` measure-then-binary-search
+///   SHRINK-ONLY auto-fit, so an oversized heading shrinks to its allotted
+///   slide width -- the Flutter-native equivalent of Marp's `<!--fit-->`
+///   shrink, with zero JavaScript.
+/// - `paragraph`/`list`/unknown blocks render as plain Flutter text -- not
+///   this TRD's focus, but rendered so the surface is complete.
 ///
-/// No HTML/DOM-parsing package, no webview, no JavaScript is imported or
-/// invoked anywhere in this file.
+/// No HTML/DOM-parsing package, no embedded browser surface, no JavaScript
+/// is imported or invoked anywhere in this file.
 library;
 
 import 'package:flutter/material.dart';
@@ -44,6 +49,7 @@ import 'package:flutter_highlighting/flutter_highlighting.dart';
 import 'package:flutter_highlighting/themes/github.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 
+import 'fit_text.dart';
 import 'model.dart';
 
 /// Default `flutter_highlighting` theme for `code` blocks: GitHub's, chosen
@@ -95,7 +101,7 @@ class EdenPressView extends StatelessWidget {
           theme: highlightTheme,
         );
       case BlockKind.heading:
-        return Text(block.text, style: _headingStyle(block.level));
+        return FitText(block.text, style: _headingStyle(block.level));
       case BlockKind.list:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
