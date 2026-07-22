@@ -13,6 +13,21 @@ var COLUMNS_ALINGNMENT_MAP = map[string]string{"r": "right", "l": "left", "c": "
 var SPACE_LIST = []string{`\ `, "~", NOBREAKSPACE, SPACE}
 var SUB_LIST = []string{DETERMINANT, GCD, INTOP, INJLIM, LIMINF, LIMSUP, PR, PROJLIM}
 
+// BIG_OPERATORS are the large n-ary operators whose sub/super scripts auto-stack
+// as under/over in DISPLAY style (matching KaTeX/LaTeX \displaylimits). Their
+// unpatched behaviour was side-by-side <msubsup>/<msub>; the tag-selection in
+// convertCommand promotes them to <munderover>/<munder>/<mover> when
+// isDisplayMode is true. Integrals (\int, \oint, \iint, …) are DELIBERATELY
+// EXCLUDED — by TeX convention they keep side limits unless an explicit \limits
+// is given (that path is the LIMITS-modifier branch, untouched here). The
+// \lim-family is carried separately via the LIMIT set (commands.go).
+var BIG_OPERATORS = []string{
+	`\sum`, `\prod`, `\coprod`,
+	`\bigcup`, `\bigcap`, `\bigsqcup`, `\biguplus`,
+	`\bigvee`, `\bigwedge`,
+	`\bigoplus`, `\bigotimes`, `\bigodot`,
+}
+
 var OPERATORS = []string{
 	"+",
 	"-",
@@ -366,6 +381,23 @@ func convertCommand(node Node, parent *etree.Element, font map[string]string) {
 		tag = "munderover"
 	} else if (command == XLEFTARROW || command == XRIGHTARROW) && len(node.Children) == 2 {
 		tag = "munderover"
+	} else if len(node.Children) > 0 && isDisplayMode(parent) &&
+		(slices.Contains(BIG_OPERATORS, node.Children[0].Token) || slices.Contains(LIMIT, node.Children[0].Token)) {
+		// Big n-ary operators (\sum \prod \bigcup …) and the \lim-family
+		// auto-stack their scripts as under/over in DISPLAY style (no explicit
+		// \limits needed) — KaTeX/LaTeX \displaylimits. Open Q1 resolved to this
+		// tag-switch (NOT movablelimits): the operator renders as <mi>/<mo> and
+		// MathML-Core only stacks via munder*/mover*. Strictly gated on
+		// SUBSUP/SUBSCRIPT/SUPERSCRIPT + displaystyle so inline `$\sum_i^n$` and
+		// limitless `\sum` are unaffected.
+		switch command {
+		case SUBSUP:
+			tag = "munderover"
+		case SUBSCRIPT:
+			tag = "munder"
+		case SUPERSCRIPT:
+			tag = "mover"
+		}
 	}
 
 	element := parent.CreateElement(tag)
@@ -744,4 +776,21 @@ func setFont(element *etree.Element, key string, font map[string]string) {
 	if value, exist := font[key]; exist {
 		element.CreateAttr("mathvariant", value)
 	}
+}
+
+// isDisplayMode reports whether el will render in display (block) style. It walks
+// the ancestor chain: the nearest element carrying an explicit displaystyle
+// attribute wins (so a big operator nested inside \tfrac/\text —
+// displaystyle="false" — does NOT auto-stack), otherwise the root
+// <math display="block"> decides. Used to gate big-operator limit stacking.
+func isDisplayMode(el *etree.Element) bool {
+	for e := el; e != nil; e = e.Parent() {
+		if v := e.SelectAttrValue("displaystyle", ""); v != "" {
+			return v == "true"
+		}
+		if e.Tag == "math" {
+			return e.SelectAttrValue("display", "") == "block"
+		}
+	}
+	return false
 }
