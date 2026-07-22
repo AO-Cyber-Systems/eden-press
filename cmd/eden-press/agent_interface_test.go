@@ -27,15 +27,16 @@
 // valid OOXML zip package), case 2 (--format json's full envelope
 // structure, re-proven one level up from format_test.go's own per-function
 // coverage, now via the actual pptx SIBLING case wired into the SAME
-// emitFormat switch), and case 4 (both standing import-boundary gates stay
-// green). Task 2 (AGENTS.md) adds test-list case 3 (a real subprocess exit
-// code) to this same file.
+// emitFormat switch), case 3 (a real subprocess observing main.go's actual
+// os.Exit under a bad input + --format json), and case 4 (both standing
+// import-boundary gates stay green).
 package main
 
 import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,7 +62,7 @@ const agentInterfaceTestDeck = "---\n" +
 // [Content_Types].xml and ppt/presentation.xml. Written to a file (-o) and
 // read back from disk -- pptx is binary, never asserted against stdout
 // text.
-func TestFormatPPTXValidZip(t *testing.T) {
+func TestAgentFormatPPTXValidZip(t *testing.T) {
 	resetCfg()
 
 	dir := t.TempDir()
@@ -118,7 +119,7 @@ func TestFormatPPTXValidZip(t *testing.T) {
 // bytes still go to stdout (writeOutputBytes' documented default pairing)
 // and are themselves a valid zip -- proving writePPTX reuses
 // writeOutputBytes' stdout leg, not just the file leg.
-func TestFormatPPTXStdout(t *testing.T) {
+func TestAgentFormatPPTXStdout(t *testing.T) {
 	resetCfg()
 
 	dir := t.TempDir()
@@ -151,7 +152,7 @@ func TestFormatPPTXStdout(t *testing.T) {
 // front-matter-bearing fixture and the actual compiled --format pptx
 // sibling case wired into the SAME emitFormat switch -- html/json/pptx are
 // all now exercised from the identical binary path.
-func TestFormatJSONEndToEndAgentDeck(t *testing.T) {
+func TestAgentFormatJSONEndToEnd(t *testing.T) {
 	resetCfg()
 
 	dir := t.TempDir()
@@ -238,7 +239,7 @@ func TestFormatJSONEndToEndAgentDeck(t *testing.T) {
 // unchanged. Run as scripts, mirroring exactly how CI/make invoke them, so
 // this test fails loudly if a future change reintroduces chromedp (or a
 // direct chase/profiles import) into the CLI.
-func TestGateEnforcement(t *testing.T) {
+func TestAgentGateEnforcement(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("os.Getwd: %v", err)
@@ -255,5 +256,57 @@ func TestGateEnforcement(t *testing.T) {
 				t.Fatalf("bash scripts/%s: %v\n%s", script, err, out)
 			}
 		})
+	}
+}
+
+// TestExecBadInputJSONExitCode is test-list case 3: a REAL subprocess
+// (os/exec, not an in-process cobra call) run on a nonexistent input under
+// --format json observes main.go's actual os.Exit(1) and the JSON error
+// envelope on stderr -- this is the one case that needs a real process,
+// since root.Execute() inside a Go test never calls os.Exit itself.
+func TestAgentExecBadInputExitCode(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd: %v", err)
+	}
+	repoRoot := filepath.Join(wd, "..", "..")
+
+	binPath := filepath.Join(t.TempDir(), "eden-press-test-bin")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/eden-press")
+	build.Dir = repoRoot
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("go build ./cmd/eden-press: %v\n%s", err, out)
+	}
+
+	cmd := exec.Command(binPath, "/no/such.md", "--format", "json")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	if err == nil {
+		t.Fatal("subprocess exited 0, want a nonzero exit code for a nonexistent input")
+	}
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("cmd.Run error is not *exec.ExitError: %v (%T)", err, err)
+	}
+	if exitErr.ExitCode() != exitRender {
+		t.Errorf("subprocess exit code = %d, want %d (exitRender)", exitErr.ExitCode(), exitRender)
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("subprocess stdout = %q, want empty on failure", stdout.String())
+	}
+
+	var envelope jsonError
+	if jsonErr := json.Unmarshal(stderr.Bytes(), &envelope); jsonErr != nil {
+		t.Fatalf("json.Unmarshal subprocess stderr envelope: %v\nraw: %s", jsonErr, stderr.String())
+	}
+	if envelope.Error.Code != exitRender {
+		t.Errorf("subprocess stderr envelope error.code = %d, want %d", envelope.Error.Code, exitRender)
+	}
+	if envelope.Error.Message == "" {
+		t.Error("subprocess stderr envelope error.message is empty")
 	}
 }
