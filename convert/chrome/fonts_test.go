@@ -22,23 +22,40 @@
 
 package chrome
 
-// fonts_test.go carries 08-05's MATH-table survival proof:
-// TestWoff2MathTableSurvivesConversion is a dependency-free (Go stdlib only)
-// proof that the bundled STIX Two Math WOFF2 companion's OpenType MATH table
-// is intact -- decoding JUST the WOFF2 header + table directory (no brotli
-// decompression needed; the directory alone lists every SFNT table tag
-// present). A subsetting tool -- the regression the verbatim-OTF bundling
-// decision exists to prevent (05-RESEARCH Pitfall 6) -- drops whole tables
-// from the directory, so directory presence is a complete survival proof.
+// fonts_test.go is 08-05's two deliverables:
 //
-// (A second deliverable, a Chrome-gated CI render smoke, lands in this same
-// file in a follow-up commit.)
+//  1. TestWoff2MathTableSurvivesConversion: a dependency-free (Go stdlib
+//     only) proof that the bundled STIX Two Math WOFF2 companion's OpenType
+//     MATH table is intact -- decoding JUST the WOFF2 header + table
+//     directory (no brotli decompression needed; the directory alone lists
+//     every SFNT table tag present). A subsetting tool -- the regression the
+//     verbatim-OTF bundling decision exists to prevent (05-RESEARCH Pitfall
+//     6) -- drops whole tables from the directory, so directory presence is
+//     a complete survival proof.
+//
+//  2. TestStixMathTableSmoke: a Chrome-gated CI smoke that renders a KNOWN
+//     formula (a parenthesized fraction) through the SAME
+//     ApplyDeterminism+LoadHTML path every convert/ exporter uses, and
+//     pixel-checks that the OpenType MATH table's stretchy-construction data
+//     actually drove the render -- catching a missing/stripped-MATH
+//     regression that a bare "did anything render" check would miss (see
+//     that test's doc comment for the empirical derivation of its
+//     thresholds). t.Skips cleanly with no Chrome present, matching every
+//     other Chrome-gated test in this package.
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
+	"image"
+	"image/png"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/chromedp/chromedp"
+
+	"github.com/AO-Cyber-Systems/eden-press/convert"
 )
 
 // --- Task 1: WOFF2 table-directory parsing (MATH-table survival) ----------
@@ -212,4 +229,148 @@ func TestFontFaceDataURIWoff2(t *testing.T) {
 	if otf := FontFaceDataURI(); otf == "" || !strings.Contains(otf, "format('opentype')") {
 		t.Fatalf("FontFaceDataURI (OTF) regressed after adding the WOFF2 accessor: %q", otf)
 	}
+}
+
+// --- Task 2: Chrome-gated MATH-table render smoke --------------------------
+
+// TestStixMathTableSmoke is the CI MATH-table pixel-check smoke (08-05 Task
+// 2): render a KNOWN formula that requires the OpenType MATH table's
+// glyph-variant/stretchy-construction data -- a parenthesized fraction,
+// "(1/2)" -- through the SAME headless-Chrome determinism path
+// (ApplyDeterminism + LoadHTML) every convert/ exporter uses, with STIX Two
+// Math as the SOLE font-family (no fallback), and pixel-check the result two
+// ways:
+//
+//  1. Ink presence: the captured region is not blank/empty (guards the
+//     coarse "font failed to load at all" failure).
+//  2. Stretchy-height: the rendered construct's bounding-box HEIGHT must
+//     clear a threshold that only a WORKING MathML stretchy-operator lookup
+//     (driven by the font's MATH table MathVariants/Construction data) can
+//     produce.
+//
+// The stretchy-height check's thresholds were EMPIRICALLY DERIVED during
+// this TRD: the exact same markup+font-size, rendered against STIX Two Math
+// with its MATH table intact, produces a ~152px-tall bounding box; rendered
+// against a byte-for-byte copy of that SAME font with ONLY its MATH table
+// surgically removed (via fonttools, as a throwaway negative-control
+// fixture -- never shipped), it collapses to ~85px -- MathML Core simply
+// stops stretching the parens to match the fraction's height once the
+// resolved font lacks MATH data. A stripped/subsetted-away MATH table
+// (05-RESEARCH Pitfall 6, the exact regression the verbatim-font bundling
+// decision exists to prevent) reproduces that SAME collapse. This is a much
+// stronger signal than a bare "did anything render" check: a LONE operator
+// (e.g. a solo "∑" with nothing to stretch to match) was ALSO empirically
+// confirmed to render IDENTICALLY with or without a MATH table -- this
+// smoke deliberately uses a construct that FORCES the stretchy mechanism to
+// engage, so a stripped MATH table cannot hide behind a fine-looking solo
+// glyph.
+//
+// Reuses convert/chrome's documented "pixel-diff-under-threshold, not
+// byte-identical" determinism contract (determinism.go) -- Go stdlib
+// image/png only, no image-diff dependency (08-05 anti_patterns). Gated on
+// Chrome presence: t.Skip cleanly (mirroring load_test.go /
+// session_test.go's Chrome-gated tests) when no Chrome/Chromium is
+// discoverable, so `go test ./...` stays green in a browserless CI leg.
+func TestStixMathTableSmoke(t *testing.T) {
+	if _, _, err := Discover(DiscoverOptions{}); err != nil {
+		t.Skipf("no Chrome discovered, skipping MATH-table render smoke: %v", err)
+	}
+
+	fontFace := FontFaceDataURIWoff2()
+	if fontFace == "" {
+		fontFace = FontFaceDataURI()
+	}
+	if fontFace == "" {
+		t.Skip("neither STIX Two Math WOFF2 nor OTF is embedded (deferred asset) -- nothing to render")
+	}
+
+	sess, err := New(convert.Options{})
+	if err != nil {
+		t.Skipf("could not start a Chrome session, skipping MATH-table render smoke: %v", err)
+	}
+	defer sess.Close()
+
+	tab, cancel := sess.NewTab()
+	defer cancel()
+
+	if err := ApplyDeterminism(tab, 800, 600); err != nil {
+		t.Fatalf("ApplyDeterminism: %v", err)
+	}
+
+	const fontSizePx = 80
+	html := `<!doctype html><html><head><meta charset="utf-8"><style>` +
+		fontFace +
+		`body{margin:0;background:#ffffff;}` +
+		`#x{font-family:'STIX Two Math';font-size:` + strconv.Itoa(fontSizePx) + `px;display:inline-block;}` +
+		`</style></head><body><math id="x"><mrow><mo>(</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>)</mo></mrow></math></body></html>`
+
+	if err := LoadHTML(tab, html); err != nil {
+		t.Fatalf("LoadHTML: %v", err)
+	}
+
+	var shot []byte
+	if err := chromedp.Run(tab, chromedp.Screenshot("#x", &shot, chromedp.ByQuery)); err != nil {
+		t.Fatalf("screenshotting #x: %v", err)
+	}
+
+	img, err := png.Decode(bytes.NewReader(shot))
+	if err != nil {
+		t.Fatalf("decoding screenshot PNG: %v", err)
+	}
+
+	inkFrac, bbox := mathGlyphInkBBox(img)
+
+	const minInkFrac = 0.03
+	if inkFrac < minInkFrac {
+		t.Fatalf("MATH-table smoke: rendered \"(1/2)\" has almost no ink (%.4f, want >= %.4f) inside its own bounding box %v -- looks like the font failed to render at all (tofu/blank)", inkFrac, minInkFrac, bbox)
+	}
+
+	const minStretchHeightPx = 110
+	if bbox.Dy() < minStretchHeightPx {
+		t.Fatalf("MATH-table smoke: rendered \"(1/2)\" bounding-box height is %dpx (want >= %dpx) -- the stretchy parens did not grow to enclose the fraction, which is exactly the symptom of a MISSING/STRIPPED OpenType MATH table (05-RESEARCH Pitfall 6); got bbox %v", bbox.Dy(), minStretchHeightPx, bbox)
+	}
+}
+
+// mathGlyphInkBBox scans img for "ink" pixels (anything meaningfully darker
+// than the white background the smoke's HTML fixture sets) and returns the
+// fraction of the image that is ink, plus the tightest axis-aligned bounding
+// box enclosing all ink pixels. Go stdlib image/png decoding only -- no
+// image-diff dependency (08-05 anti_patterns).
+func mathGlyphInkBBox(img image.Image) (inkFraction float64, bbox image.Rectangle) {
+	bounds := img.Bounds()
+	minX, minY := bounds.Max.X, bounds.Max.Y
+	maxX, maxY := bounds.Min.X, bounds.Min.Y
+	inkCount, total := 0, 0
+
+	// A generous "near-white" cutoff: real glyph ink (even thin stems, with
+	// AA edge pixels blended toward white) reads well below this on at
+	// least one channel; pure background does not.
+	const whiteCutoff = 0xF000 // out of 0xFFFF per RGBA() channel.
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			total++
+			r, g, b, _ := img.At(x, y).RGBA()
+			if r < whiteCutoff || g < whiteCutoff || b < whiteCutoff {
+				inkCount++
+				if x < minX {
+					minX = x
+				}
+				if x > maxX {
+					maxX = x
+				}
+				if y < minY {
+					minY = y
+				}
+				if y > maxY {
+					maxY = y
+				}
+			}
+		}
+	}
+
+	if total == 0 || inkCount == 0 {
+		return 0, image.Rectangle{}
+	}
+	return float64(inkCount) / float64(total), image.Rect(minX, minY, maxX+1, maxY+1)
 }
