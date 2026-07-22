@@ -29,6 +29,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/AO-Cyber-Systems/eden-press/convert/pptx"
 	"github.com/AO-Cyber-Systems/eden-press/press"
 )
 
@@ -130,9 +131,9 @@ func cliFail(cmd *cobra.Command, code int, err error) error {
 // emitFormat is the ONE format-dispatch seam: html routes through the
 // existing assembleHTML/writeOutput string pipeline (unchanged --
 // Objective 4's CLI-01 byte-for-byte output), json routes through
-// writeJSON, and pptx is registered (so `--format pptx` PARSES) but not yet
-// wired -- 04.1-02 fills that case. An unknown value is a usage error
-// (exit 2).
+// writeJSON, and pptx routes through writePPTX (04.1-02: the stdlib-OOXML,
+// zero-chromedp convert/pptx.ToPPTX exporter). An unknown value is a usage
+// error (exit 2).
 func emitFormat(cmd *cobra.Command, out press.Output) error {
 	switch f := cfg.String("format"); f {
 	case "", "html":
@@ -141,12 +142,28 @@ func emitFormat(cmd *cobra.Command, out press.Output) error {
 	case "json":
 		return writeJSON(cmd, out)
 	case "pptx":
-		// 04.1-02 wires convert/pptx.ToPPTX here. Until then, --format pptx
-		// parses (the flag surface is complete) but fails as a usage error.
-		return cliFail(cmd, exitUsage, fmt.Errorf("format pptx: not wired yet (04.1-02)"))
+		return writePPTX(cmd, out)
 	default:
 		return cliFail(cmd, exitUsage, fmt.Errorf("unknown --format %q (want html|json|pptx)", f))
 	}
+}
+
+// writePPTX renders out.Model -- already a *chase/model.Document, typed by
+// press.Render -- through convert/pptx.ToPPTX: a stdlib-OOXML exporter with
+// ZERO chromedp. cmd/eden-press never imports chase/model directly to name
+// that type; out.Model is passed straight through, already correctly typed.
+// The resulting bytes are written via writeOutputBytes (04.1-01's shared
+// --output/-o-or-stdout sink, the same one writeJSON uses), and any ToPPTX
+// failure is reported through cliFail(exitRender) -- the SAME single
+// failure sink every other format uses, so a pptx render failure is
+// classified and (under --format json) enveloped identically to a json
+// marshal failure.
+func writePPTX(cmd *cobra.Command, out press.Output) error {
+	b, err := pptx.ToPPTX(out.Model, pptx.Options{})
+	if err != nil {
+		return cliFail(cmd, exitRender, fmt.Errorf("format pptx: %w", err))
+	}
+	return writeOutputBytes(cmd, b)
 }
 
 // writeJSON marshals the FULL press.Output through the lowercase
