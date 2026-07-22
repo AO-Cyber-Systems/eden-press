@@ -71,6 +71,36 @@ func TestAssembleHTMLZeroJSGolden(t *testing.T) {
 	}
 }
 
+// TestAssembleHTMLNoViewerSideAutoFitJS is the Objective 8 (08-06) acceptance
+// gate: a real deck carrying a fitting header ("# <!--fit-->") and a fenced
+// code block -- two of the shapes press/autofit.go's CORE-09 battery marks --
+// renders through the DEFAULT assembleHTML path (htmlDocOptions{}, no
+// InjectScripts) with the `data-auto-scaling="fit"` attribute and
+// `marp-fit-shrink` wrapper class both PRESENT (the markers still flow,
+// inert on the web path) while the assembled document carries ZERO
+// <script> tags anywhere -- proving auto-fit is Flutter-only (08-07) and no
+// viewer-side auto-fit JavaScript ever ships in plain HTML.
+func TestAssembleHTMLNoViewerSideAutoFitJS(t *testing.T) {
+	deck := "# <!--fit-->Big Title\n\n```go\nfmt.Println(1)\n```\n"
+
+	out, err := press.Render(deck, press.Options{})
+	if err != nil {
+		t.Fatalf("press.Render: unexpected error: %v", err)
+	}
+
+	got := assembleHTML(out, htmlDocOptions{})
+
+	if strings.Contains(got, "<script") {
+		t.Errorf("assembled document contains <script>, want zero viewer-side JS: %q", got)
+	}
+	if !strings.Contains(out.HTML, `data-auto-scaling="fit"`) {
+		t.Error("fit marker (data-auto-scaling=\"fit\") missing from out.HTML -- CORE-09 marker emission regressed")
+	}
+	if !strings.Contains(out.HTML, "marp-fit-shrink") {
+		t.Error("shrink marker (marp-fit-shrink wrapper) missing from out.HTML -- CORE-09 marker emission regressed")
+	}
+}
+
 // TestAssembleHTMLInjectScriptsSeam is test-list case 3: InjectScripts
 // splices each script after out.HTML -- the seam watch/serve (04-06/07)
 // reuse for the SSE reload client.
