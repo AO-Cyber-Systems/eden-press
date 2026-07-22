@@ -408,6 +408,95 @@ func TestMatrixFenceRegression(t *testing.T) {
 	}
 }
 
+// mtdAligns returns the columnalign value of every <mtd> in the tree that
+// carries one, in document order.
+func mtdAligns(root xmlElem) []string {
+	var out []string
+	for _, mtd := range findAll(root, "mtd") {
+		if v, ok := mtd.attr("columnalign"); ok {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// TestAlignedTable is Objective-8 spike case 7 (PROPOSAL §11): \begin{aligned}
+// must render as an <mtable> with the alignment column split (per-<mtd>
+// columnalign "right"/"left", mirroring the working \align* / ALIGN path), NOT
+// the unpatched literal <mi>&</mi> + <mspace linebreak> fallthrough. Asserted
+// STRUCTURALLY on the parsed tree.
+func TestAlignedTable(t *testing.T) {
+	got := renderMathML(`\begin{aligned}a&=b\\c&=d\end{aligned}`, true)
+	root := parseMathML(t, got)
+
+	mtable, ok := findElem(root, "mtable")
+	if !ok {
+		t.Fatalf(`aligned: expected an <mtable> (got the unpatched literal fallthrough): %q`, got)
+	}
+	if rows := findAll(mtable, "mtr"); len(rows) != 2 {
+		t.Errorf(`aligned: <mtable> has %d <mtr> rows, want 2 (a&=b // c&=d): %q`, len(rows), got)
+	}
+
+	// The alignment split: at least one right-aligned and one left-aligned cell.
+	aligns := mtdAligns(root)
+	var hasRight, hasLeft bool
+	for _, a := range aligns {
+		hasRight = hasRight || a == "right"
+		hasLeft = hasLeft || a == "left"
+	}
+	if !hasRight || !hasLeft {
+		t.Errorf(`aligned: expected the "right"/"left" columnalign split, got %v: %q`, aligns, got)
+	}
+
+	// The unpatched fallthrough emitted the '&' column-break as a literal <mi>&</mi>
+	// and each '\\' as an <mspace linebreak> — neither may survive the fix.
+	for _, mi := range findAll(root, "mi") {
+		if strings.TrimSpace(mi.Chardata) == "&" {
+			t.Errorf(`aligned: literal <mi>&</mi> survived (unpatched bug): %q`, got)
+		}
+	}
+	for _, sp := range findAll(root, "mspace") {
+		if _, ok := sp.attr("linebreak"); ok {
+			t.Errorf(`aligned: <mspace linebreak> survived (unpatched bug): %q`, got)
+		}
+	}
+}
+
+// TestMathvariantCodepoint is Objective-8 spike case 8 (PROPOSAL §11):
+// \mathbb/\mathbf/\mathcal must emit the actual Unicode Mathematical-Alphanumeric
+// CODEPOINT as element text (ℝ U+211D, bold v U+1D42F, script L U+2112) — NOT a
+// mathvariant attribute (which MathML Core ignores; the unpatched fork dropped
+// the styling entirely, emitting a plain <mi>R</mi>). Asserted by decoding the
+// emitted numeric char ref via encoding/xml and checking NO mathvariant attr.
+func TestMathvariantCodepoint(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want rune // the Mathematical-Alphanumeric codepoint the letter must become
+	}{
+		{"mathbb_R", `\mathbb{R}`, 0x211D},   // DOUBLE-STRUCK CAPITAL R (named hole)
+		{"mathbf_v", `\mathbf{v}`, 0x1D42F},  // MATHEMATICAL BOLD SMALL V
+		{"mathcal_L", `\mathcal{L}`, 0x2112}, // SCRIPT CAPITAL L (named hole)
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := renderMathML(c.raw, false)
+			if strings.Contains(got, "mathvariant") {
+				t.Errorf(`%s: emitted a mathvariant attribute (MathML Core ignores it); want the Unicode codepoint: %q`, c.raw, got)
+			}
+			root := parseMathML(t, got)
+			mi, ok := findElem(root, "mi")
+			if !ok {
+				t.Fatalf(`%s: expected an <mi>: %q`, c.raw, got)
+			}
+			gotText := strings.TrimSpace(flatText(mi))
+			if gotText != string(c.want) {
+				t.Errorf(`%s: <mi> text = %q (%U), want %q (%U): %q`, c.raw, gotText, []rune(gotText), string(c.want), c.want, got)
+			}
+		})
+	}
+}
+
 // TestSqrtRootChildOrder is Objective-8 spike case 3 (PROPOSAL §11): the
 // \sqrt[n]{radicand} radicand-loss bug. The unpatched walker read the '['
 // OPENING_BRACKET itself as the radicand (misassembling it into the <mroot>) and
