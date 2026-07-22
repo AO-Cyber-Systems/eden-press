@@ -35,8 +35,59 @@ eden-press convert deck.md --output slides.pptx --format pptx
 ```
 
 PNG/PDF export is intentionally **not** part of this binary (it requires
-Chrome); that lives in a separate export path. `preview`/`watch`/`serve`
-behavior is unaffected by `--format` beyond what's documented above.
+Chrome); that lives in the separate `eden-press-export` binary — see
+"Export (separate binary)" below. `preview`/`watch`/`serve` behavior is
+unaffected by `--format` beyond what's documented above.
+
+## Export (separate binary)
+
+Raster (PDF/PNG) export lives in `cmd/eden-press-export` — a **SEPARATE,
+Chrome-requiring binary**, not a flag on `eden-press`. The core `eden-press`
+binary documented above stays browserless (`html`/`json`/`pptx`) always;
+raster export is an opt-in binary you install/build separately. This split
+is CI-enforced: `scripts/check-no-chromedp.sh` proves `eden-press`'s own
+dependency closure never contains `chromedp`, and separately proves
+`eden-press-export` is the ONE `cmd/...` binary whose closure does.
+
+```bash
+# PDF: one file, written to -o (defaults to <stem>.pdf for a file input
+# with no -o; stdin input requires -o -- there is no filename to derive a
+# default from):
+eden-press-export deck.md -o out.pdf --format pdf
+
+# PNG: one file per slide, written into the -o DIRECTORY (created if
+# missing; "" -> CWD) as <stem>-001.png, <stem>-002.png, ...; -o may also be
+# a printf `%03d`-style pattern (e.g. -o "frame-%03d.png") for full control
+# over the per-slide filename:
+eden-press-export deck.md -o out-dir/ --format png
+```
+
+**Chrome discovery** (in order): `--browser-path <path>` > the `CHROME_PATH`
+environment variable > PATH auto-detection of a known Chrome/Chromium
+binary. If none resolves, the command exits **3** with a remedy message
+naming both `--browser-path` and `CHROME_PATH` — see
+[`convert/EXPORT.md`](convert/EXPORT.md) for the full discovery chain and
+the pinned-`chromedp/headless-shell` fallback.
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Render/runtime error (bad input path, render failure, Chrome launch failure, write failure) |
+| `2` | Usage/flag error (unknown `--format` value, PDF export from stdin with no `-o`, bad/unregistered flag) |
+| `3` | No Chrome/Chromium discoverable — supply `--browser-path <path>` or set `CHROME_PATH`, or install a pinned `chromedp/headless-shell` |
+
+```bash
+# Copy-paste examples:
+eden-press-export deck.md -o out.pdf --format pdf && echo ok || echo "failed: exit $?"
+eden-press-export deck.md -o slides/ --format png && echo ok || echo "failed: exit $?"
+
+# No Chrome available -- exits 3 with a remedy, never a stack trace:
+eden-press-export deck.md -o out.pdf --format pdf
+# stderr: no Chrome/Chromium found for raster export: ...
+#   supply one with --browser-path <path> or the CHROME_PATH env var,
+#   or install a pinned chromedp/headless-shell (see convert/EXPORT.md)
+# exit code: 3
+```
 
 ## JSON envelope schema (`--format json`)
 

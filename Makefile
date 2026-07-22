@@ -20,7 +20,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-.PHONY: build vet test check-no-chromedp check-cli-imports export-test check-chrome-export
+.PHONY: build vet test check-no-chromedp check-cli-imports export-test check-chrome-export export-binary-smoke
 
 # build / vet / test mirror the CI gates for local convenience.
 build:
@@ -73,3 +73,13 @@ export-test:
 # no-system-Chrome CI export job (.github/workflows/ci.yml).
 check-chrome-export:
 	CHROME_VERSION=$(CHROME_VERSION) bash scripts/check-chrome-export.sh
+
+# export-binary-smoke builds cmd/eden-press-export and drives a real pdf+png
+# export of a fixture deck through the compiled binary -- the turnkey CLI
+# path (05.1-01/05.1-02), distinct from export-test (which exercises
+# convert/ directly, not the binary's argv/file-writing surface). Self
+# -gating: the binary exits 3 when no Chrome is discoverable, which the
+# script treats as a clean skip, so a local run without Chrome no-ops
+# instead of failing. Wired into the CI export job beside export-test.
+export-binary-smoke:
+	bash scripts/export-binary-smoke.sh
