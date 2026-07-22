@@ -137,6 +137,14 @@ jobs:
         # os.MkdirTemp). CHROME_PATH points at the copied-in pinned
         # headless-shell binary — the tier-2 resolution this whole job
         # exists to prove.
+        #
+        # 05.1-02 extends this SAME run command (same container, same
+        # CHROME_PATH) to also build cmd/eden-press-export and drive the
+        # compiled BINARY through a real pdf+png smoke
+        # (scripts/export-binary-smoke.sh via `make export-binary-smoke`) —
+        # proving the turnkey CLI argv→file path end-to-end where CHROME_PATH
+        # resolves this pinned headless-shell. No new job, no new container,
+        # no new flags: reusing the 05-05 export job is the point.
         run: |
           docker run --rm \
             --user 10001:10001 \
@@ -149,4 +157,4 @@ jobs:
             -v "${{ github.workspace }}":/workspace \
             -w /workspace \
             eden-press-export-ci:local \
-            bash -c "make export-test"
+            bash -c "make export-test && go build ./cmd/eden-press-export && make export-binary-smoke"
