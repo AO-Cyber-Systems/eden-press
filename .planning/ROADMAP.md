@@ -200,7 +200,7 @@ something real.
   4. The auto-fit mechanism is resolved per the decision gate below and implemented with no remaining silent viewer-side JavaScript dependency.
 **Plans**: 7 TRDs in 4 waves
   - [x] 08-01-TRD.md - Fork + vendor latex2mathml into internal/latex2mathml (go.mod replace directive, license/NOTICE) [wave 1] — commits 66fc2cf/1d6a38f (verbatim copy, behavior-identical; 5 converter patches deferred to 08-02/08-03)
-  - [ ] 08-02-TRD.md - Converter patches A: big-operator limit stacking + sqrt[n] radicand loss, structural regression tests (criterion 1) [wave 2]
+  - [x] 08-02-TRD.md - Converter patches A: big-operator limit stacking (munderover tag-switch, Open Q1) + sqrt[n] radicand loss, structural MathML-DOM regression tests (criterion 1) [wave 2] — commits 113ce04/c77264e/063acb7; 4/8 spike cases (\sum/\prod/\lim/\sqrt[3]) at KaTeX-parity
   - [ ] 08-03-TRD.md - Converter patches B: binom/pmatrix fence + aligned-to-mtable + mathvariant-to-codepoint + all-8 corpus lock (criterion 1) [wave 3]
   - [ ] 08-04-TRD.md - Finalize the fallback-trigger detector to the structural ceiling + routing corpus test (criterion 2) [wave 4]
   - [ ] 08-05-TRD.md - STIX Two Math WOFF2 companion + Chrome-gated MATH-table pixel-check smoke (criterion 3) [wave 2]
