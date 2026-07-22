@@ -98,3 +98,51 @@ double computeFitFontSize(
   }
   return lo;
 }
+
+/// A [StatelessWidget] that fits [text] to its ACTUAL allotted box at build
+/// time: a [LayoutBuilder] supplies the real [BoxConstraints] Flutter has
+/// given this widget, [computeFitFontSize] picks the largest non-overflowing
+/// size (shrink-only against [style]'s font size), and a [Text] renders at
+/// that fitted size -- the native, JS-free equivalent of Marp's
+/// `<!--fit-->` heading shrink.
+class FitText extends StatelessWidget {
+  /// Creates a shrink-to-fit [Text] for [text].
+  ///
+  /// [maxFontSize] defaults to `style.fontSize` (falling back to `96` if
+  /// [style] carries no font size) so the shrink-only ceiling is the
+  /// AUTHORED size of the block being rendered -- e.g. a heading's level
+  /// style -- not an unrelated arbitrary maximum.
+  FitText(this.text, {super.key, required this.style, double? maxFontSize, this.minFontSize = 8})
+    : maxFontSize = maxFontSize ?? style.fontSize ?? 96;
+
+  /// The raw text to fit -- from `Block.text` (the schema-v2 model), never
+  /// `Output.html`.
+  final String text;
+
+  /// The base style; every attribute other than font size (weight, family,
+  /// color, ...) is honored as given. The fitted size replaces
+  /// `style.fontSize` via [TextStyle.copyWith].
+  final TextStyle style;
+
+  /// The shrink-only ceiling passed to [computeFitFontSize].
+  final double maxFontSize;
+
+  /// The floor passed to [computeFitFontSize].
+  final double minFontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fitted = computeFitFontSize(
+          text,
+          constraints,
+          style: style,
+          maxFontSize: maxFontSize,
+          minFontSize: minFontSize,
+        );
+        return Text(text, style: style.copyWith(fontSize: fitted));
+      },
+    );
+  }
+}

@@ -20,9 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-// 08-07-TRD.md Test list, driven RED -> GREEN, outermost to innermost. This
-// commit covers cases 1-3 (computeFitFontSize, Task 1); cases 4-5 (FitText
-// widget + JS-free assertion, Task 2) land in a follow-up commit:
+// 08-07-TRD.md Test list, driven RED -> GREEN, outermost to innermost:
 //   1. computeFitFontSize returns maxFontSize when text fits at max in the
 //      given constraints (SHRINK-ONLY -- never upscales past max).
 //   2. A long heading in a narrow BoxConstraints returns a size STRICTLY
@@ -30,10 +28,18 @@
 //      width <= maxWidth).
 //   3. Monotonic: for the same text, a wider constraint yields a fitted size
 //      >= a narrower constraint's fitted size.
+//   4. Widget (testWidgets): a FitText with a long string inside a
+//      constrained SizedBox renders WITHOUT a RenderFlex/overflow error; the
+//      fitted Text uses a size <= its style's max.
+//   5. JS-free assertion: fit_text.dart + render_surface.dart declare no
+//      JS-interop / web-only-package / embedded-browser-surface import --
+//      the DART-04 JS-free contract extended to auto-fit.
 //
 // No generated/property-based data -- every fixture below is a hand-built
 // fixed string + explicit BoxConstraints (mirrors render_surface_test.dart's
 // testWidgets/unit-test shape).
+
+import 'dart:io';
 
 import 'package:eden_press/src/fit_text.dart';
 import 'package:flutter/material.dart';
@@ -110,6 +116,71 @@ void main() {
           minFontSize: 8,
         );
         expect(wide, greaterThanOrEqualTo(narrow));
+      },
+    );
+  });
+
+  group('FitText widget', () {
+    testWidgets(
+      'Case 4: a long heading in a constrained SizedBox renders without a '
+      'RenderFlex/overflow error; the fitted Text size stays <= the style max',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 200,
+                height: 60,
+                child: FitText(
+                  _longHeading,
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // No overflow/RenderFlex exception surfaced during the pump.
+        expect(tester.takeException(), isNull);
+
+        final rendered = tester.widget<Text>(find.byType(Text));
+        expect(rendered.style!.fontSize, lessThanOrEqualTo(32.0));
+      },
+    );
+  });
+
+  group('JS-free assertion (DART-04 extended to auto-fit)', () {
+    test(
+      'Case 5: fit_text.dart and render_surface.dart import no JS-interop / '
+      'web-only-package / embedded-browser-surface dependency',
+      () {
+        const forbidden = ['dart:js', 'package:web', 'webview'];
+        for (final relativePath in [
+          'lib/src/fit_text.dart',
+          'lib/src/render_surface.dart',
+        ]) {
+          final file = File(relativePath);
+          expect(
+            file.existsSync(),
+            isTrue,
+            reason: 'run tests from bind/dart/',
+          );
+          final source = file.readAsStringSync();
+          for (final needle in forbidden) {
+            expect(
+              source.contains(needle),
+              isFalse,
+              reason:
+                  '$relativePath must not reference "$needle" anywhere -- '
+                  'forbidden by the DART-04 JS-free contract extended to '
+                  'auto-fit',
+            );
+          }
+        }
       },
     );
   });

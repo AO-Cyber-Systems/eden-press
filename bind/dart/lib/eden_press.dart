@@ -42,6 +42,7 @@ import 'src/native_loader.dart'
     if (dart.library.js_interop) 'src/web_loader.dart'
     as backend;
 
+export 'src/fit_text.dart';
 export 'src/model.dart';
 export 'src/render_surface.dart';
 
