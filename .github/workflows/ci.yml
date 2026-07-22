@@ -65,9 +65,13 @@ jobs:
         # so they are excluded from the AO-Cyber header assertion. convert/chrome/
         # fonts/** is the vendored STIX Two Math OTF binary (EXP-04 font
         # provisioning, 05-02) — a font binary, not Eden Press source, so it is
-        # excluded the same way conformance/corpus/cases/** is. Everything else
-        # must have the MIT header.
-        run: addlicense -l mit -s -c "AO Cyber Systems" -ignore 'conformance/corpus/cases/**' -ignore '**/node_modules/**' -ignore 'themes/**' -ignore 'convert/chrome/fonts/**' -check .
+        # excluded the same way conformance/corpus/cases/** is. internal/latex2mathml/**
+        # is the in-repo fork of git.sr.ht/~mekyt/latex2mathml (Objective 8, 08-01) —
+        # verbatim third-party MIT (Copyright (c) 2023 mekyt), redirected via a go.mod
+        # replace; it carries mekyt's OWN LICENSE, not Eden's header, so it is excluded
+        # the same way themes/** and convert/chrome/fonts/** are (see NOTICE). Everything
+        # else must have the MIT header.
+        run: addlicense -l mit -s -c "AO Cyber Systems" -ignore 'conformance/corpus/cases/**' -ignore '**/node_modules/**' -ignore 'themes/**' -ignore 'convert/chrome/fonts/**' -ignore 'internal/latex2mathml/**' -check .
 
       - name: Check no chromedp (API-02)
         # OBJECTIVE.md success criterion 2 + the Objective-7-begin gate: the
