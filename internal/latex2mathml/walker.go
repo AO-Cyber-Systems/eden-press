@@ -307,25 +307,36 @@ func processToken(tokens func() string, terminator string, limit int) ([]Node, e
 		} else if token == SQRT {
 			next, _ := processToken(tokens, "", 1)
 			nextNode := next[0]
-			var rootNodes = []Node{}
 
 			if nextNode.Token == OPENING_BRACKET {
-				rootNodes, _ = processToken(tokens, CLOSING_BRACKET, -1)
-				rootNodes = rootNodes[:len(rootNodes)-1]
+				// \sqrt[index]{radicand}: the first read consumed only the '['
+				// marker. Read the bracketed index up to CLOSING_BRACKET, THEN a
+				// SECOND read for the actual radicand base — the unpatched code
+				// skipped this second read and reused the '[' marker as the
+				// radicand, losing the real base (it leaked out as a sibling).
+				// Emit ROOT (mroot) with children [base, index] — MathML <mroot>
+				// order is base FIRST.
+				indexNodes, _ := processToken(tokens, CLOSING_BRACKET, -1)
+				indexNodes = indexNodes[:len(indexNodes)-1]
 
-				if len(rootNodes) > 1 {
-					rootNodes = []Node{
-						{
-							Token:    BRACES,
-							Children: rootNodes,
-						},
-					}
+				if len(indexNodes) > 1 {
+					indexNodes = []Node{{Token: BRACES, Children: indexNodes}}
 				}
-			}
 
-			if len(rootNodes) > 0 {
-				node = Node{Token: ROOT, Children: append([]Node{nextNode}, rootNodes...)}
+				baseNext, _ := processToken(tokens, "", 1)
+				baseNode := Node{Token: BRACES}
+				if len(baseNext) > 0 {
+					baseNode = baseNext[0]
+				}
+
+				if len(indexNodes) > 0 {
+					node = Node{Token: ROOT, Children: append([]Node{baseNode}, indexNodes...)}
+				} else {
+					// Degenerate \sqrt[]{x} (empty index): plain radical.
+					node = Node{Token: token, Children: []Node{baseNode}}
+				}
 			} else {
+				// Plain \sqrt{radicand} (no index): unchanged single-arg <msqrt>.
 				node = Node{Token: token, Children: []Node{nextNode}}
 			}
 

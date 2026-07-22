@@ -24,6 +24,7 @@ package math
 
 import (
 	"bytes"
+	"encoding/xml"
 	"strings"
 	"testing"
 
@@ -31,6 +32,40 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 )
+
+// xmlElem is a minimal recursive MathML element used for STRUCTURAL DOM
+// assertions: parse the emitted <math> string and inspect element shape/child
+// order rather than substring-matching. `,any` captures every child element;
+// `,chardata` captures the immediate text (numeric char refs like &#x0005B; are
+// decoded to their runes by encoding/xml).
+type xmlElem struct {
+	XMLName  xml.Name
+	Children []xmlElem `xml:",any"`
+	Chardata string    `xml:",chardata"`
+}
+
+// findElem returns the first descendant (depth-first, self included) whose local
+// element name matches local.
+func findElem(e xmlElem, local string) (xmlElem, bool) {
+	if e.XMLName.Local == local {
+		return e, true
+	}
+	for _, c := range e.Children {
+		if found, ok := findElem(c, local); ok {
+			return found, true
+		}
+	}
+	return xmlElem{}, false
+}
+
+// flatText concatenates the element's own text with all descendant text.
+func flatText(e xmlElem) string {
+	s := e.Chardata
+	for _, c := range e.Children {
+		s += flatText(c)
+	}
+	return s
+}
 
 // parseMathNodes parses src with the math option and returns every *mathNode in
 // document order. It drives the parser directly (Parser().Parse) rather than a
@@ -200,6 +235,53 @@ func TestBigOperatorStacking(t *testing.T) {
 			t.Errorf("display \\lim_{x \\to 0}: must NOT emit side-by-side <msub>: %q", got)
 		}
 	})
+}
+
+// TestSqrtRootChildOrder is Objective-8 spike case 3 (PROPOSAL §11): the
+// \sqrt[n]{radicand} radicand-loss bug. The unpatched walker read the '['
+// OPENING_BRACKET itself as the radicand (misassembling it into the <mroot>) and
+// leaked the real base out as a sibling. The fix must emit an <mroot> with
+// EXACTLY 2 element children in MathML order [radicand, index] — base first.
+// This is asserted STRUCTURALLY by parsing the emitted <math> with encoding/xml
+// and inspecting <mroot>'s child count and order (not substring-matching).
+func TestSqrtRootChildOrder(t *testing.T) {
+	got := renderMathML(`\sqrt[3]{x}`, true)
+	if !strings.Contains(got, "<mroot>") {
+		t.Fatalf(`\sqrt[3]{x}: expected an <mroot>: %q`, got)
+	}
+
+	var root xmlElem
+	if err := xml.Unmarshal([]byte(got), &root); err != nil {
+		t.Fatalf("parse emitted MathML: %v\n%q", err, got)
+	}
+	mroot, ok := findElem(root, "mroot")
+	if !ok {
+		t.Fatalf(`\sqrt[3]{x}: no <mroot> in parsed tree: %q`, got)
+	}
+	if len(mroot.Children) != 2 {
+		t.Fatalf(`\sqrt[3]{x}: <mroot> has %d element children, want EXACTLY 2 [radicand, index]: %q`, len(mroot.Children), got)
+	}
+
+	// MathML <mroot> order is [base, index]: radicand x first, index 3 second.
+	base := strings.TrimSpace(flatText(mroot.Children[0]))
+	index := strings.TrimSpace(flatText(mroot.Children[1]))
+	if !strings.Contains(base, "x") {
+		t.Errorf(`\sqrt[3]{x}: <mroot> first child (radicand) = %q, want to contain "x": %q`, base, got)
+	}
+	if !strings.Contains(index, "3") {
+		t.Errorf(`\sqrt[3]{x}: <mroot> second child (index) = %q, want to contain "3": %q`, index, got)
+	}
+	// Regression against the unpatched bug: the '[' bracket-marker (U+005B) must
+	// NEVER be misassembled as the radicand (which is exactly what leaked the
+	// real base out as a sibling of <mroot>).
+	if strings.Contains(base, "[") {
+		t.Errorf(`\sqrt[3]{x}: radicand leaked the '[' bracket-marker (unpatched bug): base=%q`, base)
+	}
+	// The radicand 'x' must live INSIDE <mroot>, not as a stray sibling: the only
+	// 'x' in the whole tree is the one reachable from <mroot>.
+	if strings.Count(flatText(root), "x") != 1 || !strings.Contains(flatText(mroot), "x") {
+		t.Errorf(`\sqrt[3]{x}: radicand 'x' must be the <mroot> base, not leaked as a sibling: %q`, got)
+	}
 }
 
 // TestFallback exercises the PNG-only fallback render path (go-latex/latex).
