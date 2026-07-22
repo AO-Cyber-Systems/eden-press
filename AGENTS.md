@@ -19,7 +19,7 @@ and `watch`) selects the destination — a file path, or stdout when unset.
 
 | `--format` | Output | Notes |
 |---|---|---|
-| `html` (default) | Standalone, zero-JS `<!doctype html>` document | `--auto-fit-script` splices one `<script>` for browser auto-fit; otherwise zero `<script>` tags |
+| `html` (default) | Standalone, zero-JS `<!doctype html>` document | ALWAYS zero `<script>` tags — there is no browser-side auto-fit splice option. `<!--fit-->`/shrink markers (`data-auto-scaling="fit"`, `marp-fit-shrink`) are still emitted into the HTML but are inert on this path: auto-fit is Flutter-only, consumed by the Dart binding's native TextPainter fit |
 | `json` | The full render `press.Output`, as a lowercase JSON envelope (below) | For programmatic inspection — no browser needed |
 | `pptx` | An editable `.pptx` (OOXML zip), built directly from the docmodel | Binary — **always use `-o out.pptx`**, never rely on stdout in a script that also wants to read text |
 

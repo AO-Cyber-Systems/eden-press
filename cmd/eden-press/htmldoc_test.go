@@ -71,29 +71,33 @@ func TestAssembleHTMLZeroJSGolden(t *testing.T) {
 	}
 }
 
-// TestAssembleHTMLAutoFitScript is test-list case 2: AutoFitScript:true
-// splices exactly one <script> carrying press.BrowserFitJS(), placed AFTER
-// out.HTML.
-func TestAssembleHTMLAutoFitScript(t *testing.T) {
-	out := fixtureOutput()
+// TestAssembleHTMLNoViewerSideAutoFitJS is the Objective 8 (08-06) acceptance
+// gate: a real deck carrying a fitting header ("# <!--fit-->") and a fenced
+// code block -- two of the shapes press/autofit.go's CORE-09 battery marks --
+// renders through the DEFAULT assembleHTML path (htmlDocOptions{}, no
+// InjectScripts) with the `data-auto-scaling="fit"` attribute and
+// `marp-fit-shrink` wrapper class both PRESENT (the markers still flow,
+// inert on the web path) while the assembled document carries ZERO
+// <script> tags anywhere -- proving auto-fit is Flutter-only (08-07) and no
+// viewer-side auto-fit JavaScript ever ships in plain HTML.
+func TestAssembleHTMLNoViewerSideAutoFitJS(t *testing.T) {
+	deck := "# <!--fit-->Big Title\n\n```go\nfmt.Println(1)\n```\n"
 
-	got := assembleHTML(out, htmlDocOptions{AutoFitScript: true})
-
-	if n := strings.Count(got, "<script"); n != 1 {
-		t.Fatalf("<script> count = %d, want exactly 1: %q", n, got)
+	out, err := press.Render(deck, press.Options{})
+	if err != nil {
+		t.Fatalf("press.Render: unexpected error: %v", err)
 	}
 
-	bodyIdx := strings.Index(got, out.HTML)
-	scriptIdx := strings.Index(got, "<script")
-	if bodyIdx == -1 {
-		t.Fatal("out.HTML not found in assembled document")
-	}
-	if scriptIdx < bodyIdx {
-		t.Errorf("<script> at %d appears BEFORE out.HTML at %d, want after", scriptIdx, bodyIdx)
-	}
+	got := assembleHTML(out, htmlDocOptions{})
 
-	if !strings.Contains(got, press.BrowserFitJS()) {
-		t.Error("assembled document missing press.BrowserFitJS() body")
+	if strings.Contains(got, "<script") {
+		t.Errorf("assembled document contains <script>, want zero viewer-side JS: %q", got)
+	}
+	if !strings.Contains(out.HTML, `data-auto-scaling="fit"`) {
+		t.Error("fit marker (data-auto-scaling=\"fit\") missing from out.HTML -- CORE-09 marker emission regressed")
+	}
+	if !strings.Contains(out.HTML, "marp-fit-shrink") {
+		t.Error("shrink marker (marp-fit-shrink wrapper) missing from out.HTML -- CORE-09 marker emission regressed")
 	}
 }
 

@@ -22,8 +22,7 @@
 
 // CORE-09 (03-07): auto-fit + shrink MARKER emission -- a
 // marker/attribute-materialization battery, NOT a rendering battery. This
-// file emits two stable, sanitize-survivable markers a viewer-side helper
-// (themes/browser-fit.js, vendored by TRD 03-02) reads at DOM-load time:
+// file emits two stable, sanitize-survivable markers:
 //
 //  1. A fitting header ("# <!--fit-->") gets its marker comment stripped and
 //     a `data-auto-scaling="fit"` attribute added directly to the <hN>
@@ -35,8 +34,11 @@
 // all -- it is already parsed into theme metadata by chase/theme/meta.go
 // (THEME-02) and lives entirely in theme CSS. This file never emits runtime
 // JavaScript and never implements a layout pass; it only materializes the
-// two markers browser-fit.js's own (already-vendored) JS looks for. The
-// exact marker shape is a documented BASELINE -- Objective 8 owns any
+// two markers. Originally these fed a now-removed viewer-side JS helper
+// (Objective 8, 08-06 dropped it -- auto-fit is Flutter-only, 08-07); the
+// markers themselves are UNCHANGED and stay emitted, now serving as the
+// Flutter binding's fit signal instead (inert on the plain-HTML web path).
+// The exact marker shape is a documented BASELINE -- Objective 8 owns any
 // hardening.
 package press
 

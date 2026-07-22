@@ -98,8 +98,3 @@ func Names() []string {
 	}
 	return out
 }
-
-// BrowserFitJS returns the verbatim Marp Core browser fit/auto-scaling helper
-// (lib/browser.js) for a viewer-side consumer (CORE-09 emits the DOM markers it
-// reads). It carries Marp's own MIT header (year 2018) — see NOTICE.
-func BrowserFitJS() string { return assets.BrowserFitJS }

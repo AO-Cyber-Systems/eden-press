@@ -83,7 +83,7 @@ func runPreview(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	doc := assembleHTML(out, htmlDocOptions{AutoFitScript: cfg.Bool("auto-fit-script")})
+	doc := assembleHTML(out, htmlDocOptions{})
 
 	f, err := os.CreateTemp("", "eden-press-*.html")
 	if err != nil {

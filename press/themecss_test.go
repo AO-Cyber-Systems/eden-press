@@ -27,8 +27,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/AO-Cyber-Systems/eden-press/press/themes"
 )
 
 // goldenDeck is the fixed input Test-list case 1 (additive/non-breaking)
@@ -72,27 +70,6 @@ func TestThemeCSSAdditive(t *testing.T) {
 	}
 	if gotSum := fmt.Sprintf("%x", sha256.Sum256([]byte(out.CSS))); gotSum != goldenCSSSHA256 {
 		t.Errorf("Options{} CSS SHA-256 diverged from pre-TRD golden: got %s, want %s", gotSum, goldenCSSSHA256)
-	}
-}
-
-// TestBrowserFitJSReexport is Test-list case 2: press.BrowserFitJS() returns
-// a non-empty string equal to press/themes.BrowserFitJS() -- proving the
-// press-root re-export lets a press-only consumer (the CLI) reach the same
-// verbatim fit script without importing press/themes itself. themes is
-// imported ONLY inside this test to assert the equality; press/browserjs.go
-// (production code) is the sole non-test importer.
-func TestBrowserFitJSReexport(t *testing.T) {
-	got := BrowserFitJS()
-	want := themes.BrowserFitJS()
-
-	if got == "" {
-		t.Fatal("BrowserFitJS() returned an empty string")
-	}
-	if got != want {
-		t.Errorf("press.BrowserFitJS() != press/themes.BrowserFitJS(): re-export diverged from source")
-	}
-	if !strings.Contains(got, "function") {
-		t.Errorf("BrowserFitJS() does not look like JavaScript (no %q substring found)", "function")
 	}
 }
 

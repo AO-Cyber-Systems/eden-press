@@ -33,17 +33,16 @@ import (
 // Every field defaults to the zero-JS baseline: an unset htmlDocOptions{}
 // produces NO <script> anywhere in the document (CLI-01's literal "zero-JS
 // static HTML"), matching Marp's empty `bare` block script.
+//
+// There is no auto-fit script option (Objective 8, 08-06): auto-fit is
+// Flutter-only via the Dart binding's native TextPainter fit (08-07). The
+// `<!--fit-->`/shrink markers (press/autofit.go) are still emitted into
+// out.HTML, but they are inert on the web path -- no viewer-side JS ever
+// reads them here.
 type htmlDocOptions struct {
-	// AutoFitScript splices press.BrowserFitJS() into the document, AFTER
-	// out.HTML, when true. This is the CLI's own --auto-fit-script opt-in
-	// (registered as a persistent flag in flags.go); it is never fed back
-	// through press.Render, whose sanitize pass strips <script>
-	// unconditionally (press/press_test.go asserts this).
-	AutoFitScript bool
-
-	// InjectScripts is the SEAM every OTHER viewer-side script reuses: each
-	// entry is spliced, verbatim, into its own <script> block AFTER
-	// out.HTML and after any AutoFitScript block. watch (04-06) and serve
+	// InjectScripts is the SEAM every viewer-side script (other than the
+	// removed auto-fit splice) reuses: each entry is spliced, verbatim,
+	// into its own <script> block AFTER out.HTML. watch (04-06) and serve
 	// (04-07) pass the SSE reload client through this same seam rather
 	// than editing this file -- the zero-JS-vs-reload distinction lives in
 	// ONE place (assembleHTML), not duplicated per mode.
@@ -68,10 +67,9 @@ type htmlDocOptions struct {
 // this function directly. The same is true of out.CSS. Only opts.Title
 // (an operator-supplied string, not deck content) is HTML-escaped.
 //
-// Any requested script (opts.AutoFitScript / opts.InjectScripts) is
-// spliced AFTER out.HTML -- outside any sanitize path -- so it is never at
-// risk of being stripped by press.Render's policy, and never re-enters it
-// either.
+// Any requested script (opts.InjectScripts) is spliced AFTER out.HTML --
+// outside any sanitize path -- so it is never at risk of being stripped by
+// press.Render's policy, and never re-enters it either.
 func assembleHTML(out press.Output, opts htmlDocOptions) string {
 	var b strings.Builder
 
@@ -83,12 +81,10 @@ func assembleHTML(out press.Output, opts htmlDocOptions) string {
 	b.WriteString("<style>\n" + out.CSS + "\n</style>\n</head>\n<body>\n")
 	b.WriteString(out.HTML)
 
-	// Scripts go AFTER out.HTML only, and ONLY when requested -- these two
-	// branches are the SOLE <script> emitters in this function. Default
-	// (both zero) emits zero <script> tags: the zero-JS baseline.
-	if opts.AutoFitScript {
-		b.WriteString("\n<script>\n" + press.BrowserFitJS() + "\n</script>\n")
-	}
+	// Scripts go AFTER out.HTML only, and ONLY when requested -- InjectScripts
+	// is the SOLE <script> emitter in this function. Default (unset) emits
+	// zero <script> tags: the zero-JS baseline. There is no auto-fit branch
+	// (08-06) -- auto-fit is Flutter-only.
 	for _, s := range opts.InjectScripts {
 		b.WriteString("\n<script>\n" + s + "\n</script>\n")
 	}

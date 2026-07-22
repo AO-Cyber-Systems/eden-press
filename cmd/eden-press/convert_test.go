@@ -135,31 +135,3 @@ func TestRunConvertOutputFile(t *testing.T) {
 		t.Errorf("default convert output contains <script>, want zero-JS: %q", got)
 	}
 }
-
-// TestRunConvertAutoFitScript proves --auto-fit-script (the persistent
-// flag every mode shares) reaches assembleHTML's AutoFitScript seam
-// through runConvert -- exactly one <script> in the output.
-func TestRunConvertAutoFitScript(t *testing.T) {
-	resetCfg()
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "deck.md")
-	if err := os.WriteFile(path, []byte(testDeck), 0o644); err != nil {
-		t.Fatalf("os.WriteFile: %v", err)
-	}
-
-	root := newRootCmd()
-	var out bytes.Buffer
-	root.SetOut(&out)
-	root.SetErr(&out)
-	root.SetArgs([]string{path, "--auto-fit-script"})
-
-	if err := root.Execute(); err != nil {
-		t.Fatalf("Execute: %v", err)
-	}
-
-	got := out.String()
-	if n := strings.Count(got, "<script"); n != 1 {
-		t.Errorf("<script> count = %d, want exactly 1: %q", n, got)
-	}
-}
