@@ -52,8 +52,11 @@ var bundledThemes = []string{"default", "gaia", "uncover"}
 //   - heading slug (auto heading id)
 //   - shortcode + unicode emoji
 //   - fenced code block (chroma highlight -> .hljs-*)
-//   - inline $…$ + block $$…$$ math (native MathML) AND a heavy \begin{aligned}
-//     construct that ROUTES to the go-latex fallback path (math-fallback <img>)
+//   - inline $…$ + block $$…$$ math (native MathML) AND a \tag construct that
+//     ROUTES to the go-latex fallback path (math-fallback <img>) -- \tag hits
+//     the PERMANENT Chromium MathML-Core structural ceiling (no <mlabeledtr>);
+//     \begin{aligned} is no longer a fallback example as of 08-04/08-03 (it now
+//     renders native MathML, so it can't fingerprint the fallback path)
 //   - global `size` + `math` directives
 //   - a `# <!--fit-->` auto-fit heading marker
 //   - speaker notes on both slides
@@ -74,7 +77,7 @@ const capstoneDeck = "---\n" +
 	"```go\nfunc main() { _ = 1 }\n```\n\n" +
 	"Inline $a^2 + b^2$ and block:\n\n" +
 	"$$\\frac{1}{2}$$\n\n" +
-	"Heavy (fallback-routed): $$\\begin{aligned} x &= 1 \\end{aligned}$$\n\n" +
+	"Heavy (fallback-routed): $$x = 1 \\tag{1}$$\n\n" +
 	"---\n\n" +
 	"# <!--fit--> Big finish\n\n" +
 	"<!-- closing note -->\n\n" +
