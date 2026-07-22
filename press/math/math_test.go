@@ -284,6 +284,34 @@ func TestSqrtRootChildOrder(t *testing.T) {
 	}
 }
 
+// TestMathRegressionBaseline is Objective-8 spike case 4: a guard proving the
+// two 08-02 converter patches did NOT disturb the already-KaTeX-quality cases.
+// The big-op stacking is strictly scoped to (big-operator OR \lim-family) AND a
+// script command AND display style — so ordinary scripts, single-arg radicals,
+// inline sums, and limitless operators are all untouched.
+func TestMathRegressionBaseline(t *testing.T) {
+	// Ordinary superscript is unchanged.
+	if got := renderMathML(`x^2`, false); !strings.Contains(got, "<msup>") {
+		t.Errorf(`x^2: expected <msup>: %q`, got)
+	}
+	// Fractions are unchanged.
+	if got := renderMathML(`\frac{a}{b}`, true); !strings.Contains(got, "<mfrac>") {
+		t.Errorf(`\frac{a}{b}: expected <mfrac>: %q`, got)
+	}
+	// Single-arg root is UNTOUCHED by the \sqrt[n] fix: <msqrt>, never <mroot>.
+	if got := renderMathML(`\sqrt{x}`, true); !strings.Contains(got, "<msqrt>") || strings.Contains(got, "<mroot>") {
+		t.Errorf(`\sqrt{x}: expected <msqrt> and NOT <mroot>: %q`, got)
+	}
+	// A limitless display \sum must NOT gain a spurious stacked wrapper.
+	if got := renderMathML(`\sum`, true); strings.Contains(got, "<munderover>") || strings.Contains(got, "<munder>") {
+		t.Errorf(`\sum (no limits): must NOT emit a spurious munderover/munder: %q`, got)
+	}
+	// Inline \sum with limits stays side-by-side <msubsup> (stacking is display-only).
+	if got := renderMathML(`\sum_{i=1}^{n}`, false); !strings.Contains(got, "<msubsup>") || strings.Contains(got, "<munderover>") {
+		t.Errorf(`inline \sum_{i=1}^{n}: expected side-by-side <msubsup>, NOT stacked: %q`, got)
+	}
+}
+
 // TestFallback exercises the PNG-only fallback render path (go-latex/latex).
 // A construct go-latex CAN raster (\frac) proves the real base64 PNG data-URI
 // path; a construct it CANNOT (\begin{aligned}, which panics inside mtex)
