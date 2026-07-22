@@ -198,7 +198,14 @@ something real.
   2. A concrete, testable fallback-trigger detector correctly auto-routes `\tag`/`\label`/complex-multi-column-`aligned` constructs to the `go-latex/latex` SVG/PNG path, covered by a corpus test (not manual inspection) — reflecting the permanent Chromium MathML-Core structural ceiling (no `<mlabeledtr>`, limited `<mtable>` attributes), not a bug awaiting a fix.
   3. STIX Two Math is bundled from the STIX-fonts-project's own OTF/WOFF2 release files (never a Google Fonts CDN copy, which has been reported to strip MATH-table data), and a CI smoke test renders+pixel-checks a known formula to confirm MATH-table presence — catching tofu regressions before production.
   4. The auto-fit mechanism is resolved per the decision gate below and implemented with no remaining silent viewer-side JavaScript dependency.
-**Plans**: TBD
+**Plans**: 7 TRDs in 4 waves
+  - [ ] 08-01-TRD.md - Fork + vendor latex2mathml into internal/latex2mathml (go.mod replace directive, license/NOTICE) [wave 1]
+  - [ ] 08-02-TRD.md - Converter patches A: big-operator limit stacking + sqrt[n] radicand loss, structural regression tests (criterion 1) [wave 2]
+  - [ ] 08-03-TRD.md - Converter patches B: binom/pmatrix fence + aligned-to-mtable + mathvariant-to-codepoint + all-8 corpus lock (criterion 1) [wave 3]
+  - [ ] 08-04-TRD.md - Finalize the fallback-trigger detector to the structural ceiling + routing corpus test (criterion 2) [wave 4]
+  - [ ] 08-05-TRD.md - STIX Two Math WOFF2 companion + Chrome-gated MATH-table pixel-check smoke (criterion 3) [wave 2]
+  - [ ] 08-06-TRD.md - Remove viewer-side JS auto-fit from the HTML/CLI path (flag + BrowserFitJS + browser-fit.js) (criterion 4, web half) [wave 3]
+  - [ ] 08-07-TRD.md - Native Flutter TextPainter auto-fit (shrink-only) for headings (criterion 4, Flutter half) [wave 1]
 
 > **Decision gates:** (1) the concrete MathML fallback-trigger rule — which exact TeX constructs (confirmed candidates: `\tag`, `\label`, complex multi-column `aligned`) auto-route to the SVG/PNG fallback, as a testable detection function, not a vague heuristic; (2) the final auto-fit mechanism — native Flutter `TextPainter` fit (client-side, Objective 7's binding) vs. a CSS-only `cqw`/SVG-text spike for browser/PDF output (Objective 5's export path) vs. dropping auto-fit entirely if neither pixel-matches acceptably.
 
@@ -219,7 +226,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 5. convert/pdf + convert/png (chromedp) | 5/5 | Complete    | 2026-07-21 |
 | 6. convert/pptx (native OOXML) | 5/5 | Complete    | 2026-07-21 |
 | 7. Dart/Flutter Binding | 5/5 | Complete    | 2026-07-21 |
-| 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/TBD | Not started | - |
+| 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/7 | Not started | - |
 
 ---
 *Roadmap created: 2026-07-20*
