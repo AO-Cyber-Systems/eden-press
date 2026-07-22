@@ -50,3 +50,12 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )
+
+// Objective 8 (math-fidelity hardening): latex2mathml is vendored in-repo as a
+// fork at ./internal/latex2mathml so the five converter root-causes (\sqrt[n]
+// radicand loss, big-operator limit stacking, binom/pmatrix fence, aligned→mtable,
+// mathvariant→codepoint) can be patched (08-02/08-03). The vendored module keeps
+// its own module path (git.sr.ht/~mekyt/latex2mathml), so press/math import sites
+// are unchanged — this replace directive is the sole fork seam. Its MIT license
+// (Copyright (c) 2023 mekyt) is preserved verbatim; see NOTICE.
+replace git.sr.ht/~mekyt/latex2mathml => ./internal/latex2mathml

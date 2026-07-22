@@ -64,11 +64,35 @@ License: MIT
   - CSS tokenizing / grammar-stream parsing for the theme-CSS engine and the
     CSS-AST diff comparator.
 
-latex2mathml (https://github.com/roniemartinez/latex2mathml)
-License: [verify exact license in the math objective — out of scope for Objective 0]
+latex2mathml (https://git.sr.ht/~mekyt/latex2mathml)
+Copyright (c) 2023 mekyt
+License: MIT
+  - The LaTeX->MathML converter the native math path (press/math) depends on.
+    NOTE: the upstream SOURCE Eden Press depends on is the sourcehut Go module
+    git.sr.ht/~mekyt/latex2mathml (a Go port), NOT the roniemartinez Python
+    project the pre-math-objective placeholder URL cited — URL corrected here.
+  - Provenance: FORKED in-repo (Objective 8, 08-01). The pinned upstream module
+    (git.sr.ht/~mekyt/latex2mathml @ v0.0.0-20231214134936-808832af73fc) is
+    vendored VERBATIM into internal/latex2mathml/ — its own module path and MIT
+    LICENSE (Copyright (c) 2023 mekyt) preserved unmodified — and redirected via
+    a single `replace git.sr.ht/~mekyt/latex2mathml => ./internal/latex2mathml`
+    directive in the root go.mod, so press/math import sites are unchanged.
+    Objective 8 PATCHES this in-repo copy (08-02/08-03) to fix five converter
+    root-causes (\sqrt[n] radicand loss, big-operator limit stacking,
+    binom/pmatrix fence, aligned->mtable, mathvariant->codepoint). MIT permits
+    modification and redistribution; the vendored files carry mekyt's own header/
+    LICENSE (NOT AO-Cyber-stamped) and are excluded from the addlicense header
+    check via -ignore 'internal/latex2mathml/**' in .github/workflows/ci.yml,
+    matching the themes/** + convert/chrome/fonts/** verbatim-asset precedent.
 
 go-latex/latex (https://codeberg.org/go-latex/latex)
-License: [verify exact license in the math objective — out of scope for Objective 0]
+Copyright ©2020 The go-latex Authors
+License: BSD-3-Clause
+  - A LaTeX-parsing dependency in the math stack (codeberg.org/go-latex/latex
+    v0.3.0). An ordinary go.mod dependency (NOT vendored/forked), so no
+    addlicense -ignore entry is needed for it; its license is recorded here per
+    the LIC checklist. BSD-3-Clause verified against its own LICENSE file
+    (retain-copyright / reproduce-in-binary / no-endorsement conditions).
 
 ================================================================================
 Bundled fonts (export-environment MATH rendering — EXP-04)
