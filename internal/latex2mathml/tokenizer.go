@@ -42,12 +42,15 @@ func Tokenize(latex string) []string {
 		for index, matchs := range RE.FindAllStringSubmatch(latex_line, -1) {
 			for _, match := range matchs[1:] {
 				if len(match) > 0 && !strings.HasPrefix(match, "%") {
-					if index == 0 && strings.HasPrefix(match, MATH) {
-						symbol, exists := Symbols[match]
-						if exists {
-							tokens = append(tokens, "&#x"+symbol+";")
-							continue
-						}
+					// A \math…-prefixed token that IS a precomposed symbol (e.g.
+					// \mathdollar) is emitted directly as its codepoint. When it is
+					// NOT a precomposed symbol it is a FONT command (\mathbb, \mathbf,
+					// \mathcal, …): previously such a token, when first in the line,
+					// was silently DROPPED here — losing the font entirely. Now it
+					// falls through to normal handling so the converter's LOCAL_FONTS
+					// path (setFont → Unicode Mathematical-Alphanumeric codepoint) runs.
+					if symbol, exists := Symbols[match]; index == 0 && strings.HasPrefix(match, MATH) && exists {
+						tokens = append(tokens, "&#x"+symbol+";")
 					} else {
 						var add_token = false
 

@@ -124,6 +124,12 @@ const (
 	SUBSTACK     = `\substack`
 	SPLIT        = `\split`
 	ALIGN        = `\align*`
+	// ALIGNED is the token getEnvinmentNode produces for \begin{aligned} (generic
+	// `\` + environment). It is registered as a MATRICES environment handled
+	// IDENTICALLY to ALIGN (\align*) — same mtable style, "right left" column
+	// split — so aligned renders natively instead of falling through to the
+	// literal <mi>&</mi> + <mspace linebreak> generic path.
+	ALIGNED = `\aligned`
 
 	BACKSLASH       = `\`
 	CARRIAGE_RETURN = `\cr`
@@ -243,6 +249,7 @@ var (
 		SMALLMATRIX,
 		SPLIT,
 		ALIGN,
+		ALIGNED,
 	}
 
 	LOCAL_FONTS = map[string]map[string]string{
@@ -405,6 +412,7 @@ var (
 		SMALLMATRIX:         {Tag: "mtable", Modifiers: map[string]string{"rowspacing": "0.1em", "columnspacing": "0.2778em"}},
 		SPLIT:               {Tag: "mtable", Modifiers: map[string]string{"displaystyle": "true", "columnspacing": "0em", "rowspacing": "3pt"}},
 		ALIGN:               {Tag: "mtable", Modifiers: map[string]string{"displaystyle": "true", "rowspacing": "3pt"}},
+		ALIGNED:             {Tag: "mtable", Modifiers: map[string]string{"displaystyle": "true", "rowspacing": "3pt"}},
 		SUBSCRIPT:           {Tag: "msub", Modifiers: map[string]string{}},
 		SUPERSCRIPT:         {Tag: "msup", Modifiers: map[string]string{}},
 		SUBSUP:              {Tag: "msubsup", Modifiers: map[string]string{}},

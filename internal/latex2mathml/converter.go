@@ -136,7 +136,7 @@ func convertMatrix(nodes []Node, parent *etree.Element, command string, alignmen
 			indexes = []bool{}
 			colAlignment, colIndex = getColumnAlignment(&alignment, colAlignment, colIndex)
 			cell = makeMatrixCell(row, colAlignment)
-			if (command == SPLIT || command == ALIGN) && colIndex%2 == 0 {
+			if (command == SPLIT || command == ALIGN || command == ALIGNED) && colIndex%2 == 0 {
 				cell.CreateElement("mi")
 			}
 		} else if node.Token == DOUBLEBACKSLASH || node.Token == CARRIAGE_RETURN {
@@ -178,7 +178,7 @@ func convertMatrix(nodes []Node, parent *etree.Element, command string, alignmen
 		parent.RemoveChildAt(len(children) - 1)
 	}
 
-	if maxColSize > 0 && command == ALIGN {
+	if maxColSize > 0 && (command == ALIGN || command == ALIGNED) {
 		multiplier := maxColSize / 2
 		spacing := "0em 2em"
 		for i := 0; i < multiplier-1; i++ {
@@ -471,7 +471,7 @@ func convertCommand(node Node, parent *etree.Element, font map[string]string) {
 
 			if command == CASES {
 				align = "l"
-			} else if command == SPLIT || command == ALIGN {
+			} else if command == SPLIT || command == ALIGN || command == ALIGNED {
 				align = "rl"
 			}
 			convertMatrix(node.Children, localParent, command, align)
@@ -569,7 +569,13 @@ func appendPrefixElement(node Node, parent *etree.Element) {
 		size = "1.2em"
 	}
 
-	if node.Token == `\pmatrix` || node.Token == PMOD {
+	if node.Token == `\pmatrix` {
+		// pmatrix opens with a CONTENT-SIZED stretchy '(' — matching \binom.
+		// The missing minsize/maxsize was the fence asymmetry (research Open Q2):
+		// binom's branch passed sizing, pmatrix's passed an empty map. PMOD keeps
+		// its own unsized paren (out of scope for the matrix/binom fence fix).
+		convertAndAppendCommand(`\lparen`, parent, map[string]string{"minsize": size, "maxsize": size})
+	} else if node.Token == PMOD {
 		convertAndAppendCommand(`\lparen`, parent, map[string]string{})
 	} else if node.Token == BINOM || node.Token == DBINOM || node.Token == TBINOM {
 		convertAndAppendCommand(`\lparen`, parent, map[string]string{"minsize": size, "maxsize": size})
@@ -593,10 +599,16 @@ func appendPostfixElement(node Node, parent *etree.Element) {
 		size = "1.2em"
 	}
 
-	if node.Token == `\pmatrix` || node.Token == PMOD {
+	if node.Token == `\pmatrix` {
+		// CLOSE with the MATCHING ')' — the unpatched postfix reused '\lparen',
+		// emitting the opening '(' as the closing fence too (<mo>(…<mo>( ).
+		// Content-sized to match the opening paren.
+		convertAndAppendCommand(`\rparen`, parent, map[string]string{"minsize": size, "maxsize": size})
+	} else if node.Token == PMOD {
 		convertAndAppendCommand(`\lparen`, parent, map[string]string{})
 	} else if node.Token == BINOM || node.Token == DBINOM || node.Token == TBINOM {
-		convertAndAppendCommand(`\lparen`, parent, map[string]string{"minsize": size, "maxsize": size})
+		// CLOSE with ')' (was '\lparen' — the same reused-open-paren bug).
+		convertAndAppendCommand(`\rparen`, parent, map[string]string{"minsize": size, "maxsize": size})
 	} else if node.Token == `\bmatrix` {
 		convertAndAppendCommand(`\rbrack`, parent, map[string]string{})
 	} else if node.Token == `\Bmatrix` {
@@ -772,7 +784,80 @@ func convertSymbol(node Node, parent *etree.Element, font map[string]string) {
 	}
 }
 
+// variantBase maps a Mathematical Alphanumeric font variant to the Unicode base
+// codepoints of its uppercase-'A' and lowercase-'a' glyphs. MathML Core IGNORES
+// the legacy `mathvariant` attribute for any non-"normal" value, so a styled
+// letter must be emitted as its actual Mathematical-Alphanumeric CODEPOINT
+// instead. Only the three variants the Objective-8 spike corpus exercises are
+// mapped here — extend with fraktur/sans-serif/monospace (each has its own base
+// offsets and, for some, named holes) when those are promoted to spike cases.
+var variantBase = map[string][2]rune{
+	"double-struck": {0x1D538, 0x1D552},
+	"bold":          {0x1D400, 0x1D41A},
+	"script":        {0x1D49C, 0x1D4B6},
+}
+
+// variantHoles are letters that live OUTSIDE the contiguous Mathematical
+// Alphanumeric block (they sit in Letterlike Symbols, e.g. ℝ U+211D, ℒ U+2112)
+// and must be looked up individually rather than by base offset.
+var variantHoles = map[string]map[rune]rune{
+	"double-struck": {
+		'C': 0x2102, 'H': 0x210D, 'N': 0x2115, 'P': 0x2119,
+		'Q': 0x211A, 'R': 0x211D, 'Z': 0x2124,
+	},
+	"script": {
+		'B': 0x212C, 'E': 0x2130, 'F': 0x2131, 'H': 0x210B,
+		'I': 0x2110, 'L': 0x2112, 'M': 0x2133,
+		'e': 0x212F, 'g': 0x210A, 'o': 0x2134,
+	},
+}
+
+// variantCodepoint returns the numeric-char-ref (&#xHHHH;) form of a single ASCII
+// letter under a Mathematical Alphanumeric font variant, and whether it applied.
+// Named holes are honoured; non-letters, multi-rune text, and unmapped variants
+// return ("", false) so the caller keeps its default (attribute) behaviour.
+func variantCodepoint(variant, text string) (string, bool) {
+	base, ok := variantBase[variant]
+	if !ok {
+		return "", false
+	}
+	r := []rune(text)
+	if len(r) != 1 {
+		return "", false
+	}
+	c := r[0]
+	if holes, ok := variantHoles[variant]; ok {
+		if cp, ok := holes[c]; ok {
+			return codepointRef(cp), true
+		}
+	}
+	switch {
+	case c >= 'A' && c <= 'Z':
+		return codepointRef(base[0] + (c - 'A')), true
+	case c >= 'a' && c <= 'z':
+		return codepointRef(base[1] + (c - 'a')), true
+	}
+	return "", false
+}
+
+// codepointRef formats a rune as an uppercase hex numeric character reference,
+// matching the &#xHHHH; convention the converter uses everywhere.
+func codepointRef(cp rune) string {
+	return "&#x" + strings.ToUpper(strconv.FormatInt(int64(cp), 16)) + ";"
+}
+
 func setFont(element *etree.Element, key string, font map[string]string) {
+	// mathvariant→Unicode codepoint: MathML Core ignores non-"normal" mathvariant,
+	// so a styled single letter (\mathbb{R}→ℝ, \mathbf{v}→𝐯, \mathcal{L}→ℒ) is
+	// emitted as its Mathematical-Alphanumeric codepoint instead of an attribute
+	// the browser drops. Only identifier letters are remapped; the attribute path
+	// is preserved for every other variant/element (sans-serif, monospace, …).
+	if element.Tag == "mi" {
+		if cp, ok := variantCodepoint(font["default"], element.Text()); ok {
+			element.SetText(cp)
+			return
+		}
+	}
 	if value, exist := font[key]; exist {
 		element.CreateAttr("mathvariant", value)
 	}

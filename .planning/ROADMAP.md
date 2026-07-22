@@ -201,7 +201,7 @@ something real.
 **Plans**: 7 TRDs in 4 waves
   - [x] 08-01-TRD.md - Fork + vendor latex2mathml into internal/latex2mathml (go.mod replace directive, license/NOTICE) [wave 1] — commits 66fc2cf/1d6a38f (verbatim copy, behavior-identical; 5 converter patches deferred to 08-02/08-03)
   - [x] 08-02-TRD.md - Converter patches A: big-operator limit stacking (munderover tag-switch, Open Q1) + sqrt[n] radicand loss, structural MathML-DOM regression tests (criterion 1) [wave 2] — commits 113ce04/c77264e/063acb7; 4/8 spike cases (\sum/\prod/\lim/\sqrt[3]) at KaTeX-parity
-  - [ ] 08-03-TRD.md - Converter patches B: binom/pmatrix fence + aligned-to-mtable + mathvariant-to-codepoint + all-8 corpus lock (criterion 1) [wave 3]
+  - [x] 08-03-TRD.md - Converter patches B: binom/pmatrix matched sized fence + aligned-to-mtable (in-fork MATRICES registration) + mathvariant-to-Unicode-codepoint (tokenizer font-drop fix + setFont) + TestSpikeCorpus all-8 lock (criterion 1 closed) [wave 3] — commits 7d6055c/feaf2b3/d786e78; all 8 spike cases at KaTeX-parity
   - [ ] 08-04-TRD.md - Finalize the fallback-trigger detector to the structural ceiling + routing corpus test (criterion 2) [wave 4]
   - [x] 08-05-TRD.md - STIX Two Math WOFF2 companion + Chrome-gated MATH-table pixel-check smoke (criterion 3) [wave 2] — commits 41f224f/69e8941 (official stipub v2.13 WOFF2, MATH-table survival verified two ways, Chrome-gated pixel-check smoke)
   - [ ] 08-06-TRD.md - Remove viewer-side JS auto-fit from the HTML/CLI path (flag + BrowserFitJS + browser-fit.js) (criterion 4, web half) [wave 3]
