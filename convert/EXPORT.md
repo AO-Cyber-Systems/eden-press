@@ -12,6 +12,18 @@ bundled STIX font matters, how the pinned Chrome version is managed, and what
 `scripts/check-no-chromedp.sh` mechanically enforces that boundary in CI.
 Everything below is scoped to `convert/` and its subpackages only.
 
+**`cmd/eden-press-export`** is the turnkey CLI consumer of this surface —
+the operator-facing `eden-press-export <deck.md> -o out.pdf --format pdf`
+command that drives exactly the discovery chain, STIX font bundling, and
+version-pin process documented below, without requiring a caller to write
+any Go. It is a SEPARATE, opt-in binary from the core `eden-press` CLI
+(which stays chromedp-free); see AGENTS.md's "Export (separate binary)"
+section for its flags, output convention, and exit codes.
+`cmd/eden-press-export` itself contains no rasterization logic of its own —
+it is a thin cobra wrapper around `convert/pdf.ToPDF` and
+`convert/png.ToImages` — so `convert/` remains the SOLE chromedp boundary
+this document describes.
+
 ## Chrome discovery chain
 
 `convert/chrome.Discover` (`convert/chrome/discover.go`) resolves a
