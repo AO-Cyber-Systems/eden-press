@@ -203,7 +203,7 @@ something real.
   - [ ] 08-02-TRD.md - Converter patches A: big-operator limit stacking + sqrt[n] radicand loss, structural regression tests (criterion 1) [wave 2]
   - [ ] 08-03-TRD.md - Converter patches B: binom/pmatrix fence + aligned-to-mtable + mathvariant-to-codepoint + all-8 corpus lock (criterion 1) [wave 3]
   - [ ] 08-04-TRD.md - Finalize the fallback-trigger detector to the structural ceiling + routing corpus test (criterion 2) [wave 4]
-  - [ ] 08-05-TRD.md - STIX Two Math WOFF2 companion + Chrome-gated MATH-table pixel-check smoke (criterion 3) [wave 2]
+  - [x] 08-05-TRD.md - STIX Two Math WOFF2 companion + Chrome-gated MATH-table pixel-check smoke (criterion 3) [wave 2] — commits 41f224f/69e8941 (official stipub v2.13 WOFF2, MATH-table survival verified two ways, Chrome-gated pixel-check smoke)
   - [ ] 08-06-TRD.md - Remove viewer-side JS auto-fit from the HTML/CLI path (flag + BrowserFitJS + browser-fit.js) (criterion 4, web half) [wave 3]
   - [x] 08-07-TRD.md - Native Flutter TextPainter auto-fit (shrink-only) for headings (criterion 4, Flutter half) [wave 1]
 
@@ -226,7 +226,7 @@ Objectives execute in numeric order for dependency-respecting sequential runs: 0
 | 5. convert/pdf + convert/png (chromedp) | 5/5 | Complete    | 2026-07-21 |
 | 6. convert/pptx (native OOXML) | 5/5 | Complete    | 2026-07-21 |
 | 7. Dart/Flutter Binding | 5/5 | Complete    | 2026-07-21 |
-| 8. Math-Fidelity Hardening + Auto-Fit Resolution | 0/7 | Not started | - |
+| 8. Math-Fidelity Hardening + Auto-Fit Resolution | 2/7 | In progress | - |
 
 ---
 *Roadmap created: 2026-07-20*

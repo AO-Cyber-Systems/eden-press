@@ -35,3 +35,5 @@ Stopped at: Objective 4.1 complete on main. Objective 8 is the only remaining ro
 Resume file: None
 
 08-07-TRD.md (Flutter-native shrink-only auto-fit, bind/dart — criterion 4 Flutter half) complete on this worktree branch: `computeFitFontSize` + `FitText` widget wired into `EdenPressView`'s heading case, zero JS, TDD unit + widget tests green; see 08-07-SUMMARY.md. Awaits merge/reconciliation with sibling Objective-8 wave TRDs.
+
+08-05-TRD.md (STIX Two Math WOFF2 companion + Chrome-gated MATH-table pixel-check smoke — criterion 3) complete on this worktree branch: official stipub v2.13 WOFF2 embedded + `FontFaceDataURIWoff2()` additive accessor, MATH-table survival verified two ways, `TestStixMathTableSmoke` Chrome-gated CI smoke (SKIPs cleanly without Chrome, PASSES for real with it), NOTICE extended; commits 41f224f/69e8941; see 08-05-SUMMARY.md.
