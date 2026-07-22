@@ -57,8 +57,9 @@ not as a filename. If your input file happens to be named e.g. "watch.md"
 
     eden-press convert -- watch.md
     eden-press -- watch`,
-		Args:         cobra.MaximumNArgs(1),
-		SilenceUsage: true,
+		Args:          cobra.MaximumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			return applyConfig(cmd)
 		},
@@ -69,6 +70,16 @@ not as a filename. If your input file happens to be named e.g. "watch.md"
 
 	registerPersistentFlags(root)
 	root.AddCommand(newConvertCmd(), newWatchCmd(), newServeCmd(), newPreviewCmd())
+
+	// SilenceErrors (above) stops cobra from printing an error itself, so
+	// main.go's exit-code sink (main.go) is the ONLY place any error is ever
+	// printed. FlagErrorFunc classifies a cobra/pflag flag-parse failure
+	// (e.g. an unknown flag) as a *cliError{code: exitUsage} -- the SAME
+	// documented exit-2 usage-error contract emitFormat's unknown-format
+	// case uses -- so main's errors.As sink handles both uniformly.
+	root.SetFlagErrorFunc(func(_ *cobra.Command, e error) error {
+		return &cliError{code: exitUsage, err: e}
+	})
 
 	return root
 }
