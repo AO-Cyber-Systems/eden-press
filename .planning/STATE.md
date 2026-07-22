@@ -9,7 +9,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Objective: 0–7 of 9 COMPLETE (23 TRDs across Obj 4/5/6/7 built in parallel workstreams + Obj 4.1 insertion). Objective 8 not started (gated on Obj 3 + 7, both done → unblocked).
+Objective: 0–7 of 9 COMPLETE (23 TRDs across Obj 4/5/6/7 built in parallel workstreams + Obj 4.1 insertion). Objective 8 IN PROGRESS — 08-01 (fork+vendor latex2mathml → internal/latex2mathml via go.mod replace, license/NOTICE resolved) COMPLETE, 1/7 TRDs; commits 66fc2cf/1d6a38f (behavior-identical verbatim copy; 5 converter patches deferred to 08-02/08-03).
 Job: Objective 4.1 (CLI Agent Interface) — 2/2 TRDs complete: `--format json` structured Output envelope + machine-readable errors/exit-codes (04.1-01); Chrome-free `--format pptx` via convert/pptx.ToPPTX + no-chromedp gate extended to ./cmd/... + AGENTS.md (04.1-02).
 Status: eden-press CLI is a complete agent interface — `--format html|json|pptx`, JSON envelope of the full press.Output (model blocks/outline/comments), stable exit codes, AGENTS.md; CLI stays chromedp-free (CI-enforced across press/chase/profiles/bind/cmd). PNG/PDF intentionally out (separate export path). preview untouched (default OS browser).
 
