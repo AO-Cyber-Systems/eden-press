@@ -23,16 +23,35 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
 
-// main builds the root command and executes it, exiting 1 on error. cobra's
-// Execute() already prints the error (and, unless SilenceUsage is set on the
-// command, its usage text); main's only job is to translate a non-nil error
-// into a non-zero process exit code for scripting/CI callers.
+// main builds the root command and executes it, translating a non-nil error
+// into a non-zero, DOCUMENTED process exit code (04.1-01's stable
+// exit-code contract: 0 ok, 1 render/runtime error, 2 usage/flag error).
+//
+// main is the SOLE exit-code sink and the SOLE plain-text error printer:
+// root.go sets SilenceErrors:true, so cobra itself never prints an error,
+// and cliFail (format.go) never prints in plain text -- it only pre-prints
+// the JSON error envelope (and marks printed=true) when --format json is
+// active. Every failure is therefore printed exactly once, on exactly one
+// path.
 func main() {
 	if err := newRootCmd().Execute(); err != nil {
+		var ce *cliError
+		if errors.As(err, &ce) {
+			if !ce.printed {
+				fmt.Fprintln(os.Stderr, ce.Error())
+			}
+			os.Exit(ce.code)
+		}
+
+		// A non-cliError failure (should not normally occur once every
+		// runConvert/emitFormat return path is wrapped via cliFail, but
+		// kept as a safety net) falls back to the historical exit(1) plain
+		// print.
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

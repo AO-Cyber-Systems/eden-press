@@ -73,22 +73,20 @@ func runConvert(cmd *cobra.Command, args []string) error {
 
 	md, _, err := resolveInputFrom(arg, cmd.InOrStdin())
 	if err != nil {
-		return err
+		return cliFail(cmd, exitRender, err)
 	}
 
 	opts, err := buildOptions(cmd)
 	if err != nil {
-		return err
+		return cliFail(cmd, exitRender, err)
 	}
 
 	out, err := press.Render(md, opts)
 	if err != nil {
-		return err
+		return cliFail(cmd, exitRender, err)
 	}
 
-	doc := assembleHTML(out, htmlDocOptions{AutoFitScript: cfg.Bool("auto-fit-script")})
-
-	return writeOutput(cmd, doc)
+	return emitFormat(cmd, out)
 }
 
 // writeOutput writes the assembled document to the --output/-o path if
