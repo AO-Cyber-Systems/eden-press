@@ -346,9 +346,13 @@ func TestEmitFormatDispatch(t *testing.T) {
 		t.Errorf("envelope[html] = %v, want %q", envelope["html"], sampleOut.HTML)
 	}
 
-	// pptx: registered (flag surface complete, once Task 2 wires --format)
-	// but not yet wired -- 04.1-02 fills this case. Today it is a usage
-	// error, never a panic/nil-deref.
+	// pptx: 04.1-02 wires this case through writePPTX/convert/pptx.ToPPTX.
+	// sampleOut is a hand-built press.Output with no Model (nil), which
+	// ToPPTX rejects as "doc is nil" -- proving the seam classifies that
+	// failure through the SAME cliFail(exitRender) sink every other format
+	// error uses, never a panic/nil-deref. (The happy-path pptx wiring
+	// against a REAL, press.Render-produced Model is covered end-to-end by
+	// agent_interface_test.go's TestFormatPPTXValidZip/TestFormatPPTXStdout.)
 	resetCfg()
 	if err := cfg.Set("format", "pptx"); err != nil {
 		t.Fatalf("cfg.Set: %v", err)
@@ -358,8 +362,8 @@ func TestEmitFormatDispatch(t *testing.T) {
 	if !errors.As(err, &ce) {
 		t.Fatalf("emitFormat(pptx) error is not a *cliError: %v (%T)", err, err)
 	}
-	if ce.code != exitUsage {
-		t.Errorf("emitFormat(pptx) code = %d, want %d (not-yet-wired usage error)", ce.code, exitUsage)
+	if ce.code != exitRender {
+		t.Errorf("emitFormat(pptx) code = %d, want %d (exitRender: nil Model -> ToPPTX \"doc is nil\")", ce.code, exitRender)
 	}
 
 	// unknown value: usage error.
