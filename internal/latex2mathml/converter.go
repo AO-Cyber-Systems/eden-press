@@ -569,7 +569,13 @@ func appendPrefixElement(node Node, parent *etree.Element) {
 		size = "1.2em"
 	}
 
-	if node.Token == `\pmatrix` || node.Token == PMOD {
+	if node.Token == `\pmatrix` {
+		// pmatrix opens with a CONTENT-SIZED stretchy '(' — matching \binom.
+		// The missing minsize/maxsize was the fence asymmetry (research Open Q2):
+		// binom's branch passed sizing, pmatrix's passed an empty map. PMOD keeps
+		// its own unsized paren (out of scope for the matrix/binom fence fix).
+		convertAndAppendCommand(`\lparen`, parent, map[string]string{"minsize": size, "maxsize": size})
+	} else if node.Token == PMOD {
 		convertAndAppendCommand(`\lparen`, parent, map[string]string{})
 	} else if node.Token == BINOM || node.Token == DBINOM || node.Token == TBINOM {
 		convertAndAppendCommand(`\lparen`, parent, map[string]string{"minsize": size, "maxsize": size})
@@ -593,10 +599,16 @@ func appendPostfixElement(node Node, parent *etree.Element) {
 		size = "1.2em"
 	}
 
-	if node.Token == `\pmatrix` || node.Token == PMOD {
+	if node.Token == `\pmatrix` {
+		// CLOSE with the MATCHING ')' — the unpatched postfix reused '\lparen',
+		// emitting the opening '(' as the closing fence too (<mo>(…<mo>( ).
+		// Content-sized to match the opening paren.
+		convertAndAppendCommand(`\rparen`, parent, map[string]string{"minsize": size, "maxsize": size})
+	} else if node.Token == PMOD {
 		convertAndAppendCommand(`\lparen`, parent, map[string]string{})
 	} else if node.Token == BINOM || node.Token == DBINOM || node.Token == TBINOM {
-		convertAndAppendCommand(`\lparen`, parent, map[string]string{"minsize": size, "maxsize": size})
+		// CLOSE with ')' (was '\lparen' — the same reused-open-paren bug).
+		convertAndAppendCommand(`\rparen`, parent, map[string]string{"minsize": size, "maxsize": size})
 	} else if node.Token == `\bmatrix` {
 		convertAndAppendCommand(`\rbrack`, parent, map[string]string{})
 	} else if node.Token == `\Bmatrix` {

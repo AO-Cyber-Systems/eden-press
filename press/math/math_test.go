@@ -37,11 +37,24 @@ import (
 // assertions: parse the emitted <math> string and inspect element shape/child
 // order rather than substring-matching. `,any` captures every child element;
 // `,chardata` captures the immediate text (numeric char refs like &#x0005B; are
-// decoded to their runes by encoding/xml).
+// decoded to their runes by encoding/xml); `,any,attr` captures every attribute
+// so fence-sizing (minsize/maxsize) and cell alignment (columnalign) can be
+// asserted structurally rather than by substring.
 type xmlElem struct {
 	XMLName  xml.Name
-	Children []xmlElem `xml:",any"`
-	Chardata string    `xml:",chardata"`
+	Attrs    []xml.Attr `xml:",any,attr"`
+	Children []xmlElem  `xml:",any"`
+	Chardata string     `xml:",chardata"`
+}
+
+// attr returns the value of the named attribute and whether it was present.
+func (e xmlElem) attr(name string) (string, bool) {
+	for _, a := range e.Attrs {
+		if a.Name.Local == name {
+			return a.Value, true
+		}
+	}
+	return "", false
 }
 
 // findElem returns the first descendant (depth-first, self included) whose local
@@ -56,6 +69,45 @@ func findElem(e xmlElem, local string) (xmlElem, bool) {
 		}
 	}
 	return xmlElem{}, false
+}
+
+// findAll returns every descendant (depth-first, self included) whose local
+// element name matches local, in document order.
+func findAll(e xmlElem, local string) []xmlElem {
+	var out []xmlElem
+	if e.XMLName.Local == local {
+		out = append(out, e)
+	}
+	for _, c := range e.Children {
+		out = append(out, findAll(c, local)...)
+	}
+	return out
+}
+
+// parseMathML unmarshals an emitted <math> string into the xmlElem tree, failing
+// the test on malformed XML.
+func parseMathML(t *testing.T, got string) xmlElem {
+	t.Helper()
+	var root xmlElem
+	if err := xml.Unmarshal([]byte(got), &root); err != nil {
+		t.Fatalf("parse emitted MathML: %v\n%q", err, got)
+	}
+	return root
+}
+
+// fenceParens returns, in document order, every <mo> whose decoded text is a
+// round paren "(" or ")". The converter emits fences as <mo> with a numeric
+// char ref (&#x00028;/&#x00029;) that encoding/xml decodes back to the rune, so
+// a matched stretchy fence pair is exactly ["(", ")"].
+func fenceParens(root xmlElem) []xmlElem {
+	var out []xmlElem
+	for _, mo := range findAll(root, "mo") {
+		switch strings.TrimSpace(mo.Chardata) {
+		case "(", ")":
+			out = append(out, mo)
+		}
+	}
+	return out
 }
 
 // flatText concatenates the element's own text with all descendant text.
@@ -235,6 +287,125 @@ func TestBigOperatorStacking(t *testing.T) {
 			t.Errorf("display \\lim_{x \\to 0}: must NOT emit side-by-side <msub>: %q", got)
 		}
 	})
+}
+
+// assertSizedFencePair asserts that mos is EXACTLY an opening "(" followed by a
+// CLOSING ")", each carrying BOTH minsize and maxsize (the content-height stretchy
+// sizing). This is the criterion-1 shape for \binom and pmatrix: the unpatched
+// converter emitted the opening "(" as the closing fence too (<mo>(…<mo>( — two
+// opening parens), and pmatrix's fence carried no sizing at all.
+func assertSizedFencePair(t *testing.T, label string, mos []xmlElem, got string) {
+	t.Helper()
+	if len(mos) != 2 {
+		t.Fatalf("%s: got %d paren <mo> fences, want EXACTLY 2 (one '(' + one ')'): %q", label, len(mos), got)
+	}
+	if strings.TrimSpace(mos[0].Chardata) != "(" {
+		t.Errorf("%s: opening fence = %q, want '(': %q", label, mos[0].Chardata, got)
+	}
+	if strings.TrimSpace(mos[1].Chardata) != ")" {
+		t.Errorf("%s: CLOSING fence = %q, want ')' (unpatched bug reused '(' as the close): %q", label, mos[1].Chardata, got)
+	}
+	for i, mo := range mos {
+		if _, ok := mo.attr("minsize"); !ok {
+			t.Errorf("%s: fence[%d] (%q) missing minsize (content-height sizing): %q", label, i, mo.Chardata, got)
+		}
+		if _, ok := mo.attr("maxsize"); !ok {
+			t.Errorf("%s: fence[%d] (%q) missing maxsize (content-height sizing): %q", label, i, mo.Chardata, got)
+		}
+	}
+}
+
+// TestBinomFence is Objective-8 spike case 5 (PROPOSAL §11): \binom must emit a
+// MATCHED, content-sized stretchy fence pair — an opening <mo>( and a distinct
+// CLOSING <mo>), both carrying minsize/maxsize. The unpatched converter reused
+// the opening '(' char for the closing fence (appendPostfixElement passed
+// `\lparen` instead of `\rparen`), yielding <mo>(…<mo>( . Asserted STRUCTURALLY.
+func TestBinomFence(t *testing.T) {
+	got := renderMathML(`\binom{n}{k}`, true)
+	root := parseMathML(t, got)
+	if _, ok := findElem(root, "mfrac"); !ok {
+		t.Fatalf(`\binom{n}{k}: expected the <mfrac> binomial body: %q`, got)
+	}
+	assertSizedFencePair(t, `\binom{n}{k}`, fenceParens(root), got)
+}
+
+// TestPmatrixFence is Objective-8 spike case 6 (PROPOSAL §11): pmatrix (both the
+// \begin{pmatrix}…\end{pmatrix} environment and the \pmatrix{…} shorthand) must
+// emit a matched, content-sized stretchy fence pair around its <mtable> — the
+// same fix as \binom (the unpatched pmatrix branch passed an EMPTY attribute map,
+// so its fence carried no sizing AND reused '(' as the close). The both-in-one
+// sub-case guards research Open Q2: a \binom and a \pmatrix in the SAME expression
+// each render their own correct fence, no cross-contamination.
+func TestPmatrixFence(t *testing.T) {
+	t.Run("environment", func(t *testing.T) {
+		got := renderMathML(`\begin{pmatrix}1&0\\0&1\end{pmatrix}`, true)
+		root := parseMathML(t, got)
+		if _, ok := findElem(root, "mtable"); !ok {
+			t.Fatalf(`pmatrix: expected an <mtable> body: %q`, got)
+		}
+		assertSizedFencePair(t, `\begin{pmatrix}`, fenceParens(root), got)
+	})
+
+	t.Run("shorthand", func(t *testing.T) {
+		got := renderMathML(`\pmatrix{1&0\\0&1}`, true)
+		root := parseMathML(t, got)
+		assertSizedFencePair(t, `\pmatrix{…}`, fenceParens(root), got)
+	})
+
+	t.Run("both_in_one_expression", func(t *testing.T) {
+		// research Open Q2: shared convertAndAppendCommand fence path must serve
+		// BOTH branches independently — 4 fences in order ( ) ( ) , each sized.
+		got := renderMathML(`\binom{n}{k}\begin{pmatrix}1&0\\0&1\end{pmatrix}`, true)
+		root := parseMathML(t, got)
+		mos := fenceParens(root)
+		if len(mos) != 4 {
+			t.Fatalf(`\binom+\pmatrix: got %d paren fences, want 4 (binom '(' ')' then pmatrix '(' ')'): %q`, len(mos), got)
+		}
+		wantSeq := []string{"(", ")", "(", ")"}
+		for i, mo := range mos {
+			if strings.TrimSpace(mo.Chardata) != wantSeq[i] {
+				t.Errorf("both: fence[%d] = %q, want %q (cross-contamination or reused-open bug): %q", i, mo.Chardata, wantSeq[i], got)
+			}
+			if _, ok := mo.attr("minsize"); !ok {
+				t.Errorf("both: fence[%d] (%q) missing minsize: %q", i, mo.Chardata, got)
+			}
+			if _, ok := mo.attr("maxsize"); !ok {
+				t.Errorf("both: fence[%d] (%q) missing maxsize: %q", i, mo.Chardata, got)
+			}
+		}
+	})
+}
+
+// moTexts returns the decoded text of every <mo> in the tree, in document order.
+func moTexts(root xmlElem) []string {
+	var out []string
+	for _, mo := range findAll(root, "mo") {
+		out = append(out, strings.TrimSpace(mo.Chardata))
+	}
+	return out
+}
+
+// TestMatrixFenceRegression guards the anti-pattern: the pmatrix/binom fence fix
+// must NOT regress \begin{bmatrix} (square brackets) or bare \begin{matrix} (no
+// fence) — both already KaTeX-quality per PROPOSAL §11. Fences are emitted as
+// numeric char refs, so the assertion is on the PARSED/decoded <mo> text.
+func TestMatrixFenceRegression(t *testing.T) {
+	// bmatrix keeps its matched square-bracket fence [ … ] and no round parens.
+	bm := renderMathML(`\begin{bmatrix}1&0\\0&1\end{bmatrix}`, true)
+	bmRoot := parseMathML(t, bm)
+	fences := moTexts(bmRoot)
+	if len(fences) != 2 || fences[0] != "[" || fences[1] != "]" {
+		t.Errorf(`\begin{bmatrix}: expected matched square-bracket fence [ ], got %v: %q`, fences, bm)
+	}
+	if len(fenceParens(bmRoot)) != 0 {
+		t.Errorf(`\begin{bmatrix}: must NOT emit round parens (pmatrix fence leaked in): %q`, bm)
+	}
+	// bare matrix has NO fence at all.
+	m := renderMathML(`\begin{matrix}1&0\\0&1\end{matrix}`, true)
+	mRoot := parseMathML(t, m)
+	if got := len(moTexts(mRoot)); got != 0 {
+		t.Errorf(`\begin{matrix}: expected NO fence <mo>, got %d: %q`, got, m)
+	}
 }
 
 // TestSqrtRootChildOrder is Objective-8 spike case 3 (PROPOSAL §11): the
