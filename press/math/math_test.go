@@ -162,6 +162,46 @@ func TestMathML(t *testing.T) {
 	}
 }
 
+// TestBigOperatorStacking is Objective-8 spike cases 1-2 (PROPOSAL §11): big
+// n-ary operators and the \lim-family, when carrying limits in DISPLAY mode,
+// must render their scripts STACKED — a <munderover> (sub+super) / <munder>
+// (sub only) wrapping the operator — NOT the side-by-side <msubsup>/<msub> the
+// unpatched vendored converter emitted. Open Q1 (movablelimits vs tag-switch)
+// resolved empirically to the munderover TAG-SWITCH: the operator renders as an
+// <mi>/<mo> and Chromium MathML-Core only stacks via munder*/mover*, never by
+// repositioning msubsup on a movablelimits attribute (see 08-02-SUMMARY). The
+// assertion is STRUCTURAL (element shape of the emitted <math>) — no MathJax-SVG
+// oracle (marp-math is permanently blocked).
+func TestBigOperatorStacking(t *testing.T) {
+	t.Run("sum", func(t *testing.T) {
+		got := renderMathML(`\sum_{i=1}^{n}`, true)
+		if !strings.Contains(got, "<munderover>") {
+			t.Errorf("display \\sum_{i=1}^{n}: expected a stacked <munderover>: %q", got)
+		}
+		if strings.Contains(got, "<msubsup>") {
+			t.Errorf("display \\sum_{i=1}^{n}: must NOT emit side-by-side <msubsup>: %q", got)
+		}
+	})
+	t.Run("prod", func(t *testing.T) {
+		got := renderMathML(`\prod_{i=1}^{n}`, true)
+		if !strings.Contains(got, "<munderover>") {
+			t.Errorf("display \\prod_{i=1}^{n}: expected a stacked <munderover>: %q", got)
+		}
+		if strings.Contains(got, "<msubsup>") {
+			t.Errorf("display \\prod_{i=1}^{n}: must NOT emit side-by-side <msubsup>: %q", got)
+		}
+	})
+	t.Run("lim", func(t *testing.T) {
+		got := renderMathML(`\lim_{x \to 0}`, true)
+		if !strings.Contains(got, "<munder>") {
+			t.Errorf("display \\lim_{x \\to 0}: expected a stacked <munder>: %q", got)
+		}
+		if strings.Contains(got, "<msub>") {
+			t.Errorf("display \\lim_{x \\to 0}: must NOT emit side-by-side <msub>: %q", got)
+		}
+	})
+}
+
 // TestFallback exercises the PNG-only fallback render path (go-latex/latex).
 // A construct go-latex CAN raster (\frac) proves the real base64 PNG data-URI
 // path; a construct it CANNOT (\begin{aligned}, which panics inside mtex)
