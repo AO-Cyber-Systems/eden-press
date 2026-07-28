@@ -90,6 +90,17 @@ type Rule struct {
 	Declarations   []Declaration
 	Children       []Rule
 	NestingDepth   int
+
+	// At is non-nil when this Rule is a BLOCK at-rule (@media, @supports,
+	// @layer …) rather than an ordinary ruleset. Its body lives in Children;
+	// SelectorTokens and Declarations are empty.
+	//
+	// Block at-rules live here, in Rules, rather than in Stylesheet.Atoms,
+	// specifically so their authored position survives: an @media override
+	// hoisted above the rules it overrides is silently inverted. Statement
+	// at-rules (@import, @charset, @import-theme) still go to Atoms, where
+	// hoisting is correct and where pass_import.go expects them.
+	At *AtRule
 }
 
 // String renders the rule back to CSS text, recursively rendering any
@@ -103,6 +114,31 @@ type Rule struct {
 // original-source byte spacing.
 func (r Rule) String() string {
 	var b strings.Builder
+	// A block at-rule renders as `@name prelude { … }` — its prelude stands
+	// in for a selector, and its body is entirely in Children.
+	if r.At != nil {
+		// An at-rule block with nothing left in it renders as nothing. A
+		// pass may legitimately empty one out (every inner rule dropped),
+		// and `@media print { }` is pure noise in packed output.
+		if len(r.Children) == 0 && len(r.Declarations) == 0 {
+			return ""
+		}
+		b.WriteString(r.At.String())
+		b.WriteString(" {")
+		// Descriptors declared directly on the at-rule (@page, @font-face)
+		// come before any nested rulesets.
+		for _, d := range r.Declarations {
+			b.WriteString(" ")
+			b.WriteString(d.String())
+			b.WriteString(";")
+		}
+		for _, c := range r.Children {
+			b.WriteString(" ")
+			b.WriteString(c.String())
+		}
+		b.WriteString(" }")
+		return b.String()
+	}
 	b.WriteString(tokensText(r.SelectorTokens))
 	b.WriteString(" {")
 	for _, d := range r.Declarations {
@@ -214,11 +250,21 @@ func (s Stylesheet) String() string {
 		b.WriteString(a.String())
 		b.WriteString(";\n")
 	}
-	for i, r := range s.Rules {
-		if i > 0 {
+	// A Rule may render as the empty string (an at-rule block emptied of all
+	// its children), so newline separation tracks what was actually written
+	// rather than the slice index — otherwise a dropped rule leaves a blank
+	// line behind.
+	wrote := false
+	for _, r := range s.Rules {
+		text := r.String()
+		if text == "" {
+			continue
+		}
+		if wrote {
 			b.WriteString("\n")
 		}
-		b.WriteString(r.String())
+		b.WriteString(text)
+		wrote = true
 	}
 	return b.String()
 }

@@ -117,7 +117,10 @@ func TestScaffoldCoversPagedConcerns(t *testing.T) {
 	for _, want := range []string{
 		"@media print",
 		"@page",
-		"counter-reset: edenpress-page",
+		// No explicit counter-reset: an un-reset CSS counter is implicitly
+		// created at the root scope, so per-section increment numbers pages
+		// from 1 without a container-level rule -- which the scoping pass
+		// would prepend the container chain to a second time.
 		"counter-increment: edenpress-page",
 		"page-break-after: always",
 		"display: table-header-group", // repeat table headers across pages

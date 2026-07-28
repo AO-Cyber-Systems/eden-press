@@ -64,11 +64,26 @@ func TestPagedProfileEndToEnd(t *testing.T) {
 		t.Errorf("marpit container leaked into paged output: %s", out.HTML)
 	}
 
-	// The scaffold's paged-specific CSS reaches the packed stylesheet.
-	for _, want := range []string{"edenpress-paged", "counter-increment: edenpress-page"} {
+	// The scaffold's paged-specific CSS reaches the packed stylesheet,
+	// INCLUDING its @media print block — the rules that enforce one section
+	// per physical page, which the packer used to discard silently.
+	for _, want := range []string{
+		"edenpress-paged",
+		"counter-increment: edenpress-page",
+		"@media print {",
+		"page-break-after: always",
+	} {
 		if !strings.Contains(out.CSS, want) {
 			t.Errorf("packed CSS missing %q", want)
 		}
+	}
+
+	// Rules are scoped under THIS profile's container, not the slides chain.
+	if strings.Contains(out.CSS, "div.marpit") {
+		t.Errorf("paged CSS is scoped under the slides container chain: %s", firstLines(out.CSS, 3))
+	}
+	if !strings.Contains(out.CSS, "div.edenpress-paged") {
+		t.Errorf("paged CSS is not scoped under its own container: %s", firstLines(out.CSS, 3))
 	}
 
 	// Both sections survive, and the model is profile-agnostic as designed.
@@ -77,62 +92,60 @@ func TestPagedProfileEndToEnd(t *testing.T) {
 	}
 }
 
-// TestPagedPipelineGaps is a CHARACTERIZATION test: it pins two behaviors that
-// are currently WRONG, so that fixing either one fails here loudly instead of
-// changing output nobody is watching. Both are gaps in chase/theme's packing
-// pipeline, not in profiles/paged, whose own Scaffold()/Container() are correct
-// and unit-tested in that package.
+// TestPagedPipelineGapsClosed guards the two chase/theme packing defects that
+// EPD-R2 uncovered and fixed, so a regression is caught here rather than
+// showing up as silently wrong CSS.
 //
-// When you fix one of these, INVERT the corresponding assertion here.
+// Gap 1 — block at-rule contents were discarded. chase/theme/parse.go recorded
+// only an at-rule's OPENING into Stylesheet.Atoms and dropped its body, so
+// `@media print { ... }` packed to the literal, invalid `@media print;`. It hit
+// a shipped theme: themes/uncover.css's @media print block lost its
+// print-specific pagination styling in every packed stylesheet. It survived
+// because profiles/slides' scaffold contains zero at-rules, so nothing
+// exercised the path until profiles/paged needed print rules.
 //
-// Gap 1 — block at-rule contents are discarded from scaffold CSS.
-// chase/theme/parse.go records only an at-rule's opening into Stylesheet.Atoms
-// and, by its own doc comment, "its block contents (including any nested
-// rulesets) are never modeled". So paged's `@media print { ... }` block — the
-// rules that enforce one section per physical page — vanishes from the packed
-// output. It never mattered before because profiles/slides' scaffold contains
-// zero at-rules (grep-verified), so this path was never exercised. Note the
-// inner rules are DROPPED, not leaked unwrapped, so print-only declarations at
-// least do not wrongly apply on screen.
-//
-// Gap 2 — Profile.Container() is not wired into the packing pipeline.
-// press calls themes.ThemeSet(p.UnitElement(), ...) and never passes the
-// container chain, so chase/theme/selector/scope.go's hardcoded slides chains
-// remain the source of truth and paged's rules are scoped under
-// "div.marpit > svg > foreignObject > section". Container()'s own doc claims it
-// "de-hardcodes chase/theme/selector/scope.go's inlineSVGChain / nonSVGChain",
-// but its only non-test caller is convert/png/png.go, whose comment reads
-// `// always "div.marpit"`. The method's documented purpose is unfulfilled.
-func TestPagedPipelineGaps(t *testing.T) {
-	out, err := press.Render(pagedDoc, press.Options{Profile: "paged"})
+// Gap 2 — Profile.Container() was never wired into the packing pipeline. Its
+// own doc claimed it "de-hardcodes chase/theme/selector/scope.go's
+// inlineSVGChain / nonSVGChain", but press never passed it, so those package
+// vars stayed the real source of truth and paged's rules were scoped under
+// "div.marpit > svg > foreignObject" — CSS that could never match its own
+// markup. Closed by ThemeSet.SetContainerChains.
+func TestPagedPipelineGapsClosed(t *testing.T) {
+	// Gap 1, on the shipped theme that was actually affected.
+	uncover, err := press.Render(pagedDoc, press.Options{Theme: "uncover"})
+	if err != nil {
+		t.Fatalf("Render(uncover): %v", err)
+	}
+	if strings.Contains(uncover.CSS, "@media print;") {
+		t.Error("GAP 1 REGRESSION: at-rule block emitted in the invalid statement form")
+	}
+	if !strings.Contains(uncover.CSS, "@media print {") {
+		t.Error("GAP 1 REGRESSION: uncover's @media print block lost its body again")
+	}
+
+	// Gap 2: each profile's rules scope under its OWN container chain.
+	slides, err := press.Render(pagedDoc, press.Options{Profile: "slides"})
+	if err != nil {
+		t.Fatalf("Render(slides): %v", err)
+	}
+	if !strings.Contains(slides.CSS, "div.marpit") {
+		t.Error("GAP 2 REGRESSION: slides no longer scopes under the marpit chain")
+	}
+
+	paged, err := press.Render(pagedDoc, press.Options{Profile: "paged"})
 	if err != nil {
 		t.Fatalf("Render(paged): %v", err)
 	}
-
-	if strings.Contains(out.CSS, "@media") {
-		t.Error("GAP 1 FIXED: at-rules now survive scaffold packing — " +
-			"invert this assertion and restore the @media print check in TestPagedProfileEndToEnd")
-	}
-	if !strings.Contains(out.CSS, "div.marpit > svg > foreignObject") {
-		t.Error("GAP 2 FIXED: the packing pipeline no longer hardcodes the slides container chain — " +
-			"invert this assertion and assert paged's own chain instead")
+	if strings.Contains(paged.CSS, "div.marpit") {
+		t.Error("GAP 2 REGRESSION: paged is scoped under the slides container chain")
 	}
 }
 
-// TestSlidesProfileUnchanged is the regression guard for the seam: the default
-// profile must still emit exactly the Marp container every conformance case
-// and bundled theme depends on.
-func TestSlidesProfileUnchanged(t *testing.T) {
-	for _, name := range []string{"", "slides"} {
-		out, err := press.Render(pagedDoc, press.Options{Profile: name})
-		if err != nil {
-			t.Fatalf("Render(%q): %v", name, err)
-		}
-		if !strings.Contains(out.HTML, `<div class="marpit">`) {
-			t.Errorf("profile %q: marpit container missing: %s", name, out.HTML)
-		}
-		if strings.Contains(out.HTML, "edenpress-paged") {
-			t.Errorf("profile %q: paged container leaked into slides output", name)
-		}
+// firstLines returns at most n lines of s, for readable failure output.
+func firstLines(s string, n int) string {
+	lines := strings.SplitN(s, "\n", n+1)
+	if len(lines) > n {
+		lines = lines[:n]
 	}
+	return strings.Join(lines, "\n")
 }

@@ -91,7 +91,7 @@ func TestLeadingCommentGate(t *testing.T) {
 // half of must_haves truth 2.
 func TestThemeSetRegistersAllByName(t *testing.T) {
 	unit, scaffold, adv, sizes := slideParams()
-	ts, err := ThemeSet(unit, scaffold, adv, sizes)
+	ts, err := ThemeSet(unit, scaffold, adv, sizes, "", "")
 	if err != nil {
 		t.Fatalf("ThemeSet: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestThemeSetRegistersAllByName(t *testing.T) {
 // scoped CSS via ThemeSet.Pack(name, …)".
 func TestEveryThemePacksNonEmpty(t *testing.T) {
 	unit, scaffold, adv, sizes := slideParams()
-	ts, err := ThemeSet(unit, scaffold, adv, sizes)
+	ts, err := ThemeSet(unit, scaffold, adv, sizes, "", "")
 	if err != nil {
 		t.Fatalf("ThemeSet: %v", err)
 	}
@@ -189,7 +189,7 @@ func canonRuleSet(t *testing.T, css string) map[string]bool {
 // appear near-identically in both.
 func TestCorpusSharedRuleGate(t *testing.T) {
 	unit, scaffold, adv, sizes := slideParams()
-	ts, err := ThemeSet(unit, scaffold, adv, sizes)
+	ts, err := ThemeSet(unit, scaffold, adv, sizes, "", "")
 	if err != nil {
 		t.Fatalf("ThemeSet: %v", err)
 	}

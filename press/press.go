@@ -240,7 +240,8 @@ func packThemeCSS(p profile.Profile, pc parser.Context, meta model.Meta, opts Op
 	// only on InlineSVG packs.
 	advancedBackgroundCSS := strings.TrimPrefix(p.Scaffold(true), scaffoldCSS)
 
-	ts, err := themes.ThemeSet(p.UnitElement(), scaffoldCSS, advancedBackgroundCSS, p.Sizes().ByName)
+	ts, err := themes.ThemeSet(p.UnitElement(), scaffoldCSS, advancedBackgroundCSS, p.Sizes().ByName,
+		p.Container(false), p.Container(true))
 	if err != nil {
 		return "", fmt.Errorf("press: Render: build theme set: %w", err)
 	}

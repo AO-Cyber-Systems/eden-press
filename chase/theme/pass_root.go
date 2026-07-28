@@ -76,7 +76,10 @@ func specificityPass(unit string) Pass {
 func markRootAll(rules []Rule, unit string) []Rule {
 	out := make([]Rule, len(rules))
 	for i, r := range rules {
-		r.SelectorTokens = selector.MarkRoot(r.SelectorTokens, unit)
+		// A block at-rule carries no selector; only its contents do.
+		if r.At == nil {
+			r.SelectorTokens = selector.MarkRoot(r.SelectorTokens, unit)
+		}
 		if len(r.Children) > 0 {
 			r.Children = markRootAll(r.Children, unit)
 		}
@@ -91,7 +94,10 @@ func markRootAll(rules []Rule, unit string) []Rule {
 func increasingSpecificityAll(rules []Rule, unit string) []Rule {
 	out := make([]Rule, len(rules))
 	for i, r := range rules {
-		r.SelectorTokens = selector.IncreasingSpecificity(r.SelectorTokens, unit)
+		// A block at-rule carries no selector; only its contents do.
+		if r.At == nil {
+			r.SelectorTokens = selector.IncreasingSpecificity(r.SelectorTokens, unit)
+		}
 		if len(r.Children) > 0 {
 			r.Children = increasingSpecificityAll(r.Children, unit)
 		}

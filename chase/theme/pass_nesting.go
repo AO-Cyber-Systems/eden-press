@@ -78,6 +78,21 @@ func flattenNesting(rules []Rule) ([]Rule, error) {
 // Children entry's selector, expanded against the parent's selector list
 // via expandNestedSelector.
 func flattenRule(r Rule) ([]Rule, error) {
+	// A block at-rule is a CONTAINER, not a nested ruleset: its children are
+	// top-level rules that happen to live inside @media/@supports, so they are
+	// flattened WITHIN it and the at-rule wrapper survives. Treating it like an
+	// ordinary nested rule would both hoist its contents out of the block and
+	// trip the depth>1 guard on any at-rule containing nesting.
+	if r.At != nil {
+		inner, err := flattenNesting(r.Children)
+		if err != nil {
+			return nil, err
+		}
+		if len(inner) == 0 && len(r.Declarations) == 0 {
+			return nil, nil
+		}
+		return []Rule{{At: r.At, Declarations: r.Declarations, Children: inner}}, nil
+	}
 	var out []Rule
 	if len(r.Declarations) > 0 || len(r.Children) == 0 {
 		out = append(out, Rule{SelectorTokens: r.SelectorTokens, Declarations: r.Declarations})

@@ -73,8 +73,14 @@ var embedded = []struct {
 // table's ByName map). It returns an error if any embedded theme fails to Load
 // (which would mean a bundled CSS lost its leading @theme comment — a Task-1
 // regression), never a partially-populated set.
-func ThemeSet(unit, scaffoldCSS, advancedBackgroundCSS string, sizeFallback map[string]theme.Size) (*theme.ThemeSet, error) {
+func ThemeSet(unit, scaffoldCSS, advancedBackgroundCSS string, sizeFallback map[string]theme.Size, containerNonSVG, containerSVG string) (*theme.ThemeSet, error) {
 	ts := theme.NewThemeSet(unit, scaffoldCSS, advancedBackgroundCSS)
+	// The active Profile's container chains, so its rules are scoped under the
+	// container its own markup emits. Empty strings keep chase/theme's Marp
+	// defaults.
+	if err := ts.SetContainerChains(containerNonSVG, containerSVG); err != nil {
+		return nil, err
+	}
 	// Add ALL three before any caller Pack so cross-theme @import-theme
 	// references resolve (theme.ThemeSet.Pack's resolveImportTheme walks the
 	// fully-populated set) — see pack.go.

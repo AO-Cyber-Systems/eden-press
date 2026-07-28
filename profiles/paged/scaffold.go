@@ -52,34 +52,28 @@ const ScaffoldCSS = `
   --edenpress-page-margin: 20mm;
   --edenpress-page-gap: 12px;
   --edenpress-header-text: "";
-  --edenpress-footer-text: "";
   --edenpress-rule-color: #d0d0d0;
 }
 
-/* Page-number counter: reset once on the container, incremented per page. */
-div.edenpress-paged {
-  counter-reset: edenpress-page;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--edenpress-page-gap);
-  background: #f2f2f2;
-}
-
-/* Each section IS a page: a fixed physical box, never a flowing column. */
-div.edenpress-paged > section {
+/* Each section IS a page: a fixed physical box, never a flowing column.
+   The page-number counter is incremented per section and never explicitly
+   reset -- an un-reset counter is implicitly created at the root scope, so
+   numbering starts at 1 without needing a rule on the container (which the
+   scoping pass would prepend the container chain to a second time). */
+section {
   counter-increment: edenpress-page;
   position: relative;
   box-sizing: border-box;
+  margin: 0 auto var(--edenpress-page-gap);
   padding: var(--edenpress-page-margin);
   background: #fff;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
-/* Running header and footer live inside the page's own margin box, so they
-   cannot collide with body content however long the content runs. */
-div.edenpress-paged > section::before {
+/* Running header and page number live inside the page's own margin box, so
+   they cannot collide with body content however long the content runs. */
+section::before {
   content: var(--edenpress-header-text);
   position: absolute;
   top: calc(var(--edenpress-page-margin) / 2);
@@ -91,9 +85,9 @@ div.edenpress-paged > section::before {
   padding-bottom: 2px;
 }
 
-/* Page number. chase/theme's pagination pass rewrites this content value via
-   the PaginationRule; the counter is the default. */
-div.edenpress-paged > section::after {
+/* chase/theme's pagination pass rewrites this content value via the
+   PaginationRule; the counter is the default. */
+section::after {
   content: counter(edenpress-page);
   position: absolute;
   bottom: calc(var(--edenpress-page-margin) / 2);
@@ -102,67 +96,60 @@ div.edenpress-paged > section::after {
   color: #666;
 }
 
-/* Long-form typography defaults: a measure that stays readable, and headings
-   that do not strand themselves at the foot of a page. */
-div.edenpress-paged > section > * {
-  max-width: 100%;
-}
-
-div.edenpress-paged > section h1,
-div.edenpress-paged > section h2,
-div.edenpress-paged > section h3 {
+/* Long-form typography: headings that do not strand themselves at the foot
+   of a page, and paragraphs that do not leave single lines behind. */
+:where(h1, h2, h3, h4, h5, h6) {
   break-after: avoid;
   page-break-after: avoid;
 }
 
-div.edenpress-paged > section p,
-div.edenpress-paged > section li {
+:where(p, li) {
   orphans: 2;
   widows: 2;
 }
 
-div.edenpress-paged > section table {
+:where(table) {
   border-collapse: collapse;
   width: 100%;
 }
 
-div.edenpress-paged > section th,
-div.edenpress-paged > section td {
+:where(th, td) {
   border: 1px solid var(--edenpress-rule-color);
   padding: 0.35em 0.5em;
   text-align: left;
 }
 
-div.edenpress-paged > section thead {
-  display: table-header-group; /* repeat the header across page breaks */
+/* Repeat table headers across page breaks. */
+:where(thead) {
+  display: table-header-group;
 }
 
-div.edenpress-paged > section blockquote {
+:where(blockquote) {
   margin: 0.8em 0;
   padding-left: 1em;
   border-left: 3px solid var(--edenpress-rule-color);
   color: #444;
 }
 
+/* @page carries the physical page box for print/PDF. Without it a browser
+   prints at ITS OWN default page size and the carefully-sized section boxes
+   get scaled or clipped -- the most common way "it looked right on screen"
+   becomes a broken PDF. Margin is zero here because each section already
+   carries its own padding. */
+@page {
+  margin: 0;
+}
+
 /* Print: drop the screen chrome, enforce one section per physical page. */
 @media print {
-  @page {
+  section {
     margin: 0;
-  }
-
-  div.edenpress-paged {
-    display: block;
-    gap: 0;
-    background: none;
-  }
-
-  div.edenpress-paged > section {
     box-shadow: none;
     break-after: page;
     page-break-after: always;
   }
 
-  div.edenpress-paged > section:last-child {
+  section:last-child {
     break-after: auto;
     page-break-after: auto;
   }
