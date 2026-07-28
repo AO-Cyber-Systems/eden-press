@@ -1,0 +1,264 @@
+// Copyright (c) 2026 AO Cyber Systems
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package xlsx
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+)
+
+// escapeXML escapes the five XML metacharacters. Cell text is untrusted (an
+// AODex document is LLM-written from a user's conversation); a single
+// unescaped "&" makes Excel report the workbook as corrupt.
+func escapeXML(s string) string {
+	return strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&quot;",
+		"'", "&apos;",
+	).Replace(s)
+}
+
+// columnRef converts a 0-based column index to its spreadsheet letters
+// (0 -> "A", 25 -> "Z", 26 -> "AA"). This is bijective base-26, NOT ordinary
+// base-26: there is no zero digit, so each step subtracts one before taking
+// the remainder. Getting that wrong is the classic spreadsheet-writer bug,
+// producing "A" followed by "BA" at the 26 -> 27 rollover.
+func columnRef(idx int) string {
+	if idx < 0 {
+		idx = 0
+	}
+	var sb []byte
+	for idx >= 0 {
+		sb = append([]byte{byte('A' + idx%26)}, sb...)
+		idx = idx/26 - 1
+	}
+	return string(sb)
+}
+
+// isNumeric reports whether s should be written as a spreadsheet NUMBER rather
+// than text. This is the difference between a workbook you can sum, sort and
+// chart and one that merely looks like a table.
+//
+// Deliberately stricter than strconv.ParseFloat alone:
+//   - "NaN" and "Inf" parse as floats in Go but are not spreadsheet numbers;
+//     writing them into a <v> element produces a cell Excel cannot evaluate.
+//   - "1.2%", "550ms" and "1,200" are rejected. A percentage needs a number
+//     format (not a bare value), a unit suffix is not a number at all, and
+//     thousands separators are locale-dependent -- guessing at any of them
+//     would silently corrupt the value.
+//
+// Surrounding whitespace is not meaningful and is ignored.
+func isNumeric(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	lower := strings.ToLower(s)
+	if strings.Contains(lower, "nan") || strings.Contains(lower, "inf") {
+		return false
+	}
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
+}
+
+// cellXML renders one <c> cell at ref.
+//
+// Numbers are written as a typed value; everything else as an inline string.
+// Inline strings are used in preference to a shared-string table: the table
+// would add a second part, a second relationship and a global index every
+// sheet must agree on, all to save bytes this exporter does not care about --
+// and every extra shared index is another chance to emit a workbook that opens
+// with the wrong text in the wrong cell.
+func cellXML(ref, text string, bold bool) string {
+	style := ""
+	if bold {
+		// s="1" is the bold header style defined in styles.xml.
+		style = ` s="1"`
+	}
+	if isNumeric(text) {
+		return fmt.Sprintf(`<c r="%s"%s><v>%s</v></c>`, ref, style, strings.TrimSpace(text))
+	}
+	if text == "" {
+		return fmt.Sprintf(`<c r="%s"%s/>`, ref, style)
+	}
+	return fmt.Sprintf(`<c r="%s"%s t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>`,
+		ref, style, escapeXML(text))
+}
+
+// sheetRows is an ordered grid of cell text plus a flag marking which rows are
+// header rows (rendered bold and frozen).
+type sheetRows struct {
+	rows      [][]string
+	headerRow []bool
+}
+
+func (s *sheetRows) add(cells []string, header bool) {
+	s.rows = append(s.rows, cells)
+	s.headerRow = append(s.headerRow, header)
+}
+
+// buildSheetXML renders a worksheet part from a grid.
+func buildSheetXML(g sheetRows) []byte {
+	var b strings.Builder
+	b.WriteString(xmlDeclaration)
+	b.WriteString(fmt.Sprintf(`<worksheet xmlns="%s"><sheetData>`, nsSpreadsheet))
+	for r, cells := range g.rows {
+		b.WriteString(fmt.Sprintf(`<row r="%d">`, r+1))
+		for c, text := range cells {
+			b.WriteString(cellXML(columnRef(c)+strconv.Itoa(r+1), text, g.headerRow[r]))
+		}
+		b.WriteString(`</row>`)
+	}
+	b.WriteString(`</sheetData></worksheet>`)
+	return []byte(b.String())
+}
+
+// sectionGrid flattens one section's table blocks into a single rectangular
+// grid. Multiple tables in one section are stacked with a blank separator row;
+// each keeps its own header. Rows are padded and truncated to the owning
+// table's column count -- the docmodel reports rows exactly as authored, and a
+// ragged sheet would put values under the wrong headers.
+func sectionGrid(sec model.Section) (sheetRows, bool) {
+	var g sheetRows
+	any := false
+	for _, blk := range sec.Blocks {
+		if blk.Kind != model.BlockTable {
+			continue
+		}
+		cols := len(blk.Headers)
+		for _, r := range blk.Rows {
+			if len(blk.Headers) == 0 && len(r) > cols {
+				cols = len(r)
+			}
+		}
+		if cols == 0 {
+			continue
+		}
+		if any {
+			g.add(nil, false) // blank separator between stacked tables
+		}
+		any = true
+		if len(blk.Headers) > 0 {
+			g.add(normalize(blk.Headers, cols), true)
+		}
+		for _, r := range blk.Rows {
+			g.add(normalize(r, cols), false)
+		}
+	}
+	return g, any
+}
+
+// normalize pads or truncates cells to exactly n entries.
+func normalize(cells []string, n int) []string {
+	out := make([]string, n)
+	copy(out, cells)
+	return out
+}
+
+// textGrid is the fallback for a document containing no tables at all: a
+// workbook must have at least one sheet, and an empty one is worse than a
+// sparse one carrying the document's prose. One line per text-bearing block.
+func textGrid(doc *model.Document) sheetRows {
+	var g sheetRows
+	for _, sec := range doc.Sections {
+		for _, blk := range sec.Blocks {
+			switch blk.Kind {
+			case model.BlockHeading:
+				g.add([]string{blk.Text}, true)
+			case model.BlockParagraph, model.BlockQuote, model.BlockCode:
+				if strings.TrimSpace(blk.Text) != "" {
+					g.add([]string{blk.Text}, false)
+				}
+			case model.BlockList:
+				for _, it := range blk.Items {
+					g.add([]string{strings.Repeat("    ", it.Level) + it.Text}, false)
+				}
+			}
+		}
+	}
+	if len(g.rows) == 0 {
+		g.add([]string{""}, false)
+	}
+	return g
+}
+
+// sheetName derives a sheet name from a section's first heading, then
+// sanitizes it to Excel's rules: no : \ / ? * [ ], at most 31 characters, and
+// non-empty. Excel refuses to open a workbook that breaks any of them.
+func sheetName(sec model.Section, index int) string {
+	raw := ""
+	for _, blk := range sec.Blocks {
+		if blk.Kind == model.BlockHeading && strings.TrimSpace(blk.Text) != "" {
+			raw = blk.Text
+			break
+		}
+	}
+	if raw == "" {
+		return fmt.Sprintf("Sheet%d", index)
+	}
+	cleaned := strings.Map(func(r rune) rune {
+		switch r {
+		case ':', '\\', '/', '?', '*', '[', ']':
+			return -1
+		}
+		return r
+	}, raw)
+	cleaned = strings.TrimSpace(cleaned)
+	if cleaned == "" {
+		return fmt.Sprintf("Sheet%d", index)
+	}
+	return truncateRunes(cleaned, 31)
+}
+
+// truncateRunes caps s at n runes (never bytes -- Excel's limit is characters,
+// and slicing a multi-byte name mid-rune would emit invalid UTF-8).
+func truncateRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
+}
+
+// dedupeSheetNames makes every name unique, since Excel rejects a workbook with
+// two identically-named sheets. Collisions get a " (2)", " (3)" suffix, with
+// the base trimmed so the result still fits in 31 characters.
+func dedupeSheetNames(names []string) []string {
+	seen := make(map[string]int, len(names))
+	out := make([]string, len(names))
+	for i, n := range names {
+		candidate := n
+		for k := 2; seen[strings.ToLower(candidate)] > 0; k++ {
+			suffix := fmt.Sprintf(" (%d)", k)
+			candidate = truncateRunes(n, 31-len([]rune(suffix))) + suffix
+		}
+		seen[strings.ToLower(candidate)]++
+		out[i] = candidate
+	}
+	return out
+}
