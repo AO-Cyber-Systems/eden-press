@@ -93,7 +93,7 @@ func Render(md string, opts Options) (Output, error) {
 	// 2. Build the battery-laden engine: ALL battery options bundled into
 	//    NewEngine's extensibility hook. highlight is omitted when
 	//    opts.NoHighlight is set; math honors opts.MathMode ("off" => no-op).
-	engine := markdown.NewEngine(pressExtraOpts(opts)...)
+	engine := markdown.NewEngine(pressExtraOpts(opts, p)...)
 
 	// 3. THE ONE PARSE -- via the seam, using the caller's battery engine.
 	source := []byte(md)
@@ -143,11 +143,32 @@ func Render(md string, opts Options) (Output, error) {
 	}, nil
 }
 
-// resolveProfile maps opts.Profile to a chase/profile.Profile: "" resolves the
-// registry default (profiles/slides, imported for its init side-effect above);
-// a non-empty id is looked up in the registry and errors if unregistered.
+// defaultProfileName is press's own documented default profile. It is resolved
+// BY NAME rather than through profile.Default(), which returns the
+// first-registered profile.
+//
+// That distinction became load-bearing the moment a second profile existed.
+// profile.Default()'s "first registered wins" rule is deterministic only for a
+// fixed registration order, and registration happens in package init() — so
+// which profile is first depends on the final binary's import graph, not on
+// anything the caller decides. A program that merely imports profiles/paged
+// anywhere could silently flip the default for every press.Render(md,
+// Options{}) call in the process. Pinning the name here makes press's default
+// a property of press, which is what its documentation always promised.
+const defaultProfileName = "slides"
+
+// resolveProfile maps opts.Profile to a chase/profile.Profile: "" resolves
+// press's own default (profiles/slides, imported for its init side-effect
+// above); a non-empty id is looked up in the registry and errors if
+// unregistered.
 func resolveProfile(id string) (profile.Profile, error) {
 	if id == "" {
+		if p, ok := profile.Get(defaultProfileName); ok {
+			return p, nil
+		}
+		// Fall back to the registry default only if the named default is
+		// somehow absent, so a consumer that vendors a different profile set
+		// still gets something rather than a hard error.
 		p := profile.Default()
 		if p == nil {
 			return nil, fmt.Errorf("press: Render: no profile registered (import a profiles/* package for its init side-effect)")
@@ -175,10 +196,15 @@ func resolveProfile(id string) (profile.Profile, error) {
 // KindStrikethrough, emoji east.Emoji, highlight KindFencedCodeBlock, math its
 // own node, autofit a transformer + wrapper), so bundling them into one engine
 // never double-registers a renderer.
-func pressExtraOpts(opts Options) []goldmark.Option {
+func pressExtraOpts(opts Options, p profile.Profile) []goldmark.Option {
 	extra := []goldmark.Option{
 		strikethroughOption(),
 		emojiOption(),
+		// The active profile owns the container <div>'s class, so its
+		// Container() selector matches the markup actually emitted. Without
+		// this the class is a "marpit" literal and any non-slides profile
+		// generates CSS that cannot match its own DOM.
+		goldmark.WithRendererOptions(markdown.WithContainerClass(p.ContainerClass())),
 	}
 	if !opts.NoHighlight {
 		extra = append(extra, highlightOption(opts.HighlightStyle))

@@ -41,11 +41,62 @@ import (
 // Document/Section/Comment funcs win; every other NodeKind (Heading,
 // Paragraph, Text, ...) that this renderer never registers a func for
 // still falls through to the default HTML renderer untouched.
-type nodeRenderer struct{}
+type nodeRenderer struct {
+	// containerClass is the class attribute renderDocument wraps the whole
+	// rendered run in. Empty means DefaultContainerClass.
+	containerClass string
+}
 
 // NewNodeRenderer returns chase/markdown's renderer.NodeRenderer.
 func NewNodeRenderer() renderer.NodeRenderer {
 	return &nodeRenderer{}
+}
+
+// DefaultContainerClass is the container class used when no profile supplies
+// one. It stays "marpit" for Marp compatibility: every conformance-corpus
+// case, every bundled theme's scoped selectors, and every existing consumer
+// depend on it.
+const DefaultContainerClass = "marpit"
+
+// optContainerClass is the renderer.OptionName WithContainerClass sets.
+const optContainerClass renderer.OptionName = "edenPressContainerClass"
+
+// containerClassOption is a renderer.Option carrying the container class.
+type containerClassOption struct{ class string }
+
+func (o *containerClassOption) SetConfig(c *renderer.Config) {
+	c.Options[optContainerClass] = o.class
+}
+
+// WithContainerClass returns a renderer.Option setting the class attribute of
+// the <div> the whole rendered document is wrapped in.
+//
+// This exists because chase/profile.Profile.Container() supplies only the CSS
+// SELECTOR a unit is scoped under, while the DOM class was a "marpit" literal
+// in renderDocument. A second profile (profiles/paged) would otherwise emit
+// markup its own scoped CSS could never match -- the profile abstraction
+// describing a container the renderer does not produce.
+//
+// Pass it through goldmark.WithRendererOptions, e.g.
+//
+//	markdown.NewEngine(goldmark.WithRendererOptions(
+//	    markdown.WithContainerClass(p.ContainerClass())))
+//
+// An empty class falls back to DefaultContainerClass: emitting
+// <div class=""> would silently detach every scoped rule in the stylesheet,
+// which is a far worse failure than ignoring the option.
+func WithContainerClass(class string) renderer.Option {
+	return &containerClassOption{class: class}
+}
+
+// SetOption implements renderer.SetOptioner, which goldmark's renderer calls
+// for every registered option before the first Render.
+func (r *nodeRenderer) SetOption(name renderer.OptionName, value any) {
+	if name == optContainerClass {
+		if s, ok := value.(string); ok {
+			r.containerClass = s
+		}
+	}
 }
 
 // RegisterFuncs implements renderer.NodeRenderer. Kept as a single
@@ -95,11 +146,20 @@ func figureStyle(img bgImage) string {
 	return style.String()
 }
 
-// renderDocument wraps the entire rendered slide run in
-// <div class="marpit">...</div>.
+// renderDocument wraps the entire rendered run in
+// <div class="CLASS">...</div>, where CLASS is the profile-supplied container
+// class (WithContainerClass) and defaults to DefaultContainerClass ("marpit").
+// The class is HTML-escaped: it reaches an attribute value, and a caller-
+// supplied string must not be able to break out of it.
 func (r *nodeRenderer) renderDocument(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
-		_, _ = w.WriteString(`<div class="marpit">`)
+		class := r.containerClass
+		if class == "" {
+			class = DefaultContainerClass
+		}
+		_, _ = w.WriteString(`<div class="`)
+		_, _ = w.Write(util.EscapeHTML([]byte(class)))
+		_, _ = w.WriteString(`">`)
 	} else {
 		_, _ = w.WriteString(`</div>`)
 	}
