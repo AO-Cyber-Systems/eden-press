@@ -24,6 +24,7 @@ package model
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -545,5 +546,186 @@ func TestBuildEmptyDocument(t *testing.T) {
 	}
 	if d.Outline != nil {
 		t.Errorf("Outline = %+v, want nil", d.Outline)
+	}
+}
+
+// --- EPD-R1 (AODex Objective 11 wave 1): table / image / quote block kinds ---
+//
+// Motivation, measured before these tests were written: a GFM table renders
+// into Output.HTML but its CONTENT is absent from the docmodel entirely -- a
+// consumer reading Document (which is what convert/docx, a future convert/xlsx
+// and bind/dart all do) cannot recover it by any means. Images behave the same
+// way. A blockquote is separately DEGRADED: its text survives, but only as an
+// indistinguishable paragraph Block, so a quote cannot be styled as a quote
+// downstream.
+
+// TestBuildTableBlocks covers EPD-R1 case 1: a GFM table yields exactly one
+// Block{Kind: table} carrying Headers, Rows and per-column Aligns, and its cell
+// text does NOT also leak out as loose paragraph blocks.
+func TestBuildTableBlocks(t *testing.T) {
+	md := "# T\n\n| Metric | Q2 | Q3 |\n|:---|---:|:---:|\n| p95 | 840ms | 550ms |\n| errs | 1.2% | 0.4% |\n"
+	doc, pc := markdown.Parse(md)
+
+	d := Build(doc, []byte(md), pc)
+
+	tables := blocksOfKind(d.Sections[0].Blocks, BlockTable)
+	if len(tables) != 1 {
+		t.Fatalf("table blocks = %d, want 1 (all: %+v)", len(tables), d.Sections[0].Blocks)
+	}
+	tb := tables[0]
+
+	wantHeaders := []string{"Metric", "Q2", "Q3"}
+	if len(tb.Headers) != len(wantHeaders) {
+		t.Fatalf("Headers = %+v, want %+v", tb.Headers, wantHeaders)
+	}
+	for i, w := range wantHeaders {
+		if tb.Headers[i] != w {
+			t.Errorf("Headers[%d] = %q, want %q", i, tb.Headers[i], w)
+		}
+	}
+
+	wantRows := [][]string{{"p95", "840ms", "550ms"}, {"errs", "1.2%", "0.4%"}}
+	if len(tb.Rows) != len(wantRows) {
+		t.Fatalf("Rows = %+v, want %+v", tb.Rows, wantRows)
+	}
+	for i, wr := range wantRows {
+		if len(tb.Rows[i]) != len(wr) {
+			t.Fatalf("Rows[%d] = %+v, want %+v", i, tb.Rows[i], wr)
+		}
+		for j, w := range wr {
+			if tb.Rows[i][j] != w {
+				t.Errorf("Rows[%d][%d] = %q, want %q", i, j, tb.Rows[i][j], w)
+			}
+		}
+	}
+
+	// Alignment is load-bearing for convert/docx and convert/xlsx -- a
+	// right-aligned numeric column must stay right-aligned in the export.
+	wantAligns := []string{"left", "right", "center"}
+	if len(tb.Aligns) != len(wantAligns) {
+		t.Fatalf("Aligns = %+v, want %+v", tb.Aligns, wantAligns)
+	}
+	for i, w := range wantAligns {
+		if tb.Aligns[i] != w {
+			t.Errorf("Aligns[%d] = %q, want %q", i, tb.Aligns[i], w)
+		}
+	}
+
+	// Same invariant the list case asserts: cell text must not ALSO surface as
+	// loose prose, or every table would be duplicated in a DOCX export.
+	if paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph); len(paras) != 0 {
+		t.Errorf("table cell text leaked as %d paragraph block(s): %+v", len(paras), paras)
+	}
+}
+
+// TestBuildTableRegression is the direct regression for the measured Wave 0
+// finding: the string "p95 latency" appeared nowhere in the serialized model.
+func TestBuildTableRegression(t *testing.T) {
+	md := "# T\n\n| Metric | Q3 |\n|---|---|\n| p95 latency | 550ms |\n"
+	doc, pc := markdown.Parse(md)
+
+	d := Build(doc, []byte(md), pc)
+
+	blob, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if !strings.Contains(string(blob), "p95 latency") {
+		t.Errorf("table payload absent from serialized model; got %s", blob)
+	}
+}
+
+// TestBuildImageBlocks covers EPD-R1 case 2: a standalone image yields
+// Block{Kind: image} with Src, alt text in Text, and the optional title.
+func TestBuildImageBlocks(t *testing.T) {
+	t.Run("standalone", func(t *testing.T) {
+		md := "# T\n\n![Q3 chart](https://example.com/c.png \"Quarterly\")\n"
+		doc, pc := markdown.Parse(md)
+
+		d := Build(doc, []byte(md), pc)
+
+		imgs := blocksOfKind(d.Sections[0].Blocks, BlockImage)
+		if len(imgs) != 1 {
+			t.Fatalf("image blocks = %d, want 1 (all: %+v)", len(imgs), d.Sections[0].Blocks)
+		}
+		if got, want := imgs[0].Src, "https://example.com/c.png"; got != want {
+			t.Errorf("Src = %q, want %q", got, want)
+		}
+		if got, want := imgs[0].Text, "Q3 chart"; got != want {
+			t.Errorf("Text (alt) = %q, want %q", got, want)
+		}
+		if got, want := imgs[0].Title, "Quarterly"; got != want {
+			t.Errorf("Title = %q, want %q", got, want)
+		}
+
+		// An image-only paragraph must not also emit an empty/alt-text
+		// paragraph Block -- same class of bug isMathOnlyParagraph prevents.
+		if paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph); len(paras) != 0 {
+			t.Errorf("image-only paragraph leaked %d paragraph block(s): %+v", len(paras), paras)
+		}
+	})
+
+	t.Run("inline_with_prose_keeps_both", func(t *testing.T) {
+		md := "# T\n\nSee ![chart](c.png) for detail.\n"
+		doc, pc := markdown.Parse(md)
+
+		d := Build(doc, []byte(md), pc)
+
+		if imgs := blocksOfKind(d.Sections[0].Blocks, BlockImage); len(imgs) != 1 {
+			t.Errorf("image blocks = %d, want 1 (all: %+v)", len(imgs), d.Sections[0].Blocks)
+		}
+		// Mixed prose+image keeps the prose, exactly as mixed prose+math does.
+		if paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph); len(paras) != 1 {
+			t.Errorf("paragraph blocks = %d, want 1 (all: %+v)", len(paras), d.Sections[0].Blocks)
+		}
+	})
+}
+
+// TestBuildQuoteBlocks covers EPD-R1 case 3: a blockquote yields
+// Block{Kind: quote} instead of being silently flattened into an
+// indistinguishable paragraph Block.
+func TestBuildQuoteBlocks(t *testing.T) {
+	md := "# T\n\n> Synthesized from the sync.\n\nOrdinary prose.\n"
+	doc, pc := markdown.Parse(md)
+
+	d := Build(doc, []byte(md), pc)
+
+	quotes := blocksOfKind(d.Sections[0].Blocks, BlockQuote)
+	if len(quotes) != 1 {
+		t.Fatalf("quote blocks = %d, want 1 (all: %+v)", len(quotes), d.Sections[0].Blocks)
+	}
+	if got, want := quotes[0].Text, "Synthesized from the sync."; got != want {
+		t.Errorf("quote Text = %q, want %q", got, want)
+	}
+
+	// The quote's own text must NOT also appear as a paragraph Block; only the
+	// genuine prose paragraph outside the quote should.
+	paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph)
+	if len(paras) != 1 {
+		t.Fatalf("paragraph blocks = %d, want 1 (all: %+v)", len(paras), d.Sections[0].Blocks)
+	}
+	if got, want := paras[0].Text, "Ordinary prose."; got != want {
+		t.Errorf("paragraph Text = %q, want %q", got, want)
+	}
+
+	// Document order: heading, quote, paragraph.
+	blocks := d.Sections[0].Blocks
+	if len(blocks) != 3 || blocks[0].Kind != BlockHeading || blocks[1].Kind != BlockQuote || blocks[2].Kind != BlockParagraph {
+		t.Errorf("block order = %+v, want [heading, quote, paragraph]", blocks)
+	}
+}
+
+// TestSchemaVersionV3 pins the deliberate version bump. Adding table/image is
+// additive, but re-classifying a blockquote from paragraph to quote CHANGES the
+// JSON a v2 consumer would have seen for the same input, so this is v3 and not
+// a silent v2 extension. AGENTS.md's envelope schema documents the new kinds.
+func TestSchemaVersionV3(t *testing.T) {
+	if got, want := SchemaVersion, "eden-press.model/v3"; got != want {
+		t.Errorf("SchemaVersion = %q, want %q", got, want)
+	}
+	md := "# T\n\ntext\n"
+	doc, pc := markdown.Parse(md)
+	if got := Build(doc, []byte(md), pc).SchemaVersion; got != "eden-press.model/v3" {
+		t.Errorf("Document.SchemaVersion = %q, want v3", got)
 	}
 }

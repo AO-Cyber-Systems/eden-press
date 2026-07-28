@@ -53,7 +53,19 @@ package model
 // field carries `omitempty`, so a v1-shaped (block-less) document's JSON is
 // byte-for-byte unchanged apart from this version string -- v2 is a strict
 // superset of v1, never a breaking reshape.
-const SchemaVersion = "eden-press.model/v2"
+//
+// v2 -> v3 (EPD-R1, AODex Objective 11): table/image/quote block kinds.
+// Mostly additive -- a GFM table's and an image's content were previously
+// ABSENT from the model entirely (measured: a table's cell text appeared
+// nowhere in the serialized Document, so a consumer reading the model could
+// not recover it by any means), and now materialize as table/image Blocks.
+// The version bump is NOT merely for those additions, though: a blockquote
+// previously emitted an indistinguishable BlockParagraph and now emits
+// BlockQuote instead. That RE-CLASSIFIES output a v2 consumer would already
+// have seen for the same input, so v3 is a deliberate, signalled change
+// rather than a silent v2 extension -- exactly the branch signal this
+// constant exists to give.
+const SchemaVersion = "eden-press.model/v3"
 
 // BlockKind enumerates the kinds of body-content block a Section can carry.
 type BlockKind string
@@ -69,6 +81,15 @@ const (
 	BlockMath BlockKind = "math"
 	// BlockHeading is a heading (level + text); mirrors an Outline entry.
 	BlockHeading BlockKind = "heading"
+	// BlockTable is a GFM table (Headers + Rows + per-column Aligns). Added
+	// in v3; before that a table's content was absent from the model.
+	BlockTable BlockKind = "table"
+	// BlockImage is an image (Src + alt Text + optional Title). Added in v3;
+	// before that an image's content was absent from the model.
+	BlockImage BlockKind = "image"
+	// BlockQuote is a blockquote. Added in v3; before that a blockquote's
+	// text was emitted as an indistinguishable BlockParagraph.
+	BlockQuote BlockKind = "quote"
 )
 
 // Block is one ordered piece of a Section's body content, materialized by the
@@ -109,6 +130,30 @@ type Block struct {
 	// Items are the entries of a list block, in document order (list blocks
 	// only).
 	Items []ListItem `json:"items,omitempty"`
+
+	// Headers are a table block's header-row cell texts, left to right
+	// (table blocks only). A header-less table omits this.
+	Headers []string `json:"headers,omitempty"`
+
+	// Rows are a table block's body rows, each a left-to-right slice of cell
+	// texts (table blocks only). Ragged rows are preserved as authored --
+	// GFM pads/truncates at render time, but the model reports what was
+	// written so an exporter can decide for itself.
+	Rows [][]string `json:"rows,omitempty"`
+
+	// Aligns are a table block's per-column alignments, one per column, each
+	// "left" / "right" / "center" / "" (unspecified) (table blocks only).
+	// Load-bearing for convert/pptx, convert/docx and a future convert/xlsx:
+	// a right-aligned numeric column must survive into the export.
+	Aligns []string `json:"aligns,omitempty"`
+
+	// Src is an image block's destination URL (image blocks only). The alt
+	// text lives in Text and the optional title in Title.
+	Src string `json:"src,omitempty"`
+
+	// Title is an image block's optional title attribute -- the
+	// `![alt](src "title")` third argument (image blocks only).
+	Title string `json:"title,omitempty"`
 }
 
 // ListItem is one entry of a list Block, carrying its editable Text and its

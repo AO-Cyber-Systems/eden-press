@@ -109,7 +109,13 @@ eden-press-export deck.md -o out.pdf --format pdf
           { "kind": "math", "text": "E=mc^2", "display": true },
           { "kind": "list", "ordered": false, "items": [
             { "text": "item one", "level": 0 }
-          ] }
+          ] },
+          { "kind": "table",
+            "headers": ["Metric", "Q3"],
+            "rows": [["p95 latency", "550ms"]],
+            "aligns": ["left", "right"] },
+          { "kind": "image", "src": "chart.png", "text": "alt text", "title": "Quarterly" },
+          { "kind": "quote", "text": "a blockquote" }
         ]
       }
     ],
@@ -134,7 +140,16 @@ Field notes an agent must get right:
 - Every field is `omitempty`: absent when unused (e.g. a paragraph block has
   no `language`/`display`/`items`; a section with no speaker notes omits
   `notes` entirely). Do not assume a key is always present — check for it.
-- `model` is exactly `chase/model.Document`'s own schema-v2 JSON shape,
+- **A table block's payload lives in `headers` + `rows` + `aligns`**, never in
+  `text`. `rows` is an array of row arrays of cell strings; `aligns` is one
+  entry per column, each `"left"`/`"right"`/`"center"` or `""` when the column
+  declared no alignment. Ragged rows are reported as authored — GFM pads at
+  render time, but the model reports what was written. An **image** block puts
+  its destination in `src`, its alt text in `text`, and its optional
+  `![alt](src "title")` third argument in `title`. A **quote** block carries its
+  concatenated text in `text` (multi-paragraph quotes are joined by a blank
+  line; nested quotes are flattened in document order).
+- `model` is exactly `chase/model.Document`'s own schema-v3 JSON shape,
   reused verbatim; `cmd/eden-press` itself never imports that package
   directly (it re-marshals the already-typed value through `any`), but the
   wire shape is stable and versioned independently of Marp/goldmark churn.
