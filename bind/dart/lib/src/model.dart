@@ -183,7 +183,7 @@ class ModelDocument {
     required this.outline,
   });
 
-  static const expectedSchemaVersion = 'eden-press.model/v2';
+  static const expectedSchemaVersion = 'eden-press.model/v3';
 
   final String schemaVersion;
   final Meta meta;
@@ -257,7 +257,17 @@ class Section {
 }
 
 /// Mirrors `model.BlockKind` (chase/model/document.go) string enum values.
-enum BlockKind { paragraph, list, code, math, heading, unknown }
+enum BlockKind {
+  paragraph,
+  list,
+  code,
+  math,
+  heading,
+  table,
+  image,
+  quote,
+  unknown,
+}
 
 BlockKind _blockKindFromWire(String value) {
   switch (value) {
@@ -271,6 +281,12 @@ BlockKind _blockKindFromWire(String value) {
       return BlockKind.math;
     case 'heading':
       return BlockKind.heading;
+    case 'table':
+      return BlockKind.table;
+    case 'image':
+      return BlockKind.image;
+    case 'quote':
+      return BlockKind.quote;
     default:
       return BlockKind.unknown;
   }
@@ -289,6 +305,11 @@ class Block {
     required this.display,
     required this.ordered,
     required this.items,
+    this.headers = const <String>[],
+    this.rows = const <List<String>>[],
+    this.aligns = const <String>[],
+    this.src = '',
+    this.title = '',
   });
 
   final BlockKind kind;
@@ -298,6 +319,25 @@ class Block {
   final bool display;
   final bool ordered;
   final List<ListItem> items;
+
+  /// Header-row cell texts of a `table` block, left to right. Empty for a
+  /// header-less table and for every other kind.
+  final List<String> headers;
+
+  /// Body rows of a `table` block, each a left-to-right list of cell texts.
+  /// A table's payload lives HERE, never in [text].
+  final List<List<String>> rows;
+
+  /// Per-column alignment of a `table` block: `left` / `right` / `center`, or
+  /// an empty entry where the column declared none.
+  final List<String> aligns;
+
+  /// Destination URL of an `image` block. The alt text is in [text].
+  final String src;
+
+  /// Optional title of an `image` block -- the `![alt](src "title")` third
+  /// argument.
+  final String title;
 
   factory Block.fromJson(Map<String, dynamic> json) {
     final itemsJson = json['items'];
@@ -314,6 +354,16 @@ class Block {
                   .map((e) => ListItem.fromJson(e as Map<String, dynamic>))
                   .toList()
               : const <ListItem>[],
+      headers: _stringList(json['headers']),
+      rows:
+          json['rows'] is List
+              ? (json['rows'] as List)
+                  .map<List<String>>((r) => _stringList(r))
+                  .toList()
+              : const <List<String>>[],
+      aligns: _stringList(json['aligns']),
+      src: json['src'] as String? ?? '',
+      title: json['title'] as String? ?? '',
     );
   }
 }
@@ -351,4 +401,14 @@ class OutlineEntry {
     text: json['text'] as String? ?? '',
     slug: json['slug'] as String? ?? '',
   );
+}
+
+/// Decodes a wire array of strings, tolerating a null/absent field (every
+/// schema-v3 addition is `omitempty` on the Go side, so an unused one is
+/// simply not present) and a non-string entry.
+List<String> _stringList(Object? value) {
+  if (value is! List) {
+    return const <String>[];
+  }
+  return value.map((e) => e?.toString() ?? '').toList();
 }

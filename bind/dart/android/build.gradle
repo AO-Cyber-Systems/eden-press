@@ -1,0 +1,59 @@
+// Copyright (c) 2026 AO Cyber Systems
+// SPDX-License-Identifier: MIT
+//
+// Android module for the eden_press Flutter FFI plugin.
+//
+// This module compiles NO Java/Kotlin of its own: the native code is the Go
+// c-shared library scripts/build-android.sh produces, consumed here as
+// prebuilt jniLibs. Gradle's only job is to package those .so files into the
+// consuming app's APK so DynamicLibrary.open('libpress.so') resolves at
+// runtime (see ../lib/src/native_loader.dart).
+//
+// The .so files are NOT committed — .gitignore excludes them repo-wide. Run
+// `make dart-native-vendor` (scripts/vendor-dart-native.sh) to copy them here
+// from bind/capi/build/android/jniLibs after a build.
+
+group 'ai.aocyber.eden_press'
+version '0.1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.7.3'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'ai.aocyber.eden_press'
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 21
+    }
+
+    sourceSets {
+        // Where scripts/vendor-dart-native.sh deposits the per-ABI libpress.so.
+        main.jniLibs.srcDirs = ['src/main/jniLibs']
+    }
+
+    // The Go c-shared libraries are already stripped and position-independent;
+    // letting Gradle strip them again is a no-op that only risks corrupting a
+    // non-standard section.
+    packagingOptions {
+        jniLibs {
+            keepDebugSymbols += ['**/libpress.so']
+        }
+    }
+}

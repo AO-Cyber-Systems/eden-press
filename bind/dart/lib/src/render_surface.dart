@@ -112,10 +112,93 @@ class EdenPressView extends StatelessWidget {
               ),
           ],
         );
+      case BlockKind.table:
+        return _buildTable(block);
+      case BlockKind.quote:
+        // A quote is only distinguishable from prose because schema v3
+        // (EPD-R1) gave it its own kind; before that it arrived as an
+        // indistinguishable paragraph and could not be styled as a quote.
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.only(left: 12),
+          decoration: const BoxDecoration(
+            border: Border(
+              left: BorderSide(color: Color(0xFFBDBDBD), width: 3),
+            ),
+          ),
+          child: Text(
+            block.text,
+            style: const TextStyle(fontStyle: FontStyle.italic),
+          ),
+        );
+      case BlockKind.image:
+        // The render path performs NO I/O -- it never fetches a remote URL --
+        // so the alt text is what must survive. Rendering nothing would drop
+        // the content silently, which is exactly the failure schema v3 exists
+        // to stop.
+        return Text(
+          '[${block.text.isEmpty ? block.src : block.text}]',
+          style: const TextStyle(
+            fontStyle: FontStyle.italic,
+            color: Color(0xFF757575),
+          ),
+        );
       case BlockKind.paragraph:
       case BlockKind.unknown:
         return Text(block.text);
     }
+  }
+
+  /// Renders a `table` block. Its payload is in [Block.headers]/[Block.rows],
+  /// never in [Block.text] -- falling through to the paragraph branch would
+  /// render an empty widget and silently lose the whole table.
+  ///
+  /// Rows are padded/truncated to the column count: Flutter's Table asserts
+  /// that every row has equal length, and chase/model deliberately reports
+  /// rows exactly as authored, so normalizing is the consumer's job.
+  Widget _buildTable(Block block) {
+    final int columns =
+        block.headers.isNotEmpty
+            ? block.headers.length
+            : block.rows.fold<int>(0, (m, r) => r.length > m ? r.length : m);
+    if (columns == 0) {
+      return const SizedBox.shrink();
+    }
+
+    TextAlign alignOf(int i) {
+      if (i >= block.aligns.length) return TextAlign.start;
+      switch (block.aligns[i]) {
+        case 'right':
+          return TextAlign.right;
+        case 'center':
+          return TextAlign.center;
+        default:
+          return TextAlign.start;
+      }
+    }
+
+    TableRow row(List<String> cells, {required bool header}) => TableRow(
+      children: List<Widget>.generate(columns, (i) {
+        final text = i < cells.length ? cells[i] : '';
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          child: Text(
+            text,
+            textAlign: alignOf(i),
+            style: header ? const TextStyle(fontWeight: FontWeight.bold) : null,
+          ),
+        );
+      }),
+    );
+
+    return Table(
+      border: TableBorder.all(color: const Color(0xFFBDBDBD), width: 0.5),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: [
+        if (block.headers.isNotEmpty) row(block.headers, header: true),
+        for (final r in block.rows) row(r, header: false),
+      ],
+    );
   }
 
   TextStyle _headingStyle(int level) {

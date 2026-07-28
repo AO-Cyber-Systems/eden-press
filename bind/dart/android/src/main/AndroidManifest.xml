@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="ai.aocyber.eden_press">
+    <!-- No components, no permissions: this module exists solely to package
+         the prebuilt libpress.so jniLibs into the consuming app. -->
+</manifest>

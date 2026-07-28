@@ -80,6 +80,12 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: bash scripts/build-android.sh
 
+      - name: Vendor Android artifacts into the Flutter plugin
+        run: bash scripts/vendor-dart-native.sh
+
+      - name: Check dart native scaffolding agrees with the build scripts
+        run: bash scripts/check-dart-native-scaffold.sh
+
       - name: Check no chromedp (API-02)
         run: bash scripts/check-no-chromedp.sh
 
@@ -115,6 +121,12 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: bash scripts/build-ios.sh
+
+      - name: Vendor iOS artifacts into the Flutter plugin
+        run: bash scripts/vendor-dart-native.sh
+
+      - name: Check dart native scaffolding agrees with the build scripts
+        run: bash scripts/check-dart-native-scaffold.sh
 
       - name: Check no chromedp (API-02)
         run: bash scripts/check-no-chromedp.sh
