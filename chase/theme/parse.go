@@ -59,14 +59,12 @@ func Parse(cssText string) (Stylesheet, error) {
 
 	var sheet Stylesheet
 
-	// stack holds the ancestor chain of currently open rulesets, deepest
-	// last (nil for the top level). A nil *Rule entry marks a nested
-	// ruleset found INSIDE an at-rule block (atDepth > 0 when it was
-	// opened) — recording an at-rule block's contents is out of this
-	// TRD's scope (see AtRule's doc) — pushed only so its matching
-	// EndRulesetGrammar pops the stack symmetrically.
+	// stack holds the ancestor chain of currently open rulesets AND block
+	// at-rules, deepest last. Block at-rules ride the same stack as ordinary
+	// rulesets so their contents nest naturally into Children; the previous
+	// implementation kept a separate atDepth counter and pushed nil entries
+	// to skip at-rule bodies entirely.
 	var stack []*Rule
-	var atDepth int
 
 	for {
 		gt, _, data := p.Next()
@@ -88,45 +86,37 @@ func Parse(cssText string) (Stylesheet, error) {
 			// A standalone at-rule statement, e.g. `@import "x.css";` or
 			// `@import-theme "y";`. RECORDED, never resolved/interpreted
 			// — see AtRule's doc.
-			if atDepth == 0 && len(stack) == 0 {
+			if len(stack) == 0 {
 				sheet.Atoms = append(sheet.Atoms, newAtRule(data, p.Values()))
 			}
 
 		case css.BeginAtRuleGrammar:
-			// The opening of a block at-rule, e.g. `@media (...) {`. Only
-			// the outermost at-rule is recorded; its block contents
-			// (including any nested rulesets) are never modeled — see
-			// AtRule's doc.
-			if atDepth == 0 && len(stack) == 0 {
-				sheet.Atoms = append(sheet.Atoms, newAtRule(data, p.Values()))
-			}
-			atDepth++
+			// The opening of a block at-rule, e.g. `@media print {`. Modeled
+			// as a Rule carrying At, pushed onto the SAME stack ordinary
+			// rulesets use, so its contents land in Children and its authored
+			// cascade position is preserved. Recording only the opening (the
+			// previous behavior) emitted the invalid text `@media print;` and
+			// silently discarded the body — see Rule.At's doc.
+			at := newAtRule(data, p.Values())
+			newRule := Rule{At: &at, NestingDepth: len(stack)}
+			pushRule(&sheet, &stack, newRule)
 
 		case css.EndAtRuleGrammar:
-			if atDepth > 0 {
-				atDepth--
-			}
+			popRule(&stack)
 
 		case css.BeginRulesetGrammar, css.QualifiedRuleGrammar:
-			if atDepth > 0 {
-				stack = append(stack, nil)
-				continue
-			}
 			newRule := Rule{
 				SelectorTokens: cloneTokens(p.Values()),
 				NestingDepth:   len(stack),
 			}
-			if len(stack) == 0 {
-				sheet.Rules = append(sheet.Rules, newRule)
-				stack = append(stack, &sheet.Rules[len(sheet.Rules)-1])
-			} else {
-				parent := stack[len(stack)-1]
-				parent.Children = append(parent.Children, newRule)
-				stack = append(stack, &parent.Children[len(parent.Children)-1])
-			}
+			pushRule(&sheet, &stack, newRule)
 
 		case css.DeclarationGrammar:
-			if atDepth > 0 || len(stack) == 0 || stack[len(stack)-1] == nil {
+			// Declarations land on the innermost open rule — including a block
+			// at-rule, which legitimately carries them directly: `@page {
+			// margin: 0 }` and `@font-face { src: ... }` have descriptors
+			// rather than nested rulesets.
+			if currentRule(stack) == nil {
 				continue
 			}
 			value, important := extractImportant(cloneTokens(p.Values()))
@@ -146,7 +136,7 @@ func Parse(cssText string) (Stylesheet, error) {
 			// parseCustomProperty). Modeled as an ordinary Declaration
 			// here regardless; chase/theme has no need to distinguish the
 			// two at this layer.
-			if atDepth > 0 || len(stack) == 0 || stack[len(stack)-1] == nil {
+			if currentRule(stack) == nil {
 				continue
 			}
 			current := stack[len(stack)-1]
@@ -156,9 +146,7 @@ func Parse(cssText string) (Stylesheet, error) {
 			})
 
 		case css.EndRulesetGrammar:
-			if len(stack) > 0 {
-				stack = stack[:len(stack)-1]
-			}
+			popRule(&stack)
 
 		case css.TokenGrammar:
 			// A stray top-level token (e.g. a CDO/CDC "<!-- -->" marker,
@@ -226,4 +214,45 @@ func extractImportant(tokens []css.Token) ([]css.Token, bool) {
 		return tokens[:n-2], true
 	}
 	return tokens, false
+}
+
+// pushRule appends r at the current nesting level — top-level Rules when the
+// stack is empty, otherwise the innermost open rule's Children — and pushes a
+// pointer to the stored copy onto stack.
+//
+// The pointer MUST be taken after the append, into the slice's own backing
+// array, so subsequent Declaration/Children writes land on the stored rule
+// rather than on a dead copy.
+//
+// Note the deliberate asymmetry with the top-level case: appending to
+// sheet.Rules may reallocate its backing array, which would invalidate
+// pointers already on the stack. That is safe here only because a top-level
+// append happens exactly when the stack is EMPTY — there are no live pointers
+// to invalidate. Children appends cannot reallocate an ancestor's slice.
+func pushRule(sheet *Stylesheet, stack *[]*Rule, r Rule) {
+	if len(*stack) == 0 {
+		sheet.Rules = append(sheet.Rules, r)
+		*stack = append(*stack, &sheet.Rules[len(sheet.Rules)-1])
+		return
+	}
+	parent := (*stack)[len(*stack)-1]
+	parent.Children = append(parent.Children, r)
+	*stack = append(*stack, &parent.Children[len(parent.Children)-1])
+}
+
+// popRule pops the innermost open rule, tolerating an already-empty stack so
+// an unbalanced EndRulesetGrammar/EndAtRuleGrammar in malformed input cannot
+// panic the parser.
+func popRule(stack *[]*Rule) {
+	if len(*stack) > 0 {
+		*stack = (*stack)[:len(*stack)-1]
+	}
+}
+
+// currentRule returns the innermost open rule, or nil at the top level.
+func currentRule(stack []*Rule) *Rule {
+	if len(stack) == 0 {
+		return nil
+	}
+	return stack[len(stack)-1]
 }

@@ -44,19 +44,40 @@ import 'ffi_bindings.dart';
 ///   the newer `package_ffi` template: only `plugin_ffi` supports this
 ///   static-link-on-iOS pattern (07-RESEARCH.md Sec 4).
 DynamicLibrary _openNativeLibrary() {
-  if (Platform.isAndroid) {
+  try {
+    if (Platform.isAndroid) {
+      return DynamicLibrary.open('libpress.so');
+    }
+    if (Platform.isIOS || Platform.isMacOS) {
+      return DynamicLibrary.process();
+    }
+    if (Platform.isWindows) {
+      // Desktop targets are outside DART-02's Android/iOS scope; best-effort
+      // fallback for local development only.
+      return DynamicLibrary.open('press.dll');
+    }
+    // Linux and any other platform: best-effort fallback for local development.
     return DynamicLibrary.open('libpress.so');
+  } on ArgumentError catch (e) {
+    // Dart reports a missing native library as a bare
+    // "Invalid argument(s): Failed to load dynamic library" with no hint as to
+    // WHY — and the overwhelmingly likely cause is that the build products were
+    // never vendored into the plugin, since they are gitignored and a fresh
+    // checkout has none. Diagnosing that from the raw message costs far more
+    // than the few lines it takes to say so here.
+    throw StateError(
+      'eden_press: the native Eden Press library could not be loaded on '
+      '${Platform.operatingSystem}.\n'
+      'The Go core is a build product and is never committed, so a fresh '
+      'checkout has to build and vendor it:\n'
+      '  scripts/build-android.sh   # needs ANDROID_NDK_HOME\n'
+      '  scripts/build-ios.sh       # needs macOS + Xcode\n'
+      '  scripts/vendor-dart-native.sh\n'
+      'Run `make check-dart-native-scaffold` to confirm the plugin scaffolding '
+      'still points where those scripts write.\n'
+      'Underlying error: $e',
+    );
   }
-  if (Platform.isIOS || Platform.isMacOS) {
-    return DynamicLibrary.process();
-  }
-  if (Platform.isWindows) {
-    // Desktop targets are outside DART-02's Android/iOS scope; best-effort
-    // fallback for local development only.
-    return DynamicLibrary.open('press.dll');
-  }
-  // Linux and any other platform: best-effort fallback for local development.
-  return DynamicLibrary.open('libpress.so');
 }
 
 /// Lazily-initialized native bindings. Dart top-level variables initialize

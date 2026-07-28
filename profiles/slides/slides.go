@@ -66,6 +66,12 @@ func (slides) Container(inlineSVG bool) string {
 	return "div.marpit"
 }
 
+// ContainerClass is the class the rendered run's wrapping <div> carries.
+// "marpit" is load-bearing for Marp compatibility: the conformance corpus,
+// the three bundled themes' scoped selectors, and every existing consumer
+// depend on this exact value.
+func (slides) ContainerClass() string { return "marpit" }
+
 // Sizes returns the slide size table: a 16:9 default, plus a 4:3
 // alternative -- the two named sizes a slide deck's @size metadata can
 // select between (see chase/theme's Meta.ResolveSize).

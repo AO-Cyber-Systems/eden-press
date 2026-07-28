@@ -62,6 +62,10 @@ func (f fakeProfile) Container(inlineSVG bool) string {
 	return ""
 }
 
+// ContainerClass returns the fake's id as its class, so a test asserting on
+// the class can distinguish two fakes without extra wiring.
+func (f fakeProfile) ContainerClass() string { return f.id }
+
 func (f fakeProfile) Sizes() SizeTable           { return f.sizes }
 func (f fakeProfile) Pagination() PaginationRule { return f.pagination }
 

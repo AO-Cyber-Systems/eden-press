@@ -245,9 +245,9 @@ func TestComprehensiveAcceptance4x3(t *testing.T) {
 // own directory). Skips cleanly when soffice is absent so CI without
 // LibreOffice still passes on the structural/position asserts alone.
 func TestAcceptanceDeckLibreOfficeSmoke(t *testing.T) {
-	sofficePath, err := exec.LookPath("soffice")
-	if err != nil {
-		t.Skip("soffice not on PATH; skipping LibreOffice-headless acceptance smoke")
+	sofficePath := findSoffice()
+	if sofficePath == "" {
+		t.Skip("no LibreOffice binary found; skipping LibreOffice-headless acceptance smoke")
 	}
 
 	doc := acceptanceDoc()

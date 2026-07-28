@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package pptx
+package docx
 
 import (
 	"archive/zip"
@@ -29,58 +29,52 @@ import (
 	"time"
 )
 
-// part is one OPC (Open Packaging Conventions) ZIP entry: a part name (its
-// ZIP entry path, e.g. "ppt/presentation.xml") paired with its raw content.
-// Parts are always assembled into an EXPLICITLY ORDERED []part -- never a
-// map -- because Go map iteration order is randomized and would break the
-// byte-for-byte determinism this package guarantees (06-RESEARCH Pitfall 4).
+// part is one OPC (Open Packaging Conventions) ZIP entry: a part name (its ZIP
+// entry path, e.g. "word/document.xml") paired with its raw content. Parts are
+// always assembled into an EXPLICITLY ORDERED []part -- never a map -- because
+// Go map iteration order is randomized and would break the byte-for-byte
+// determinism this package guarantees.
 type part struct {
 	name    string
 	content []byte
 }
 
 // fixedModified is the single fixed timestamp stamped onto EVERY zip entry's
-// FileHeader.Modified. archive/zip defaults Modified to "now" when left
-// unset, which would make every rebuild of the same deck produce different
-// bytes -- fatal for a golden-hash determinism test. 1980-01-01 is used
-// because it is the ZIP/DOS date format's own floor (no earlier date is
-// even representable in the format), not because the date carries any other
-// meaning.
+// FileHeader.Modified. archive/zip defaults Modified to "now" when left unset,
+// which would make every rebuild of the same document produce different bytes.
+// 1980-01-01 is the ZIP/DOS date format's own floor.
 var fixedModified = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
-// buildZip assembles an OPC ZIP package from parts, in the EXACT order
-// given. Every entry uses zip.Store (never zip.Deflate -- compress/flate's
-// output is not a documented cross-Go-version byte-stability guarantee,
-// 06-RESEARCH Pitfall 4) and the fixed Modified timestamp above, so calling
-// buildZip twice with an identical parts slice always produces
-// byte-identical output.
+// buildZip assembles an OPC ZIP package from parts, in the EXACT order given.
+// Every entry uses zip.Store (never zip.Deflate -- compress/flate's output is
+// not a documented cross-Go-version byte-stability guarantee) and the fixed
+// Modified timestamp above.
 //
 // CreateRaw, not CreateHeader. zip.Writer.CreateHeader unconditionally sets
 // general-purpose flag bit 3 (0x8) and writes zeros for the CRC and both sizes
-// in the local file header, deferring them to a trailing data descriptor. For a
-// DEFLATE entry that is harmless, but for a STORED entry -- which is what this
-// packager emits for determinism -- it leaves a strict reader with no way to
-// know where the entry's data ends. LibreOffice's zip reader rejects such an
-// archive outright ("source file could not be loaded"), before examining any
-// OOXML: verified empirically against a deck built by this package, which was
-// refused until the flag was cleared, and accepted immediately afterwards.
+// in the local file header, deferring them to a trailing data descriptor. That
+// is legal, and fine for a DEFLATE entry whose end a reader can detect from the
+// compressed stream -- but for a STORED entry it leaves a strict reader with no
+// way to know where the entry's data ends without scanning for the descriptor
+// signature. LibreOffice's zip reader refuses such an archive outright ("source
+// file could not be loaded"), which means a package built with CreateHeader is
+// rejected before a single byte of its OOXML is examined.
 //
-// The LibreOffice smoke tests in this package did not catch it because they
-// resolve soffice via exec.LookPath alone and silently skipped on a machine
-// where LibreOffice was installed but not symlinked onto PATH. They now look in
-// the standard install locations too.
+// CreateRaw writes the caller-supplied CRC32 and sizes directly into the local
+// header and leaves the flag clear, producing the fully-specified STORED entry
+// every consumer accepts. Determinism is unaffected: the CRC and sizes are pure
+// functions of the content.
 //
-// CreateRaw writes the caller-supplied CRC32 and sizes into the local header
-// and leaves the flag clear. Determinism is unaffected: both are pure functions
-// of the content.
+// NOTE: this mirrors convert/pptx/package.go deliberately. Both exporters keep
+// their own copy so neither can break the other, matching the self-contained
+// shape convert/pptx already established; extracting a shared convert/opc
+// package is a worthwhile follow-up once a third OOXML writer exists to prove
+// the abstraction against.
 func buildZip(parts []part) ([]byte, error) {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 	for _, p := range parts {
-		fh := &zip.FileHeader{
-			Name:   p.name,
-			Method: zip.Store,
-		}
+		fh := &zip.FileHeader{Name: p.name, Method: zip.Store}
 		fh.Modified = fixedModified
 		setDOSModified(fh, fixedModified)
 		fh.CRC32 = crc32.ChecksumIEEE(p.content)
@@ -91,7 +85,8 @@ func buildZip(parts []part) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Method is Store, so the "raw" bytes ARE the uncompressed content.
+		// Method is Store, so the "raw" (already-compressed) bytes ARE the
+		// uncompressed content.
 		if _, err := w.Write(p.content); err != nil {
 			return nil, err
 		}

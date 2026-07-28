@@ -94,6 +94,45 @@ type ThemeSet struct {
 	scaffold           *Theme
 	unit               string
 	advancedBackground []Rule
+
+	// containerNonSVG / containerSVG are the profile-supplied container
+	// chains Pack scopes rules under. Nil means "use chase/theme/selector's
+	// built-in Marp chains", which is what every caller got before
+	// SetContainerChains existed — see that method's doc.
+	containerNonSVG []css.Token
+	containerSVG    []css.Token
+}
+
+// SetContainerChains supplies the container-chain selectors the active
+// Profile declares (profile.Profile.Container(false) and Container(true)),
+// replacing chase/theme/selector's built-in "div.marpit" / "div.marpit > svg >
+// foreignObject" defaults.
+//
+// This closes a gap that went unnoticed while exactly one profile existed:
+// Profile.Container()'s own documentation says it "de-hardcodes
+// chase/theme/selector/scope.go's inlineSVGChain / nonSVGChain", but nothing
+// ever passed its value here, so those package vars stayed the real source of
+// truth and a second profile's rules were scoped under the SLIDES container —
+// CSS that could never match its own markup.
+//
+// An empty string leaves the corresponding default in place, so existing
+// callers that never call this behave exactly as before.
+func (ts *ThemeSet) SetContainerChains(nonSVG, inlineSVG string) error {
+	if nonSVG != "" {
+		toks, err := selector.ParseSelectorTokens(nonSVG)
+		if err != nil {
+			return fmt.Errorf("theme: SetContainerChains: non-SVG chain %q: %w", nonSVG, err)
+		}
+		ts.containerNonSVG = toks
+	}
+	if inlineSVG != "" {
+		toks, err := selector.ParseSelectorTokens(inlineSVG)
+		if err != nil {
+			return fmt.Errorf("theme: SetContainerChains: inline-SVG chain %q: %w", inlineSVG, err)
+		}
+		ts.containerSVG = toks
+	}
+	return nil
 }
 
 // NewThemeSet constructs an empty ThemeSet with its internal scaffold
@@ -147,9 +186,15 @@ func (ts *ThemeSet) Pack(name string, opts PackOptions) (string, error) {
 		return "", err
 	}
 
-	container := selector.NonSVGContainerChain()
+	container := ts.containerNonSVG
+	if container == nil {
+		container = selector.NonSVGContainerChain()
+	}
 	if opts.InlineSVG {
-		container = selector.InlineSVGContainerChain()
+		container = ts.containerSVG
+		if container == nil {
+			container = selector.InlineSVGContainerChain()
+		}
 	}
 	slide := selector.UnitChain(ts.unit)
 
@@ -189,9 +234,20 @@ func scopePass(container, slide []css.Token, unit string) Pass {
 
 // scopeRulesAll applies scopeSelector to every rule's SelectorTokens,
 // returning a new slice (never mutating rules in place).
+//
+// A block at-rule has no selector of its own — scoping its empty
+// SelectorTokens would synthesize a bogus one — so it is descended INTO
+// instead: the rules inside @media/@supports need exactly the same scoping as
+// their top-level siblings, or they would target unscoped elements and leak
+// out of the deck.
 func scopeRulesAll(rules []Rule, container, slide []css.Token, unit string) []Rule {
 	out := make([]Rule, len(rules))
 	for i, r := range rules {
+		if r.At != nil {
+			r.Children = scopeRulesAll(r.Children, container, slide, unit)
+			out[i] = r
+			continue
+		}
 		r.SelectorTokens = scopeSelector(r.SelectorTokens, container, slide, unit)
 		out[i] = r
 	}
@@ -235,11 +291,19 @@ func renderPacked(sheet Stylesheet) string {
 		b.WriteString(a.String())
 		b.WriteString(";\n")
 	}
-	for i, r := range sheet.Rules {
-		if i > 0 {
+	// renderRule may return "" (an at-rule block emptied of all its children),
+	// so separation tracks what was actually written rather than the index.
+	wrote := false
+	for _, r := range sheet.Rules {
+		text := renderRule(r)
+		if text == "" {
+			continue
+		}
+		if wrote {
 			b.WriteString("\n")
 		}
-		b.WriteString(renderRule(r))
+		b.WriteString(text)
+		wrote = true
 	}
 	return b.String()
 }
@@ -251,6 +315,34 @@ func renderPacked(sheet Stylesheet) string {
 // use the unpadded tokensText — see selectorText's doc).
 func renderRule(r Rule) string {
 	var b strings.Builder
+	// A block at-rule keeps its Children after flattening (flattenRule
+	// flattens WITHIN the block rather than hoisting out of it), so it is the
+	// one Rule shape here that is not flat. Rendering it via the flat path
+	// would emit a bare " { }" and silently drop the whole block — which is
+	// exactly what happened to themes/uncover.css's @media print.
+	if r.At != nil {
+		if len(r.Children) == 0 && len(r.Declarations) == 0 {
+			return ""
+		}
+		b.WriteString(r.At.String())
+		b.WriteString(" {")
+		// Descriptors declared directly on the at-rule (@page, @font-face).
+		for _, d := range r.Declarations {
+			b.WriteString(" ")
+			b.WriteString(declarationText(d))
+			b.WriteString(";")
+		}
+		for _, c := range r.Children {
+			inner := renderRule(c)
+			if inner == "" {
+				continue
+			}
+			b.WriteString(" ")
+			b.WriteString(inner)
+		}
+		b.WriteString(" }")
+		return b.String()
+	}
 	b.WriteString(selectorText(r.SelectorTokens))
 	b.WriteString(" {")
 	for _, d := range r.Declarations {

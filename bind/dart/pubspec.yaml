@@ -58,16 +58,18 @@ dev_dependencies:
 # STATICALLY linked on iOS (DynamicLibrary.process(), not .open()); see
 # 07-RESEARCH.md Sec 4 and lib/src/native_loader.dart.
 #
-# The android/ios native scaffolding that vendors 07-03's build-android.sh /
-# build-ios.sh artifacts (android/src/main/jniLibs/<abi>/libpress.so, an iOS
-# podspec `vendored_libraries` entry for EdenPress.xcframework) is the
-# follow-up integration step: it is out of this TRD's file scope (pubspec.yaml
-# + lib/ + test/ only -- see 07-05-TRD.md files_modified / SUMMARY Deviations
-# for the explicit scoping note). Declaring `ffiPlugin: true` for both
-# platforms here is the correct, forward-compatible plugin registration
-# regardless of when that native vendoring lands; flutter pub get / dart
-# analyze do not require the native directories to exist to validate cleanly
-# (verified empirically against a throwaway scaffold before writing this).
+# The android/ios native scaffolding is present: android/build.gradle packages
+# the per-ABI libpress.so from src/main/jniLibs, and ios/eden_press.podspec
+# vendors EdenPress.xcframework as a STATIC framework (the payload is a Go
+# c-archive, which is also why native_loader.dart uses DynamicLibrary.process()
+# on iOS rather than .open()).
+#
+# The binaries themselves are gitignored build products: run
+# scripts/build-android.sh / scripts/build-ios.sh, then
+# scripts/vendor-dart-native.sh (make dart-native-vendor) to place them.
+# `make check-dart-native-scaffold` verifies this scaffolding still agrees with
+# where those build scripts write — nothing else connects the two sides, since
+# the artifacts can never be committed as evidence.
 flutter:
   plugin:
     platforms:

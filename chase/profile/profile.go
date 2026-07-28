@@ -64,6 +64,22 @@ type Profile interface {
 	// inlineSVGChain / nonSVGChain package-level vars today.
 	Container(inlineSVG bool) string
 
+	// ContainerClass is the class attribute of the <div> the whole
+	// rendered run is wrapped in — "marpit" for slides. It MUST be the
+	// class the selector Container() returns actually matches.
+	//
+	// This method exists because Container() alone was not enough to
+	// describe a container: chase/markdown/render.go's renderDocument
+	// wrote `<div class="marpit">` as a literal, so a profile returning
+	// any other Container() selector would have generated CSS that could
+	// not match its own markup. Adding a second Profile implementation
+	// (profiles/paged) is what surfaced the gap — the first real test of
+	// this abstraction, and evidence that "a new profile needs no change
+	// to chase/*" held only while there was exactly one profile.
+	//
+	// Threaded to the renderer via markdown.WithContainerClass.
+	ContainerClass() string
+
 	// Sizes resolves the profile's named-size table plus its default
 	// size (16:9 for slides). De-hardcodes chase/theme/meta.go's
 	// bareSizeFallback map and chase/theme/stylesheet.go's

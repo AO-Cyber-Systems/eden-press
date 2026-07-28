@@ -83,3 +83,19 @@ check-chrome-export:
 # instead of failing. Wired into the CI export job beside export-test.
 export-binary-smoke:
 	bash scripts/export-binary-smoke.sh
+
+# check-dart-native-scaffold verifies the eden_press Flutter plugin scaffolding
+# (bind/dart/android, bind/dart/ios) still agrees with the native build scripts
+# that feed it. The binaries themselves are gitignored, so nothing else in the
+# repo connects the two sides — a moved output path would ship a plugin with no
+# native library and fail at runtime on a device. See
+# scripts/check-dart-native-scaffold.sh.
+check-dart-native-scaffold:
+	bash scripts/check-dart-native-scaffold.sh
+
+# dart-native-vendor copies built native artifacts into the plugin. Run after
+# scripts/build-android.sh and/or scripts/build-ios.sh.
+dart-native-vendor:
+	bash scripts/vendor-dart-native.sh
+
+.PHONY: check-dart-native-scaffold dart-native-vendor

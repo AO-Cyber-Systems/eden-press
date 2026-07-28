@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/yuin/goldmark/ast"
+	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 
@@ -135,7 +136,13 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 			//     materialized as a math Block when the walk descends into this
 			//     paragraph (the rawMath case in default, below) -- preserving
 			//     document order + the display flag (error_recovery).
-			if entering && sectionIdx >= 0 && !isMathOnlyParagraph(n, source) {
+			//
+			// An IMAGE-ONLY paragraph is skipped for the same reason a
+			// math-only one is: goldmark wraps a standalone `![alt](src)` in a
+			// Paragraph whose Text reconstructs the ALT text, which would
+			// double-emit the alt as prose alongside the image Block the walk
+			// materializes when it descends into the paragraph (EPD-R1).
+			if entering && sectionIdx >= 0 && !isMathOnlyParagraph(n, source) && !isImageOnlyParagraph(n, source) {
 				if txt := string(n.Text(source)); strings.TrimSpace(txt) != "" {
 					d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
 						Kind: BlockParagraph,
@@ -156,6 +163,49 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 					Items:   collectListItems(node, source),
 				})
 				return ast.WalkSkipChildren, nil
+			}
+		case *east.Table:
+			// EPD-R1. Emit one table Block carrying the header row, every body
+			// row and the per-column alignments, then SKIP the table's
+			// children so its cells' inline text is not ALSO emitted as loose
+			// prose -- the same containment the *ast.List case above applies.
+			// Before this case existed a table's content reached Output.HTML
+			// but was absent from the model entirely.
+			if entering && sectionIdx >= 0 {
+				headers, rows := collectTable(node, source)
+				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+					Kind:    BlockTable,
+					Headers: headers,
+					Rows:    rows,
+					Aligns:  alignNames(node.Alignments),
+				})
+				return ast.WalkSkipChildren, nil
+			}
+		case *ast.Blockquote:
+			// EPD-R1. A blockquote previously fell through to its child
+			// Paragraphs and surfaced as an indistinguishable paragraph Block,
+			// so downstream had no way to style a quote as a quote. Emit one
+			// quote Block carrying the concatenated text and skip the
+			// children, so the text is not double-emitted as prose.
+			if entering && sectionIdx >= 0 {
+				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+					Kind: BlockQuote,
+					Text: quoteText(node, source),
+				})
+				return ast.WalkSkipChildren, nil
+			}
+		case *ast.Image:
+			// EPD-R1. Destination + alt text + optional title. Reached whether
+			// the image stands alone in its own paragraph (whose prose Block is
+			// suppressed by isImageOnlyParagraph) or sits mid-sentence (where
+			// the surrounding prose is kept, mirroring mixed prose+math).
+			if entering && sectionIdx >= 0 {
+				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
+					Kind:  BlockImage,
+					Src:   string(node.Destination),
+					Text:  string(node.Text(source)),
+					Title: string(node.Title),
+				})
 			}
 		case *ast.FencedCodeBlock:
 			// RAW source (pre-chroma) reconstructed from the node's line
@@ -236,6 +286,93 @@ func isMathOnlyParagraph(n ast.Node, source []byte) bool {
 		}
 	}
 	return hasMath
+}
+
+// isImageOnlyParagraph reports whether n is a paragraph/text-block whose only
+// non-whitespace content is image node(s) -- e.g. a standalone
+// `![alt](src)` line goldmark wraps in a Paragraph. Such a paragraph must NOT
+// emit a text Block: Paragraph.Text reconstructs the image's ALT text, which
+// would surface as prose duplicating the image Block's own Text. Exactly
+// parallel to isMathOnlyParagraph; returns false for a paragraph mixing prose
+// with an image (that prose is real and is kept), or one with no image at all.
+func isImageOnlyParagraph(n ast.Node, source []byte) bool {
+	hasImage := false
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		if _, ok := c.(*ast.Image); ok {
+			hasImage = true
+			continue
+		}
+		if strings.TrimSpace(string(c.Text(source))) != "" {
+			return false // a non-image, non-whitespace child -> real prose
+		}
+	}
+	return hasImage
+}
+
+// collectTable flattens a GFM table into its header-row cell texts and its
+// body rows, each a left-to-right slice of cell texts. A table with no
+// *east.TableHeader yields a nil headers slice rather than an empty one, so
+// the `omitempty` tag drops the key entirely. Ragged rows are reported as
+// authored -- padding/truncating is an exporter's decision, not the model's.
+func collectTable(t *east.Table, source []byte) (headers []string, rows [][]string) {
+	cellsOf := func(row ast.Node) []string {
+		var cells []string
+		for c := row.FirstChild(); c != nil; c = c.NextSibling() {
+			if cell, ok := c.(*east.TableCell); ok {
+				cells = append(cells, string(cell.Text(source)))
+			}
+		}
+		return cells
+	}
+	for n := t.FirstChild(); n != nil; n = n.NextSibling() {
+		switch row := n.(type) {
+		case *east.TableHeader:
+			headers = cellsOf(row)
+		case *east.TableRow:
+			rows = append(rows, cellsOf(row))
+		}
+	}
+	return headers, rows
+}
+
+// alignNames maps goldmark's per-column Alignment enum onto the stable
+// lowercase strings the model exposes. east.AlignNone becomes "" so an
+// unaligned column serializes as an empty entry rather than inventing a
+// default an exporter might then apply as if it were explicit.
+func alignNames(aligns []east.Alignment) []string {
+	if len(aligns) == 0 {
+		return nil
+	}
+	out := make([]string, len(aligns))
+	for i, a := range aligns {
+		switch a {
+		case east.AlignLeft:
+			out[i] = "left"
+		case east.AlignRight:
+			out[i] = "right"
+		case east.AlignCenter:
+			out[i] = "center"
+		default:
+			out[i] = ""
+		}
+	}
+	return out
+}
+
+// quoteText concatenates a blockquote's block-level children into one string,
+// separating them by a blank line so a multi-paragraph quote round-trips as
+// readable prose. Nested blockquotes are flattened in document order -- the
+// model records the quote's TEXT, not a recursive quote tree, which is what
+// every current consumer (pptx text boxes, a future docx quote style, the Dart
+// render surface) actually needs.
+func quoteText(q *ast.Blockquote, source []byte) string {
+	var parts []string
+	for c := q.FirstChild(); c != nil; c = c.NextSibling() {
+		if txt := strings.TrimSpace(string(c.Text(source))); txt != "" {
+			parts = append(parts, txt)
+		}
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 // rawLinesText reconstructs a code block's RAW source by concatenating the
