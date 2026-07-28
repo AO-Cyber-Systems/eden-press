@@ -25,6 +25,7 @@ package pptx
 import (
 	"archive/zip"
 	"bytes"
+	"hash/crc32"
 	"time"
 )
 
@@ -53,6 +54,25 @@ var fixedModified = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 // 06-RESEARCH Pitfall 4) and the fixed Modified timestamp above, so calling
 // buildZip twice with an identical parts slice always produces
 // byte-identical output.
+//
+// CreateRaw, not CreateHeader. zip.Writer.CreateHeader unconditionally sets
+// general-purpose flag bit 3 (0x8) and writes zeros for the CRC and both sizes
+// in the local file header, deferring them to a trailing data descriptor. For a
+// DEFLATE entry that is harmless, but for a STORED entry -- which is what this
+// packager emits for determinism -- it leaves a strict reader with no way to
+// know where the entry's data ends. LibreOffice's zip reader rejects such an
+// archive outright ("source file could not be loaded"), before examining any
+// OOXML: verified empirically against a deck built by this package, which was
+// refused until the flag was cleared, and accepted immediately afterwards.
+//
+// The LibreOffice smoke tests in this package did not catch it because they
+// resolve soffice via exec.LookPath alone and silently skipped on a machine
+// where LibreOffice was installed but not symlinked onto PATH. They now look in
+// the standard install locations too.
+//
+// CreateRaw writes the caller-supplied CRC32 and sizes into the local header
+// and leaves the flag clear. Determinism is unaffected: both are pure functions
+// of the content.
 func buildZip(parts []part) ([]byte, error) {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
@@ -62,10 +82,16 @@ func buildZip(parts []part) ([]byte, error) {
 			Method: zip.Store,
 		}
 		fh.Modified = fixedModified
-		w, err := zw.CreateHeader(fh)
+		setDOSModified(fh, fixedModified)
+		fh.CRC32 = crc32.ChecksumIEEE(p.content)
+		fh.CompressedSize64 = uint64(len(p.content))
+		fh.UncompressedSize64 = uint64(len(p.content))
+
+		w, err := zw.CreateRaw(fh)
 		if err != nil {
 			return nil, err
 		}
+		// Method is Store, so the "raw" bytes ARE the uncompressed content.
 		if _, err := w.Write(p.content); err != nil {
 			return nil, err
 		}
@@ -74,4 +100,22 @@ func buildZip(parts []part) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// setDOSModified writes t into fh's MS-DOS date/time fields.
+//
+// CreateHeader derives these from FileHeader.Modified for the caller;
+// CreateRaw does not -- it writes the header fields exactly as supplied, and
+// leaving them zero encodes the DOS epoch underflow value that reads back as
+// 1979-11-30. Setting them explicitly keeps every entry stamped with the fixed
+// timestamp determinism depends on, and keeps zip.Reader's round-trip of
+// FileHeader.Modified exact.
+//
+// The MS-DOS encoding (ECMA-119 / PKWARE APPNOTE 4.4.6): the date word packs
+// (year-1980)<<9 | month<<5 | day, and the time word hour<<11 | minute<<5 |
+// second/2 -- two-second resolution, which is why seconds are halved.
+func setDOSModified(fh *zip.FileHeader, t time.Time) {
+	t = t.UTC()
+	fh.ModifiedDate = uint16((t.Year()-1980)<<9 | int(t.Month())<<5 | t.Day())
+	fh.ModifiedTime = uint16(t.Hour()<<11 | t.Minute()<<5 | t.Second()/2)
 }

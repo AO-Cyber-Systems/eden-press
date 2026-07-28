@@ -312,9 +312,9 @@ func TestTrivialDeckOpenable4x3(t *testing.T) {
 // is absent so CI without LibreOffice still passes on the structural
 // asserts alone.
 func TestTrivialDeckLibreOfficeSmoke(t *testing.T) {
-	sofficePath, err := exec.LookPath("soffice")
-	if err != nil {
-		t.Skip("soffice not on PATH; skipping LibreOffice-headless openability smoke")
+	sofficePath := findSoffice()
+	if sofficePath == "" {
+		t.Skip("no LibreOffice binary found; skipping LibreOffice-headless openability smoke")
 	}
 
 	deck, err := buildTrivialDeck(SlideSize16x9)
@@ -345,4 +345,28 @@ func TestTrivialDeckLibreOfficeSmoke(t *testing.T) {
 	if _, err := os.Stat(pdfPath); err != nil {
 		t.Fatalf("expected soffice to produce %s: %v", pdfPath, err)
 	}
+}
+
+// findSoffice locates a LibreOffice binary: PATH first, then the standard
+// install locations.
+//
+// This used to be exec.LookPath alone, which silently skipped on any machine
+// where LibreOffice is installed but not symlinked onto PATH -- the default on
+// macOS. That skip hid a real defect for the life of the package: buildZip
+// emitted STORED entries carrying a data-descriptor flag, which LibreOffice
+// refuses to open at all. A smoke test that never runs is not evidence, so
+// this one looks in the app bundle before giving up.
+func findSoffice() string {
+	if p, err := exec.LookPath("soffice"); err == nil {
+		return p
+	}
+	for _, p := range []string{
+		"/Applications/LibreOffice.app/Contents/MacOS/soffice",
+		"/usr/lib/libreoffice/program/soffice",
+	} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
 }
