@@ -40,3 +40,6 @@ profile.cov
 .DS_Store
 Thumbs.db
 *.swp
+
+# DevFlow ephemeral skill marker — must never be committed
+.planning/.skill-active
