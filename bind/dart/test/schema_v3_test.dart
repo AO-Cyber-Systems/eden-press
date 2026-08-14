@@ -143,12 +143,16 @@ void main() {
     expect(block.text, 'still visible');
   });
 
-  test('Case 7: the binding records the v3 wire shape it now understands', () {
-    expect(ModelDocument.expectedSchemaVersion, 'eden-press.model/v3');
+  test('Case 7: the binding records the wire shape it now understands', () {
+    expect(ModelDocument.expectedSchemaVersion, 'eden-press.model/v4');
   });
 }
 
 // ModelDocument.expectedSchemaVersion is the binding's own record of which
 // wire shape it understands. Leaving it at v2 after the Go side moved to v3
 // would make any version check this constant feeds silently reject — or
-// silently accept — the wrong shape.
+// silently accept — the wrong shape. The same reasoning moves it v3 -> v4 for
+// AODex Objective 16's additive source spans: v4 is a strict superset of v3
+// (proven Go-side by TestV4IsAStrictSupersetOfV3), so every case in this file
+// still describes the shape correctly — the constant is simply the one thing
+// that must track chase/model.SchemaVersion.

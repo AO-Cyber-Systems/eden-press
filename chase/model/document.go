@@ -65,7 +65,30 @@ package model
 // have seen for the same input, so v3 is a deliberate, signalled change
 // rather than a silent v2 extension -- exactly the branch signal this
 // constant exists to give.
-const SchemaVersion = "eden-press.model/v3"
+//
+// v3 -> v4 (AODex Objective 16): ADDITIVE source positions. Section, Block and
+// OutlineEntry each gained an optional Span -- a half-open [start, stop) BYTE
+// range into the Markdown source -- materialized from the text.Segment bounds
+// the SAME single Build walk already visited and previously discarded.
+//
+// Nothing is re-classified. No existing field changed meaning, shape or
+// presence: a v3 consumer that ignores unknown keys sees byte-for-byte the
+// same document apart from this version string. That is the OPPOSITE of
+// v2 -> v3, which moved blockquotes off BlockParagraph and therefore genuinely
+// required a consumer to look. The superset claim is PROVEN, not asserted --
+// TestV4IsAStrictSupersetOfV3 strips every `span` key from a v4 render and
+// compares the result to a golden captured from the pre-bump v3 tree.
+//
+// The bump happens anyway because this schema versions its SHAPE, not only its
+// breaking changes -- the same reason v1 -> v2 bumped for a purely additive
+// Blocks field.
+//
+// Why positions at all: without them an editor cannot map an outline click to
+// a source offset, and reconstructing Section boundaries client-side means
+// replicating headingDivider's SYNTHETIC thematic breaks (which appear in no
+// source text whatsoever) and goldmark's setext-heading precedence in another
+// language.
+const SchemaVersion = "eden-press.model/v4"
 
 // Span is a half-open byte range [Start, Stop) into the Markdown source that
 // produced the node carrying it: source[Start:Stop] re-slices that node's
