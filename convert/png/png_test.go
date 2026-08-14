@@ -29,12 +29,20 @@ import (
 	"image/jpeg"
 	"image/png"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/AO-Cyber-Systems/eden-press/chase/model"
 	"github.com/AO-Cyber-Systems/eden-press/convert"
 	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
 	"github.com/AO-Cyber-Systems/eden-press/press"
+
+	// Blank imports: populate the chase/profile registry resolveProfileSize
+	// looks up out.Profile in. png.go itself imports NO profiles package --
+	// that is the point of this change (it used to reach profile.Default(),
+	// whose answer depended on whoever happened to register first).
+	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
+	_ "github.com/AO-Cyber-Systems/eden-press/profiles/slides"
 )
 
 // newTestSession is the Chrome-presence gate every test in this file shares:
@@ -80,6 +88,10 @@ func loadPlainFixture(t *testing.T) press.Output {
 		Model: &model.Document{
 			Sections: []model.Section{{ID: 1}, {ID: 2}, {ID: 3}},
 		},
+		// A hand-built Output must record a Profile like a real press.Render
+		// Output does -- ToImages errors rather than guessing when it is
+		// absent. The fixture's 1280x720 sample points pin it to slides.
+		Profile: "slides",
 	}
 }
 
@@ -236,6 +248,7 @@ func TestToImagesInlineSVGModeSmoke(t *testing.T) {
 		Model: &model.Document{
 			Sections: []model.Section{{ID: 1}, {ID: 2}},
 		},
+		Profile: "slides",
 	}
 
 	images, err := ToImages(sess, out, Options{InlineSVG: true})
@@ -272,5 +285,73 @@ func TestToImagesInlineSVGModeSmoke(t *testing.T) {
 		if got := colorAt(img, sampleX, sampleY); !closeEnough(got, wantColors[i], 4) {
 			t.Fatalf("slide %d: pixel(%d,%d) = %+v, want %+v (inline-SVG document order broken)", i+1, sampleX, sampleY, got, wantColors[i])
 		}
+	}
+}
+
+// --- resolveProfileSize: the Chrome-free proof --------------------------
+
+// TestResolveProfileSize proves this exporter's capture geometry follows the
+// profile that actually produced the Output, mirroring convert/pdf's
+// TestResolveSize. It is a pure function, so unlike every other test in this
+// file it needs NO Chrome and never skips -- which matters, because the
+// profile.Default() call it replaces was import-graph dependent, and an
+// import-graph bug is exactly the kind that a skipped test hides.
+func TestResolveProfileSize(t *testing.T) {
+	out := func(profileID, sizeDirective string) press.Output {
+		o := press.Output{Profile: profileID, Model: &model.Document{}}
+		if sizeDirective != "" {
+			o.Model.Meta = model.Meta{Directives: map[string]string{"size": sizeDirective}}
+		}
+		return o
+	}
+
+	cases := []struct {
+		name             string
+		out              press.Output
+		wantW, wantH     int
+		wantName         string
+		wantContainer    string
+		wantErrSubstring string
+	}{
+		{name: "slides, no directive -> 16:9", out: out("slides", ""), wantW: 1280, wantH: 720, wantName: "16:9", wantContainer: "div.marpit"},
+		{name: "slides, 4:3 directive", out: out("slides", "4:3"), wantW: 960, wantH: 720, wantName: "4:3", wantContainer: "div.marpit"},
+		{name: "paged, no directive -> A4", out: out("paged", ""), wantW: 794, wantH: 1123, wantName: "a4", wantContainer: "div.edenpress-paged"},
+		{name: "paged, letter directive", out: out("paged", "letter"), wantW: 816, wantH: 1056, wantName: "letter", wantContainer: "div.edenpress-paged"},
+		{name: "paged, a5 directive", out: out("paged", "a5"), wantW: 559, wantH: 794, wantName: "a5", wantContainer: "div.edenpress-paged"},
+		{name: "paged, unknown directive -> PAGED's default, not slides'", out: out("paged", "nonsense"), wantW: 794, wantH: 1123, wantName: "a4", wantContainer: "div.edenpress-paged"},
+		{name: "no recorded profile -> named error, never a silent fallback", out: out("", "16:9"), wantErrSubstring: "carries no Profile"},
+		{name: "unregistered profile -> named error", out: out("epub", "16:9"), wantErrSubstring: `unknown profile "epub"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, size, err := resolveProfileSize(tc.out)
+
+			if tc.wantErrSubstring != "" {
+				if err == nil {
+					t.Fatalf("resolveProfileSize(%+v) = %v/%+v, want an error containing %q", tc.out, p, size, tc.wantErrSubstring)
+				}
+				if !strings.Contains(err.Error(), tc.wantErrSubstring) {
+					t.Errorf("error = %q, want it to contain %q", err, tc.wantErrSubstring)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("resolveProfileSize(%+v): %v", tc.out, err)
+			}
+			if size.WidthPx != tc.wantW || size.HeightPx != tc.wantH {
+				t.Errorf("size = %dx%d (%q), want %dx%d (%q)",
+					size.WidthPx, size.HeightPx, size.Name, tc.wantW, tc.wantH, tc.wantName)
+			}
+			if size.Name != tc.wantName {
+				t.Errorf("size name = %q, want %q", size.Name, tc.wantName)
+			}
+			// The selector must come from the SAME profile the geometry did,
+			// or ToImages addresses a container the packed CSS never emitted.
+			if got := p.Container(false); got != tc.wantContainer {
+				t.Errorf("profile.Container(false) = %q, want %q", got, tc.wantContainer)
+			}
+		})
 	}
 }

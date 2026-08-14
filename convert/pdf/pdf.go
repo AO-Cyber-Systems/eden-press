@@ -30,10 +30,10 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 
+	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
 	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
 	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
 	"github.com/AO-Cyber-Systems/eden-press/press"
-	"github.com/AO-Cyber-Systems/eden-press/profiles/slides"
 )
 
 // Options is convert/pdf's exporter-specific knob surface. It is kept
@@ -53,8 +53,11 @@ type Options struct{}
 // determinism bar this claims).
 //
 // Flow:
-//  1. Resolve the slide size from out.Meta's "size" front-matter directive
-//     (falling back to profiles/slides' 16:9 default when absent/unknown).
+//  1. Resolve the page/slide size from out.Meta's "size" front-matter
+//     directive, looked up in the size table of the profile that ACTUALLY
+//     produced out (out.Profile), falling back to THAT profile's default
+//     when the directive is absent or unknown. An Output with no recorded
+//     profile is an error, not a slides fallback.
 //  2. Compose a self-contained HTML document: out.HTML wrapped in a
 //     <style> combining chrome.ComposeCSS(out.CSS) (base CSS + the
 //     animation-kill override + the embedded STIX font) with
@@ -74,7 +77,10 @@ type Options struct{}
 // slide-deck-sized output; a large-document streaming path is out of
 // scope here).
 func ToPDF(sess *chrome.Session, out press.Output, opts Options) ([]byte, error) {
-	size := resolveSize(out)
+	size, err := resolveSize(out)
+	if err != nil {
+		return nil, err
+	}
 
 	tab, cancel := sess.NewTab()
 	defer cancel()
@@ -88,7 +94,7 @@ func ToPDF(sess *chrome.Session, out press.Output, opts Options) ([]byte, error)
 	}
 
 	var data []byte
-	err := chromedp.Run(tab, chromedp.ActionFunc(func(ctx context.Context) error {
+	err = chromedp.Run(tab, chromedp.ActionFunc(func(ctx context.Context) error {
 		// PrintToPDF returns (data, stream, err) -- three values, so it is
 		// NOT a first-class chromedp.Action and MUST be invoked from
 		// inside an ActionFunc like this one (05-RESEARCH Pattern 1).
@@ -113,19 +119,38 @@ func ToPDF(sess *chrome.Session, out press.Output, opts Options) ([]byte, error)
 	return data, nil
 }
 
-// resolveSize resolves the slide size ToPDF renders at: out.Meta's "size"
-// front-matter directive value (Output.Meta is press.Render's top-level
-// alias for Model.Meta), looked up against profiles/slides' own size
-// table, falling back to that table's Default (16:9, 1280x720px) when the
-// directive is absent or names an unregistered size.
-func resolveSize(out press.Output) theme.Size {
-	table := slides.New().Sizes()
+// resolveSize resolves the page/slide size ToPDF renders at from the profile
+// that ACTUALLY produced out (out.Profile, recorded by press.Render), rather
+// than from a hardcoded table: out.Meta's "size" front-matter directive value
+// (Output.Meta is press.Render's top-level alias for Model.Meta) looked up in
+// THAT profile's own size table, falling back to THAT table's Default when the
+// directive is absent or names a size the profile does not define.
+//
+// Before this, the table was profiles/slides' unconditionally, so an A4 paged
+// document exported at 1280x720 -- discarding the entire reason the paged
+// profile exists. Physical page geometry is that profile's whole point.
+//
+// An Output with no recorded profile is an ERROR, never a slides fallback. A
+// silent fallback is exactly what made the original bug invisible: nobody sees
+// 1280x720 and thinks "that was a guess".
+func resolveSize(out press.Output) (theme.Size, error) {
+	if out.Profile == "" {
+		return theme.Size{}, fmt.Errorf(
+			"convert/pdf: resolveSize: Output carries no Profile; re-render with a press version that records it")
+	}
+	p, ok := profile.Get(out.Profile)
+	if !ok {
+		return theme.Size{}, fmt.Errorf(
+			"convert/pdf: resolveSize: unknown profile %q (import the profiles/%s package for its init side-effect)",
+			out.Profile, out.Profile)
+	}
+	table := p.Sizes()
 	if name := out.Meta.Directives["size"]; name != "" {
 		if s, ok := table.ByName[name]; ok {
-			return s
+			return s, nil
 		}
 	}
-	return table.Default
+	return table.Default, nil
 }
 
 // composeDocument wraps out's rendered body-fragment HTML into a
