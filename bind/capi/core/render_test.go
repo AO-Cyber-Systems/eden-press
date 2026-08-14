@@ -47,6 +47,7 @@ type wireOutput struct {
 	Model    *wireModel      `json:"Model"`
 	Meta     json.RawMessage `json:"Meta"`
 	Comments []string        `json:"Comments"`
+	Profile  string          `json:"Profile"`
 }
 
 type wireResp struct {
@@ -264,4 +265,59 @@ func TestRenderJSON_RecoversRenderPanic(t *testing.T) {
 		// error envelope is acceptable -- the invariant is a well-formed,
 		// non-crashing JSON boundary, which mustParse already asserted.
 	})
+}
+
+// TestRenderJSON_ProfileReachableAcrossBoundary proves BOTH registered
+// profiles are addressable through the envelope entry point -- i.e. through
+// this package's own import graph, which is what a C/Dart host actually
+// links against.
+//
+// press.go blank-imports only profiles/slides, so before bind/capi/core
+// blank-imported profiles/paged, a host passing profile: "paged" got
+// `unknown profile "paged"`: the paged profile was unreachable from the
+// binding despite being fully implemented.
+//
+// It deliberately goes through RenderJSON, NOT press.Render. Calling
+// press.Render from this test would prove nothing about the binding, because
+// the TEST file's own imports would satisfy the registry -- the whole failure
+// mode being pinned here is import-graph shaped, so the test has to exercise
+// the same graph the shipped artifact does. For the same reason this file
+// adds NO blank import of its own; the one in render.go is what must carry it.
+//
+// The slides case sits beside it so a future import-graph change that breaks
+// one is visibly not breaking the other.
+func TestRenderJSON_ProfileReachableAcrossBoundary(t *testing.T) {
+	cases := []struct {
+		name        string
+		wireProfile any
+		want        string
+	}{
+		{"paged reaches the binding", "paged", "paged"},
+		{"slides still reaches the binding", "slides", "slides"},
+		{"omitted profile records the resolved default", nil, "slides"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var opts map[string]any
+			if tc.wireProfile != nil {
+				opts = map[string]any{"profile": tc.wireProfile}
+			}
+
+			resp := mustParse(t, RenderJSON(reqJSON(t, "# Hi\n", opts)))
+
+			if resp.Error != "" {
+				t.Fatalf("render returned error envelope %q, want a successful render", resp.Error)
+			}
+			if resp.Output == nil {
+				t.Fatal("successful envelope carried null output")
+			}
+			if resp.Output.Profile != tc.want {
+				t.Errorf("Output.Profile crossed the wire as %q, want %q", resp.Output.Profile, tc.want)
+			}
+			if resp.Output.HTML == "" || resp.Output.CSS == "" {
+				t.Errorf("under-populated output: html=%d css=%d", len(resp.Output.HTML), len(resp.Output.CSS))
+			}
+		})
+	}
 }
