@@ -94,9 +94,15 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 		switch node := n.(type) {
 		case *markdown.Section:
 			if entering {
+				// Schema v4: a *markdown.Section is synthesized by the
+				// splitter and has no lines of its own, so its span is derived
+				// from its positioned descendants. Safe to compute on ENTERING:
+				// Build walks a FINALIZED AST, so the Section's children all
+				// already exist.
 				d.Sections = append(d.Sections, Section{
 					ID:    node.ID,
 					Attrs: attrsToMap(node.Attrs),
+					Span:  spanOf(node),
 				})
 				sectionIdx = len(d.Sections) - 1
 			} else {
@@ -109,16 +115,19 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 				// body content carries its headings in document order (the
 				// Outline is a flat deck-wide index; Blocks is per-section body).
 				text := string(node.Text(source))
+				span := spanOf(node)
 				d.Outline = append(d.Outline, OutlineEntry{
 					SectionID: d.Sections[sectionIdx].ID,
 					Level:     node.Level,
 					Text:      text,
 					Slug:      headingSlug(node),
+					Span:      span,
 				})
 				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
 					Kind:  BlockHeading,
 					Level: node.Level,
 					Text:  text,
+					Span:  span,
 				})
 			}
 		case *ast.Paragraph, *ast.TextBlock:
@@ -147,6 +156,7 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 					d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
 						Kind: BlockParagraph,
 						Text: txt,
+						Span: spanOf(n),
 					})
 				}
 			}
@@ -161,6 +171,7 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 					Kind:    BlockList,
 					Ordered: node.IsOrdered(),
 					Items:   collectListItems(node, source),
+					Span:    spanOf(node),
 				})
 				return ast.WalkSkipChildren, nil
 			}
@@ -178,6 +189,7 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 					Headers: headers,
 					Rows:    rows,
 					Aligns:  alignNames(node.Alignments),
+					Span:    spanOf(node),
 				})
 				return ast.WalkSkipChildren, nil
 			}
@@ -191,6 +203,7 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
 					Kind: BlockQuote,
 					Text: quoteText(node, source),
+					Span: spanOf(node),
 				})
 				return ast.WalkSkipChildren, nil
 			}
@@ -205,6 +218,9 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 					Src:   string(node.Destination),
 					Text:  string(node.Text(source)),
 					Title: string(node.Title),
+					// An image is INLINE: no lines of its own, so this covers
+					// the alt-text range only, and is nil for an empty alt.
+					Span: spanOf(node),
 				})
 			}
 		case *ast.FencedCodeBlock:
@@ -216,6 +232,7 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 					Kind:     BlockCode,
 					Language: string(node.Language(source)),
 					Text:     rawLinesText(node.Lines(), source),
+					Span:     spanOf(node),
 				})
 			}
 		case *ast.CodeBlock:
@@ -224,6 +241,7 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 				d.Sections[sectionIdx].Blocks = append(d.Sections[sectionIdx].Blocks, Block{
 					Kind: BlockCode,
 					Text: rawLinesText(node.Lines(), source),
+					Span: spanOf(node),
 				})
 			}
 		case *markdown.CommentNode:
@@ -258,6 +276,7 @@ func Build(doc ast.Node, source []byte, pc parser.Context) *Document {
 						Kind:    BlockMath,
 						Text:    mn.MathRaw(),
 						Display: mn.MathDisplay(),
+						Span:    spanOf(n),
 					})
 				}
 			}
@@ -373,6 +392,72 @@ func quoteText(q *ast.Blockquote, source []byte) string {
 		}
 	}
 	return strings.Join(parts, "\n\n")
+}
+
+// spanOf returns the byte range of the Markdown source n came from, or nil
+// when no position can be determined for n or for any of its descendants.
+//
+// Three cases, in order:
+//   - an INLINE node's Lines() PANICS in goldmark (ast.BaseInline.Lines is a
+//     hard panic, not an empty result), so inline nodes never reach it. An
+//     *ast.Text carries its own text.Segment and is read directly; any other
+//     inline node derives from its children.
+//   - a block node WITH line segments (paragraph, heading, code) reports the
+//     first segment's Start to the last segment's Stop.
+//   - a block CONTAINER with no lines of its own (list, table, blockquote, and
+//     the synthesized *markdown.Section) derives min-start/max-stop from its
+//     positioned descendants.
+//
+// The derivation is a bounded, local FirstChild/NextSibling descent -- exactly
+// the idiom collectListItems, collectTable and quoteText already use in this
+// file -- NOT a second ast.Walk. Build's single-walk property (the first claim
+// in the package doc) is preserved: there is still exactly one ast.Walk here.
+//
+// Nil is returned rather than a fabricated {0, 0}: an honest absence degrades
+// to "no scroll-sync for this node", whereas a fabricated span sends an editor's
+// cursor to the top of the document.
+func spanOf(n ast.Node) *Span {
+	if n.Type() == ast.TypeInline {
+		if t, ok := n.(*ast.Text); ok {
+			return &Span{Start: t.Segment.Start, Stop: t.Segment.Stop}
+		}
+		return descendantSpan(n)
+	}
+	if lines := n.Lines(); lines != nil && lines.Len() > 0 {
+		return &Span{Start: lines.At(0).Start, Stop: lines.At(lines.Len() - 1).Stop}
+	}
+	return descendantSpan(n)
+}
+
+// descendantSpan unions the spans of n's children, recursively, yielding the
+// min start and max stop of everything positioned beneath n. Nil when nothing
+// beneath n carries a position.
+func descendantSpan(n ast.Node) *Span {
+	var acc *Span
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		acc = unionSpans(acc, spanOf(c))
+	}
+	return acc
+}
+
+// unionSpans returns the smallest span covering both a and b, treating nil as
+// "no contribution" rather than as an offset-0 span -- the same zero-value trap
+// Span's pointer shape exists to avoid, one level up.
+func unionSpans(a, b *Span) *Span {
+	switch {
+	case a == nil:
+		return b
+	case b == nil:
+		return a
+	}
+	out := &Span{Start: a.Start, Stop: a.Stop}
+	if b.Start < out.Start {
+		out.Start = b.Start
+	}
+	if b.Stop > out.Stop {
+		out.Stop = b.Stop
+	}
+	return out
 }
 
 // rawLinesText reconstructs a code block's RAW source by concatenating the

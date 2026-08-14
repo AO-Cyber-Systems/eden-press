@@ -67,6 +67,41 @@ package model
 // constant exists to give.
 const SchemaVersion = "eden-press.model/v3"
 
+// Span is a half-open byte range [Start, Stop) into the Markdown source that
+// produced the node carrying it: source[Start:Stop] re-slices that node's
+// original text. Half-open matches Go slice semantics exactly, so the re-slice
+// needs no arithmetic at the call site.
+//
+// OFFSETS ARE BYTES -- not runes, and not UTF-16 code units. A client whose
+// strings are UTF-16 (Dart, JavaScript) MUST convert before indexing, or every
+// position after the first multi-byte character will be wrong. Emitting bytes
+// is deliberate rather than convenient: text.Segment carries bytes, this
+// package's Go consumers (the DOCX/PPTX/XLSX writers) want bytes, and baking
+// one client's string model into a general-purpose library would be the wrong
+// trade. TestSpansAreByteOffsets pins this with an accented word and an emoji,
+// and proves a rune-indexed and a UTF-16-indexed read of the same numbers are
+// both wrong.
+//
+// Span is a POINTER on its owners, with NON-omitempty inner fields. That shape
+// is load-bearing, not stylistic: `Start int json:"start,omitempty"` would drop
+// a legitimate offset 0 -- the first block of every document, i.e. exactly the
+// node a "scroll to top" targets -- making it indistinguishable from an
+// unpositioned node. Nil-or-present at the outer level; 0 serializes fine at
+// the inner level. It also keeps v3 JSON byte-for-byte unchanged for any node
+// whose position cannot be determined, preserving the strict-superset property
+// v2 established. TestFirstBlockSpanSurvivesJSON pins both halves.
+//
+// A node whose position cannot be determined carries a NIL Span, never a
+// fabricated {0, 0}: a fabricated span sends an editor's cursor to the top of
+// the document, which is worse than no cursor at all.
+type Span struct {
+	// Start is the inclusive byte offset of the node's first source byte.
+	Start int `json:"start"`
+
+	// Stop is the exclusive byte offset one past the node's last source byte.
+	Stop int `json:"stop"`
+}
+
 // BlockKind enumerates the kinds of body-content block a Section can carry.
 type BlockKind string
 
@@ -154,6 +189,28 @@ type Block struct {
 	// Title is an image block's optional title attribute -- the
 	// `![alt](src "title")` third argument (image blocks only).
 	Title string `json:"title,omitempty"`
+
+	// Span is the byte range of the Markdown source this block came from
+	// (schema v4). Taken from the node's own line segments where it has them,
+	// otherwise derived from its positioned descendants.
+	//
+	// What it covers, per kind -- stated rather than left to be discovered:
+	//   - paragraph/heading: the node's text lines. An ATX heading's span
+	//     EXCLUDES its "## " prefix (a setext heading has no prefix); the
+	//     prefix is deliberately not reconstructed by arithmetic, which would
+	//     break on setext.
+	//   - code: the content BETWEEN the fences, not the ``` fences themselves
+	//     (right for "show me this code", not for "replace this block").
+	//   - list/table/quote: derived from the positioned descendants, so the
+	//     span DOES include the source's "- " bullets, "|" pipes and "> "
+	//     markers even though the extracted Items/Rows/Text do not.
+	//   - image: an image is an INLINE node with no lines of its own, so its
+	//     span covers its ALT TEXT range only, not the surrounding
+	//     `![...](...)` construct. An image with empty alt text has no
+	//     positioned descendant at all and carries a nil Span.
+	//
+	// Nil when no position could be determined. See Span.
+	Span *Span `json:"span,omitempty"`
 }
 
 // ListItem is one entry of a list Block, carrying its editable Text and its
@@ -225,6 +282,21 @@ type Section struct {
 	// shapes, native Flutter rendering). Nil (and omitted from JSON) for a
 	// Section with no extracted body content.
 	Blocks []Block `json:"blocks,omitempty"`
+
+	// Span is the byte range of the Markdown source this Section covers
+	// (schema v4), DERIVED from its positioned descendants (min start, max
+	// stop) because a *markdown.Section is synthesized by the splitter and has
+	// no source construct -- and therefore no line segments -- of its own.
+	//
+	// It covers the Section's CONTENT: NOT the "---" separator that introduced
+	// it, and not the blank lines around it. Where `headingDivider:` synthesized
+	// the break there is no separator in the source at all, so there is nothing
+	// to include even in principle. Both are correct for "scroll to this
+	// section"; neither is correct for "select this whole section including its
+	// delimiter".
+	//
+	// Nil for a Section with no positioned content at all. See Span.
+	Span *Span `json:"span,omitempty"`
 }
 
 // Meta carries deck-level metadata resolved from the document's front
@@ -256,4 +328,16 @@ type OutlineEntry struct {
 	// the heading had none (e.g. an empty heading -- see build.go's
 	// headingSlug).
 	Slug string `json:"slug"`
+
+	// Span is the byte range of the heading TEXT in the Markdown source
+	// (schema v4) -- the "outline click -> scroll the source to that heading"
+	// affordance this field exists for.
+	//
+	// For an ATX heading the span EXCLUDES the "## " prefix, because that is
+	// what the heading node's own lines cover; a setext heading has no prefix
+	// to exclude. The prefix is deliberately not added back by arithmetic,
+	// which would be wrong for setext.
+	//
+	// Nil for a heading with no line information. See Span.
+	Span *Span `json:"span,omitempty"`
 }
