@@ -113,19 +113,24 @@ func TestBuildOutlineHeadingsGroupedBySection(t *testing.T) {
 		t.Fatalf("len(Sections) = %d, want 1", len(d.Sections))
 	}
 
+	// Schema v4 added Span. The expected value is DERIVED from the fixture by
+	// substring lookup rather than written as a literal offset, so it cannot
+	// rot into a wrong-but-passing number when the fixture is edited.
 	want := []OutlineEntry{
-		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1"},
-		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2"},
+		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1", Span: spanOfLiteral(t, md, "H1")},
+		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2", Span: spanOfLiteral(t, md, "H2")},
 	}
 	if len(d.Outline) != len(want) {
 		t.Fatalf("len(Outline) = %d, want %d: %+v", len(d.Outline), len(want), d.Outline)
 	}
 	for i, w := range want {
-		if d.Outline[i].Span == nil {
-			t.Errorf("Outline[%d] carries no schema-v4 Span", i)
-		}
-		if withoutSpan(d.Outline[i]) != w {
-			t.Errorf("Outline[%d] = %+v, want %+v (v4 Span excluded)", i, d.Outline[i], w)
+		// reflect.DeepEqual, not !=, because OutlineEntry now carries a *Span
+		// and != on a struct with a pointer field compares POINTER IDENTITY,
+		// which would silently never match. The comparison stays whole-struct:
+		// every pre-existing field is still pinned exactly as before.
+		if !reflect.DeepEqual(d.Outline[i], w) {
+			t.Errorf("Outline[%d] = %+v (span %s), want %+v (span %s)",
+				i, d.Outline[i], showSpan(d.Outline[i].Span), w, showSpan(w.Span))
 		}
 	}
 }
@@ -400,25 +405,27 @@ func TestBuildHeadingBlocks(t *testing.T) {
 
 	d := Build(doc, []byte(md), pc)
 
-	// Outline unchanged (mirrors TestBuildOutlineHeadingsGroupedBySection).
+	// Outline unchanged (mirrors TestBuildOutlineHeadingsGroupedBySection),
+	// plus schema v4's Span, derived from the fixture rather than hardcoded.
 	wantOutline := []OutlineEntry{
-		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1"},
-		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2"},
+		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1", Span: spanOfLiteral(t, md, "H1")},
+		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2", Span: spanOfLiteral(t, md, "H2")},
 	}
 	if len(d.Outline) != len(wantOutline) {
 		t.Fatalf("len(Outline) = %d, want %d", len(d.Outline), len(wantOutline))
 	}
 	for i, w := range wantOutline {
-		if d.Outline[i] != w {
-			t.Errorf("Outline[%d] = %+v, want %+v", i, d.Outline[i], w)
+		if !reflect.DeepEqual(d.Outline[i], w) {
+			t.Errorf("Outline[%d] = %+v (span %s), want %+v (span %s)",
+				i, d.Outline[i], showSpan(d.Outline[i].Span), w, showSpan(w.Span))
 		}
 	}
 
 	// Heading Blocks alongside the Outline.
 	headings := blocksOfKind(d.Sections[0].Blocks, BlockHeading)
 	wantHeadings := []Block{
-		{Kind: BlockHeading, Level: 1, Text: "H1"},
-		{Kind: BlockHeading, Level: 2, Text: "H2"},
+		{Kind: BlockHeading, Level: 1, Text: "H1", Span: spanOfLiteral(t, md, "H1")},
+		{Kind: BlockHeading, Level: 2, Text: "H2", Span: spanOfLiteral(t, md, "H2")},
 	}
 	if len(headings) != len(wantHeadings) {
 		t.Fatalf("heading blocks = %+v, want %+v", headings, wantHeadings)
@@ -447,10 +454,11 @@ func TestBuildBlocksPreserveExistingOutput(t *testing.T) {
 	if len(notes) != 1 || notes[0] != "just a presenter note" {
 		t.Fatalf("Notes = %+v, want exactly [%q]", notes, "just a presenter note")
 	}
-	// Outline unchanged: the single H1.
-	wantOutline := []OutlineEntry{{SectionID: 1, Level: 1, Text: "Slide", Slug: "slide"}}
-	if len(d.Outline) != 1 || d.Outline[0] != wantOutline[0] {
-		t.Fatalf("Outline = %+v, want %+v", d.Outline, wantOutline)
+	// Outline unchanged: the single H1, now carrying schema v4's Span.
+	wantOutline := []OutlineEntry{{SectionID: 1, Level: 1, Text: "Slide", Slug: "slide", Span: spanOfLiteral(t, md, "Slide")}}
+	if len(d.Outline) != 1 || !reflect.DeepEqual(d.Outline[0], wantOutline[0]) {
+		t.Fatalf("Outline = %+v (span %s), want %+v (span %s)",
+			d.Outline, showSpan(d.Outline[0].Span), wantOutline, showSpan(wantOutline[0].Span))
 	}
 	// New Blocks present: a heading block + a paragraph block (order preserved).
 	if paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph); len(paras) != 1 || paras[0].Text != "Body text." {
@@ -785,6 +793,29 @@ func blockTextPayloads(b Block) []string {
 		}
 	}
 	return out
+}
+
+// spanOfLiteral returns the span of needle's first occurrence in md. The
+// pre-v4 whole-struct assertions use it to express their expected Span without
+// writing a literal offset: a hardcoded number rots the instant someone edits
+// the fixture and can then be "corrected" to a wrong value that still passes,
+// whereas a derived one is wrong only if the fixture itself is.
+func spanOfLiteral(t *testing.T, md, needle string) *Span {
+	t.Helper()
+	i := strings.Index(md, needle)
+	if i < 0 {
+		t.Fatalf("fixture does not contain %q", needle)
+	}
+	return &Span{Start: i, Stop: i + len(needle)}
+}
+
+// showSpan renders a *Span for a failure message, since %+v on a struct with a
+// pointer field prints an address and hides the very mismatch being reported.
+func showSpan(s *Span) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("[%d,%d)", s.Start, s.Stop)
 }
 
 func readFixture(t *testing.T, name string) []byte {
