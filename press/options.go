@@ -122,4 +122,23 @@ type Output struct {
 	// binding serializes. It is NOT a fresh AST walk; model.Section.Notes is
 	// already populated by chase/model.Build.
 	Comments []string
+
+	// Profile is the ID of the chase/profile.Profile that produced this
+	// Output ("slides", "paged"). Recorded so a downstream exporter can
+	// resolve the SAME size table this render used, instead of guessing.
+	//
+	// Before this field existed, convert/pdf hardcoded profiles/slides' table
+	// (so an A4 paged document exported at 1280x720) and convert/png called
+	// profile.Default(), whose "first registered wins" rule depends on the
+	// final binary's import graph rather than on anything the caller decided --
+	// the hazard press.Render itself was fixed to avoid (see
+	// defaultProfileName's comment in press.go).
+	//
+	// Render records the RESOLVED profile's own ID, never opts.Profile: an
+	// empty opts.Profile resolves to "slides" by name, and recording "" would
+	// leave the exporters guessing again for every default render.
+	//
+	// This is a press.Output field, NOT a model.Document field: it carries no
+	// JSON schema contract and so needs no model.SchemaVersion bump.
+	Profile string
 }

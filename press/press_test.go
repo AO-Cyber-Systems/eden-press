@@ -33,6 +33,13 @@ import (
 	"github.com/yuin/goldmark/parser"
 
 	"github.com/AO-Cyber-Systems/eden-press/press/sanitize"
+
+	// Blank import: registers profiles/paged via its init() side-effect, so
+	// TestRenderRecordsProfile can exercise a SECOND profile. press.go itself
+	// blank-imports only profiles/slides, so without this line
+	// Options{Profile: "paged"} would be an unknown profile here -- the exact
+	// gap the bind/capi/core blank import closes for the C/Dart binding.
+	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
 )
 
 // everyBatteryDeck exercises GFM tables, strikethrough (<s>), a heading slug,
@@ -309,6 +316,54 @@ func TestCommentsAggregation(t *testing.T) {
 	// And the actual content, in document order.
 	if got := strings.Join(out.Comments, "|"); got != "note A|note B|note C" {
 		t.Errorf("Output.Comments content/order = %q, want \"note A|note B|note C\"", got)
+	}
+}
+
+// TestRenderRecordsProfile proves Render records the profile it ACTUALLY
+// resolved on Output.Profile, so a downstream exporter (convert/pdf,
+// convert/png) can resolve the same size table instead of guessing at one.
+//
+// The zero-value case is the load-bearing one: Options{} is the common call,
+// and it must record "slides" -- Render's own resolved default -- not "". A
+// recorded "" would leave every default render's geometry unresolvable, which
+// is the bug this field exists to close.
+func TestRenderRecordsProfile(t *testing.T) {
+	cases := []struct {
+		name string
+		opts Options
+		want string
+	}{
+		{"zero value records the resolved default, not the empty string", Options{}, "slides"},
+		{"explicit slides", Options{Profile: "slides"}, "slides"},
+		{"explicit paged", Options{Profile: "paged"}, "paged"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := Render("# hello\n", tc.opts)
+			if err != nil {
+				t.Fatalf("Render(_, %+v): %v", tc.opts, err)
+			}
+			if out.Profile != tc.want {
+				t.Errorf("Output.Profile = %q, want %q", out.Profile, tc.want)
+			}
+		})
+	}
+}
+
+// TestRenderUnknownProfileStillErrors pins the pre-existing error path: an
+// unregistered profile id is rejected by resolveProfile before anything is
+// recorded, unchanged by the Output.Profile addition.
+func TestRenderUnknownProfileStillErrors(t *testing.T) {
+	out, err := Render("# hello\n", Options{Profile: "nonexistent"})
+	if err == nil {
+		t.Fatalf("Render(_, Options{Profile: \"nonexistent\"}) = %+v, want an error", out)
+	}
+	if !strings.Contains(err.Error(), "unknown profile") {
+		t.Errorf("error = %q, want it to name the unknown profile", err)
+	}
+	if out.Profile != "" {
+		t.Errorf("errored Render recorded Profile = %q, want \"\"", out.Profile)
 	}
 }
 
