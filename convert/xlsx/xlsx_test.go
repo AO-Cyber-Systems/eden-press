@@ -224,6 +224,101 @@ func TestNumericDetection(t *testing.T) {
 	}
 }
 
+// mustPrecede asserts that needle appears before other in part. Presence alone
+// is not enough for a <sheetView>: a pane emitted AFTER <sheetData> is silently
+// ignored by every viewer, so a substring assertion would pass on a workbook
+// that does not freeze anything. Ordering is the property that matters.
+func mustPrecede(t *testing.T, part, needle, other string) {
+	t.Helper()
+	i := strings.Index(part, needle)
+	j := strings.Index(part, other)
+	if i < 0 {
+		t.Fatalf("%s is absent from the part: %s", needle, part)
+	}
+	if j < 0 {
+		t.Fatalf("%s is absent from the part: %s", other, part)
+	}
+	if i > j {
+		t.Errorf("%s appears AFTER %s (at %d vs %d); a pane after <sheetData> is silently ignored: %s",
+			needle, other, i, j, part)
+	}
+}
+
+// TestHeaderRowIsFrozen: sheetRows' docstring says header rows are "rendered
+// bold and frozen". Bold was real; frozen was not -- buildSheetXML emitted no
+// <sheetView> at all. This pins the freeze so the docstring stays true.
+func TestHeaderRowIsFrozen(t *testing.T) {
+	pkg, err := ToXLSX(tableDoc(metricsTable), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	sheet := readPart(t, pkg, "xl/worksheets/sheet1.xml")
+
+	for _, want := range []string{
+		`<sheetViews>`,
+		`<sheetView`,
+		`ySplit="1"`,
+		`topLeftCell="A2"`,
+		`activePane="bottomLeft"`,
+		`state="frozen"`,
+	} {
+		if !strings.Contains(sheet, want) {
+			t.Errorf("frozen header pane missing %s: %s", want, sheet)
+		}
+	}
+	// The failure mode that looks like "the pane element does nothing".
+	mustPrecede(t, sheet, "<sheetViews>", "<sheetData>")
+	if err := xmlWellFormed(sheet); err != nil {
+		t.Errorf("sheet is not well-formed with the pane: %v", err)
+	}
+}
+
+// TestNoHeaderRowNoPane: freezing row 1 when row 1 is a data row would pin an
+// arbitrary record to the top of the user's view, which is worse than not
+// freezing at all. A table with no header row must emit no pane.
+func TestNoHeaderRowNoPane(t *testing.T) {
+	pkg, err := ToXLSX(tableDoc(model.Block{
+		Kind: model.BlockTable,
+		Rows: [][]string{{"a", "1"}, {"b", "2"}},
+	}), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	sheet := readPart(t, pkg, "xl/worksheets/sheet1.xml")
+	if strings.Contains(sheet, "<pane") || strings.Contains(sheet, "<sheetViews>") {
+		t.Errorf("a header-less sheet froze a data row: %s", sheet)
+	}
+}
+
+// TestFreezeIsPerSheet: the flag lives on the grid, not on the workbook, so a
+// workbook mixing header-bearing and header-less tables must freeze only the
+// sheets that have a header.
+func TestFreezeIsPerSheet(t *testing.T) {
+	d := &model.Document{
+		SchemaVersion: model.SchemaVersion,
+		Sections: []model.Section{
+			{ID: 1, Blocks: []model.Block{
+				{Kind: model.BlockHeading, Level: 1, Text: "Headed"},
+				metricsTable,
+			}},
+			{ID: 2, Blocks: []model.Block{
+				{Kind: model.BlockHeading, Level: 1, Text: "Headless"},
+				{Kind: model.BlockTable, Rows: [][]string{{"a", "1"}}},
+			}},
+		},
+	}
+	pkg, err := ToXLSX(d, Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	if s := readPart(t, pkg, "xl/worksheets/sheet1.xml"); !strings.Contains(s, `state="frozen"`) {
+		t.Errorf("sheet1 has a header row but no frozen pane: %s", s)
+	}
+	if s := readPart(t, pkg, "xl/worksheets/sheet2.xml"); strings.Contains(s, "<pane") {
+		t.Errorf("sheet2 has no header row but froze anyway: %s", s)
+	}
+}
+
 // TestColumnRef covers the A..Z -> AA rollover, the classic off-by-one in
 // spreadsheet writers.
 func TestColumnRef(t *testing.T) {

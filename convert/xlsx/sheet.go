@@ -130,7 +130,9 @@ func cellXML(ref, text string, bold bool) string {
 }
 
 // sheetRows is an ordered grid of cell text plus a flag marking which rows are
-// header rows (rendered bold and frozen).
+// header rows. A header row is rendered bold (style xf 1), and when the FIRST
+// row of the sheet is a header it is also frozen -- see freezesHeader for why
+// only the first row qualifies.
 type sheetRows struct {
 	rows      [][]string
 	headerRow []bool
@@ -141,11 +143,34 @@ func (s *sheetRows) add(cells []string, header bool) {
 	s.headerRow = append(s.headerRow, header)
 }
 
+// freezesHeader reports whether this sheet should emit a frozen pane.
+//
+// The pane splits at ySplit="1", so it freezes row 1 and nothing else. That
+// makes the question narrower than "does the sheet have a header anywhere":
+// stacked tables put a second header partway down, and freezing row 1 on a
+// sheet whose row 1 is a data row would pin an arbitrary record to the top of
+// the user's view -- worse than not freezing at all.
+func (s sheetRows) freezesHeader() bool {
+	return len(s.headerRow) > 0 && s.headerRow[0]
+}
+
 // buildSheetXML renders a worksheet part from a grid.
 func buildSheetXML(g sheetRows) []byte {
 	var b strings.Builder
 	b.WriteString(xmlDeclaration)
-	b.WriteString(fmt.Sprintf(`<worksheet xmlns="%s"><sheetData>`, nsSpreadsheet))
+	b.WriteString(fmt.Sprintf(`<worksheet xmlns="%s">`, nsSpreadsheet))
+
+	// <sheetViews> MUST precede <sheetData>: the schema fixes the order, and a
+	// pane emitted after the data is silently ignored -- the workbook still
+	// opens, nothing freezes, and only a test that asserts ORDER rather than
+	// presence would notice.
+	if g.freezesHeader() {
+		b.WriteString(`<sheetViews><sheetView workbookViewId="0">`)
+		b.WriteString(`<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>`)
+		b.WriteString(`</sheetView></sheetViews>`)
+	}
+
+	b.WriteString(`<sheetData>`)
 	for r, cells := range g.rows {
 		b.WriteString(fmt.Sprintf(`<row r="%d">`, r+1))
 		for c, text := range cells {
