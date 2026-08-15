@@ -39,6 +39,19 @@ import (
 	"fmt"
 
 	"github.com/AO-Cyber-Systems/eden-press/press"
+
+	// Blank import: registers profiles/paged via its init() side-effect.
+	// press blank-imports only profiles/slides (press.go), so without this a
+	// caller passing Profile: "paged" across the C/Dart boundary got
+	// `unknown profile "paged"` -- the paged profile was unreachable from
+	// the binding despite being fully implemented.
+	//
+	// It belongs HERE, in the pure-Go core, and not in bind/capi (package
+	// main): this package is the one shared by BOTH the cgo library and the
+	// GOOS=js GOARCH=wasm module, so one import serves both front doors.
+	// Putting it in the cgo main package would leave wasm broken in exactly
+	// the same way.
+	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
 )
 
 // EnvelopeVersion is the frozen version tag stamped on every response and

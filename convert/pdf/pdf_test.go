@@ -37,6 +37,14 @@ import (
 	"github.com/AO-Cyber-Systems/eden-press/convert"
 	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
 	"github.com/AO-Cyber-Systems/eden-press/press"
+
+	// Blank imports: populate the chase/profile registry resolveSize looks
+	// up out.Profile in. pdf.go itself imports NO profiles package -- that
+	// is the point of this change, and these two lines are what a real
+	// consumer's own import graph supplies (press blank-imports slides; a
+	// paged consumer imports profiles/paged).
+	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
+	_ "github.com/AO-Cyber-Systems/eden-press/profiles/slides"
 )
 
 // --- shared fixtures & helpers ------------------------------------------
@@ -94,6 +102,10 @@ func fixtureOutput(t *testing.T) press.Output {
 				{ID: 1}, {ID: 2}, {ID: 3},
 			},
 		},
+		// A hand-built Output must record a Profile like a real
+		// press.Render Output does -- resolveSize errors rather than
+		// silently falling back to slides when it is absent.
+		Profile: "slides",
 	}
 }
 
@@ -303,9 +315,10 @@ func TestToPDFInlineSVGFixture(t *testing.T) {
 
 	base := fixtureOutput(t)
 	out := press.Output{
-		HTML:  inlineSVGFixtureHTML,
-		CSS:   base.CSS,
-		Model: base.Model,
+		HTML:    inlineSVGFixtureHTML,
+		CSS:     base.CSS,
+		Model:   base.Model,
+		Profile: base.Profile,
 	}
 
 	data, err := ToPDF(sess, out, Options{})
@@ -321,5 +334,71 @@ func TestToPDFInlineSVGFixture(t *testing.T) {
 	const nonTrivialSize = 1024
 	if len(data) < nonTrivialSize {
 		t.Fatalf("inline-SVG PDF is only %d bytes -- suspiciously small, likely a blank page (Pitfall 4/A foreignObject silent-non-render trap)", len(data))
+	}
+}
+
+// --- resolveSize: the Chrome-free proof --------------------------------
+
+// TestResolveSize is where the real proof of this exporter's geometry lives:
+// resolveSize is a pure (press.Output) -> (theme.Size, error) function, so the
+// headline claim -- an A4 PAGED document exports at A4, not at the slides
+// table's 1280x720 -- is provable with no Chrome at all. The Chrome-gated
+// ToPDF tests above corroborate; they are not the proof, because they skip
+// entirely wherever Chrome is absent.
+//
+// The paged/no-directive row is the bug this change closes. The
+// paged/unknown-directive row is nearly as load-bearing: an unrecognized size
+// name must fall back to the RESOLVED profile's default, never to slides'.
+func TestResolveSize(t *testing.T) {
+	out := func(profileID, sizeDirective string) press.Output {
+		o := press.Output{Profile: profileID}
+		if sizeDirective != "" {
+			o.Meta = model.Meta{Directives: map[string]string{"size": sizeDirective}}
+		}
+		return o
+	}
+
+	cases := []struct {
+		name             string
+		out              press.Output
+		wantW, wantH     int
+		wantName         string
+		wantErrSubstring string
+	}{
+		{name: "slides, no directive -> 16:9", out: out("slides", ""), wantW: 1280, wantH: 720, wantName: "16:9"},
+		{name: "slides, 4:3 directive", out: out("slides", "4:3"), wantW: 960, wantH: 720, wantName: "4:3"},
+		{name: "paged, no directive -> A4 (the headline case)", out: out("paged", ""), wantW: 794, wantH: 1123, wantName: "a4"},
+		{name: "paged, letter directive", out: out("paged", "letter"), wantW: 816, wantH: 1056, wantName: "letter"},
+		{name: "paged, a5 directive", out: out("paged", "a5"), wantW: 559, wantH: 794, wantName: "a5"},
+		{name: "paged, unknown directive -> PAGED's default, not slides'", out: out("paged", "nonsense"), wantW: 794, wantH: 1123, wantName: "a4"},
+		{name: "no recorded profile -> named error, never a silent slides fallback", out: out("", "16:9"), wantErrSubstring: "carries no Profile"},
+		{name: "unregistered profile -> named error", out: out("epub", "16:9"), wantErrSubstring: `unknown profile "epub"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := resolveSize(tc.out)
+
+			if tc.wantErrSubstring != "" {
+				if err == nil {
+					t.Fatalf("resolveSize(%+v) = %+v, want an error containing %q", tc.out, got, tc.wantErrSubstring)
+				}
+				if !strings.Contains(err.Error(), tc.wantErrSubstring) {
+					t.Errorf("error = %q, want it to contain %q", err, tc.wantErrSubstring)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("resolveSize(%+v): %v", tc.out, err)
+			}
+			if got.WidthPx != tc.wantW || got.HeightPx != tc.wantH {
+				t.Errorf("resolveSize = %dx%d (%q), want %dx%d (%q)",
+					got.WidthPx, got.HeightPx, got.Name, tc.wantW, tc.wantH, tc.wantName)
+			}
+			if got.Name != tc.wantName {
+				t.Errorf("resolveSize name = %q, want %q", got.Name, tc.wantName)
+			}
+		})
 	}
 }

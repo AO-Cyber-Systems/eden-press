@@ -64,7 +64,20 @@ func columnRef(idx int) string {
 // than text. This is the difference between a workbook you can sum, sort and
 // chart and one that merely looks like a table.
 //
+// The rule is NOT defined here. It is published as executable data in
+// conformance/corpus/xlsxtyping, because AODex's workbook exporter must
+// classify identically and a prose contract between two repositories rots. The
+// corpus drives TestNumericDetection; change the corpus, not this comment.
+//
 // Deliberately stricter than strconv.ParseFloat alone:
+//   - A value longer than one character that starts with "0" or "+" and holds
+//     no "." is an authored IDENTIFIER, not a quantity. "007" is the headline:
+//     ParseFloat accepts it, so an unguarded writer stores the number 7 and
+//     the leading zeros are gone. The "." escape hatch is load-bearing in both
+//     directions -- "0.4" and "+3.5" are quantities and stay numbers, and
+//     dropping it would turn every fractional value in every document into
+//     text, a far larger blast radius than the bug being fixed. Length > 1
+//     keeps a bare "0" a number.
 //   - "NaN" and "Inf" parse as floats in Go but are not spreadsheet numbers;
 //     writing them into a <v> element produces a cell Excel cannot evaluate.
 //   - "1.2%", "550ms" and "1,200" are rejected. A percentage needs a number
@@ -78,12 +91,75 @@ func isNumeric(s string) bool {
 	if s == "" {
 		return false
 	}
+	// The identifier guard, mirroring AODex's coerceInput exactly (decision
+	// D6: the Dart rule wins for user data, because its input is a cell a
+	// person authored). Both halves of the condition matter -- see above.
+	if len(s) > 1 && (s[0] == '0' || s[0] == '+') && !strings.Contains(s, ".") {
+		return false
+	}
 	lower := strings.ToLower(s)
 	if strings.Contains(lower, "nan") || strings.Contains(lower, "inf") {
 		return false
 	}
 	_, err := strconv.ParseFloat(s, 64)
 	return err == nil
+}
+
+// Cell format indices into styles.xml's <cellXfs>. These are a CONTRACT with
+// parts_static.go: the numbers are written into every cell as s="N", so the
+// order of the <xf> children there is not cosmetic. Append, never insert.
+const (
+	xfDefault    = 0 // General alignment, regular weight
+	xfBold       = 1 // header rows
+	xfRight      = 2
+	xfCenter     = 3
+	xfBoldRight  = 4
+	xfBoldCenter = 5
+
+	// xfCount is the number of <xf> children stylesXML must emit. Excel
+	// rejects the workbook when <cellXfs count> disagrees with reality, and
+	// says nothing useful about why.
+	xfCount = 6
+)
+
+// styleIndex picks the cell format for a cell from whether its row is a header
+// and what its column's alignment is.
+//
+// "left" deliberately maps to the default (General) index rather than to an
+// explicit horizontal="left". Excel's General alignment already left-aligns
+// text, which is what a left-marked column holds; emitting an explicit left
+// would ALSO override Excel's right-alignment of numbers, which is a change no
+// one asked for and which the shared typing corpus has not agreed. This is a
+// deliberate divergence from convert/docx, which does emit w:jc for left --
+// Word has no content-dependent default alignment to preserve, so there the
+// explicit value costs nothing.
+func styleIndex(header bool, align string) int {
+	switch align {
+	case "right":
+		if header {
+			return xfBoldRight
+		}
+		return xfRight
+	case "center":
+		if header {
+			return xfBoldCenter
+		}
+		return xfCenter
+	}
+	if header {
+		return xfBold
+	}
+	return xfDefault
+}
+
+// alignAt reads the alignment for column col, tolerating a short or absent
+// slice. Rows are preserved as authored by the docmodel, so a row can be wider
+// than its table's Aligns; an unguarded index would panic on real input.
+func alignAt(aligns []string, col int) string {
+	if col < 0 || col >= len(aligns) {
+		return ""
+	}
+	return aligns[col]
 }
 
 // cellXML renders one <c> cell at ref.
@@ -94,11 +170,11 @@ func isNumeric(s string) bool {
 // sheet must agree on, all to save bytes this exporter does not care about --
 // and every extra shared index is another chance to emit a workbook that opens
 // with the wrong text in the wrong cell.
-func cellXML(ref, text string, bold bool) string {
+func cellXML(ref, text string, xf int) string {
 	style := ""
-	if bold {
-		// s="1" is the bold header style defined in styles.xml.
-		style = ` s="1"`
+	if xf != xfDefault {
+		// s="N" selects a <xf> from styles.xml's <cellXfs>.
+		style = fmt.Sprintf(` s="%d"`, xf)
 	}
 	if isNumeric(text) {
 		return fmt.Sprintf(`<c r="%s"%s><v>%s</v></c>`, ref, style, strings.TrimSpace(text))
@@ -111,26 +187,61 @@ func cellXML(ref, text string, bold bool) string {
 }
 
 // sheetRows is an ordered grid of cell text plus a flag marking which rows are
-// header rows (rendered bold and frozen).
+// header rows. A header row is rendered bold (style xf 1), and when the FIRST
+// row of the sheet is a header it is also frozen -- see freezesHeader for why
+// only the first row qualifies.
 type sheetRows struct {
 	rows      [][]string
 	headerRow []bool
+	// aligns is per ROW, not per sheet: one section can stack several tables
+	// with different column counts and different alignments, so each row
+	// carries its own table's Aligns (nil when the table specified none).
+	aligns [][]string
 }
 
 func (s *sheetRows) add(cells []string, header bool) {
+	s.addAligned(cells, header, nil)
+}
+
+func (s *sheetRows) addAligned(cells []string, header bool, aligns []string) {
 	s.rows = append(s.rows, cells)
 	s.headerRow = append(s.headerRow, header)
+	s.aligns = append(s.aligns, aligns)
+}
+
+// freezesHeader reports whether this sheet should emit a frozen pane.
+//
+// The pane splits at ySplit="1", so it freezes row 1 and nothing else. That
+// makes the question narrower than "does the sheet have a header anywhere":
+// stacked tables put a second header partway down, and freezing row 1 on a
+// sheet whose row 1 is a data row would pin an arbitrary record to the top of
+// the user's view -- worse than not freezing at all.
+func (s sheetRows) freezesHeader() bool {
+	return len(s.headerRow) > 0 && s.headerRow[0]
 }
 
 // buildSheetXML renders a worksheet part from a grid.
 func buildSheetXML(g sheetRows) []byte {
 	var b strings.Builder
 	b.WriteString(xmlDeclaration)
-	b.WriteString(fmt.Sprintf(`<worksheet xmlns="%s"><sheetData>`, nsSpreadsheet))
+	b.WriteString(fmt.Sprintf(`<worksheet xmlns="%s">`, nsSpreadsheet))
+
+	// <sheetViews> MUST precede <sheetData>: the schema fixes the order, and a
+	// pane emitted after the data is silently ignored -- the workbook still
+	// opens, nothing freezes, and only a test that asserts ORDER rather than
+	// presence would notice.
+	if g.freezesHeader() {
+		b.WriteString(`<sheetViews><sheetView workbookViewId="0">`)
+		b.WriteString(`<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>`)
+		b.WriteString(`</sheetView></sheetViews>`)
+	}
+
+	b.WriteString(`<sheetData>`)
 	for r, cells := range g.rows {
 		b.WriteString(fmt.Sprintf(`<row r="%d">`, r+1))
 		for c, text := range cells {
-			b.WriteString(cellXML(columnRef(c)+strconv.Itoa(r+1), text, g.headerRow[r]))
+			xf := styleIndex(g.headerRow[r], alignAt(g.aligns[r], c))
+			b.WriteString(cellXML(columnRef(c)+strconv.Itoa(r+1), text, xf))
 		}
 		b.WriteString(`</row>`)
 	}
@@ -163,11 +274,13 @@ func sectionGrid(sec model.Section) (sheetRows, bool) {
 			g.add(nil, false) // blank separator between stacked tables
 		}
 		any = true
+		// blk.Aligns is per-column and travels with every row of ITS table,
+		// so a second table stacked below keeps its own alignments.
 		if len(blk.Headers) > 0 {
-			g.add(normalize(blk.Headers, cols), true)
+			g.addAligned(normalize(blk.Headers, cols), true, blk.Aligns)
 		}
 		for _, r := range blk.Rows {
-			g.add(normalize(r, cols), false)
+			g.addAligned(normalize(r, cols), false, blk.Aligns)
 		}
 	}
 	return g, any

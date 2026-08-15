@@ -151,13 +151,20 @@ func docPropsAppXML() []byte {
 		nsExtendedProps))
 }
 
-// stylesXML is the minimal style table SpreadsheetML requires, plus one bold
-// cell format (index 1) that sheet.go applies to header rows.
+// stylesXML is the minimal style table SpreadsheetML requires, plus the cell
+// formats sheet.go references by index: bold for header rows, and the
+// alignment variants that carry model.Block.Aligns into the workbook.
 //
 // The element ORDER here is fixed by the schema (numFmts, fonts, fills,
 // borders, cellStyleXfs, cellXfs, ...) -- Excel rejects the workbook if they
 // appear in any other sequence, and it is not lenient about the two mandatory
 // placeholder fills.
+//
+// New cell formats are APPENDED to cellXfs, never inserted. Indices 0 and 1
+// are load-bearing: every cell already emitted as s="1" means bold, and
+// shifting that would silently restyle every workbook. And <cellXfs count>
+// must equal the number of <xf> children -- a mismatch is one of the few ways
+// to produce a file Excel rejects with no useful message.
 func stylesXML() []byte {
 	var b strings.Builder
 	b.WriteString(xmlDeclaration)
@@ -179,10 +186,17 @@ func stylesXML() []byte {
 	b.WriteString(`<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>`)
 	b.WriteString(`<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`)
 
-	// xf 0 = default, xf 1 = bold (referenced as s="1" on header cells).
-	b.WriteString(`<cellXfs count="2">`)
+	// The cell formats, in the order sheet.go's xf* constants name them:
+	//   0 default          1 bold
+	//   2 right            3 center
+	//   4 bold+right       5 bold+center
+	b.WriteString(fmt.Sprintf(`<cellXfs count="%d">`, xfCount))
 	b.WriteString(`<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>`)
 	b.WriteString(`<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>`)
+	b.WriteString(`<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="right"/></xf>`)
+	b.WriteString(`<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center"/></xf>`)
+	b.WriteString(`<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="right"/></xf>`)
+	b.WriteString(`<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center"/></xf>`)
 	b.WriteString(`</cellXfs>`)
 
 	b.WriteString(`</styleSheet>`)

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "eden-press.model/v3",
+  "meta": {},
+  "sections": [
+    {
+      "id": 1,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "text": "Opening prose before any heading."
+        },
+        {
+          "kind": "heading",
+          "text": "First heading",
+          "level": 1
+        },
+        {
+          "kind": "paragraph",
+          "text": "A paragraph with **bold** text and a `code span`."
+        },
+        {
+          "kind": "list",
+          "items": [
+            {
+              "text": "alpha"
+            },
+            {
+              "text": "beta"
+            },
+            {
+              "text": "nested gamma",
+              "level": 1
+            }
+          ]
+        },
+        {
+          "kind": "code",
+          "text": "fmt.Println(\"hi\")\n",
+          "language": "go"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "blocks": [
+        {
+          "kind": "heading",
+          "text": "Second section",
+          "level": 2
+        },
+        {
+          "kind": "quote",
+          "text": "A quoted line.\n\nA second quoted paragraph."
+        },
+        {
+          "kind": "table",
+          "headers": [
+            "Metric",
+            "Q3"
+          ],
+          "rows": [
+            [
+              "p95",
+              "550ms"
+            ],
+            [
+              "p99",
+              "900ms"
+            ]
+          ],
+          "aligns": [
+            "left",
+            "right"
+          ]
+        },
+        {
+          "kind": "image",
+          "text": "chart",
+          "src": "c.png",
+          "title": "Quarterly"
+        },
+        {
+          "kind": "code",
+          "text": "indented code\n"
+        },
+        {
+          "kind": "paragraph",
+          "text": "Trailing prose."
+        }
+      ]
+    }
+  ],
+  "outline": [
+    {
+      "sectionId": 1,
+      "level": 1,
+      "text": "First heading",
+      "slug": "first-heading"
+    },
+    {
+      "sectionId": 2,
+      "level": 2,
+      "text": "Second section",
+      "slug": "second-section"
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "schema": "eden-press.xlsxtyping/v1",
+  "cells": [
+    {
+      "input": "007",
+      "class": "text",
+      "reason": "an identifier, not the number 7 -- silently storing it as 7 is the single most common way a spreadsheet tool corrupts data"
+    },
+    {
+      "input": "+3",
+      "class": "text",
+      "reason": "a leading sign on an integer reads as authored input; eden-press previously pinned this as a number and AODex as text -- this case is the reconciliation (decision D6: the Dart rule wins for user data)"
+    },
+    {
+      "input": "0.4",
+      "class": "number",
+      "reason": "a leading zero followed by a decimal point is a fraction, not an identifier -- do NOT let the 007 rule swallow it, or every fractional value in every document becomes text"
+    },
+    {
+      "input": "+3.5",
+      "class": "number",
+      "reason": "the same escape hatch on the sign branch: a signed value with a decimal point is a quantity, so the guard is (leading 0 OR leading +) AND no dot, never either half alone"
+    },
+    {
+      "input": "0",
+      "class": "number",
+      "reason": "single-character zero is the number zero -- the identifier guard is length > 1"
+    },
+    {
+      "input": "840",
+      "class": "number",
+      "reason": ""
+    },
+    {
+      "input": "-12.5",
+      "class": "number",
+      "reason": ""
+    },
+    {
+      "input": "1e3",
+      "class": "number",
+      "reason": ""
+    },
+    {
+      "input": "  7  ",
+      "class": "number",
+      "reason": "surrounding whitespace is not meaningful"
+    },
+    {
+      "input": "",
+      "class": "empty",
+      "reason": "empty is distinct from a cell holding an empty string"
+    },
+    {
+      "input": "1,200",
+      "class": "text",
+      "reason": "thousands separators are locale-dependent; guessing corrupts"
+    },
+    {
+      "input": "1.2%",
+      "class": "text",
+      "reason": "a percentage needs a number format, not a bare value"
+    },
+    {
+      "input": "550ms",
+      "class": "text",
+      "reason": "a unit suffix is not a number"
+    },
+    {
+      "input": "p95",
+      "class": "text",
+      "reason": ""
+    },
+    {
+      "input": "NaN",
+      "class": "text",
+      "reason": "parses as a float in Go and as double.nan in Dart, but is not a spreadsheet number -- a <v>NaN</v> cell cannot be evaluated"
+    },
+    {
+      "input": "Inf",
+      "class": "text",
+      "reason": "as NaN"
+    },
+    {
+      "input": "true",
+      "class": "text",
+      "reason": "convert/xlsx has no boolean cell type; AODex's parser does and keeps it -- the two inputs differ, and this case records that the TEXT path is what a markdown table gets"
+    }
+  ],
+  "structural": [
+    {
+      "id": "sheet-name-over-31-runes",
+      "input": "a section heading of 40 non-ASCII runes, e.g. strings.Repeat(\"é\", 40)",
+      "expect": "the sheet name is truncated to exactly 31 RUNES (not 31 bytes), stays valid UTF-8, and the workbook opens",
+      "reason": "Excel's limit is characters, and slicing a multi-byte name mid-rune emits invalid UTF-8, which Excel reports as a corrupt file rather than as a long name"
+    },
+    {
+      "id": "column-rollover-z-to-aa",
+      "input": "the 27th column, 0-based index 26",
+      "expect": "the column reference is \"AA\"; index 51 is \"AZ\" and index 52 is \"BA\"",
+      "reason": "spreadsheet columns are bijective base-26 with no zero digit; the classic writer bug takes an ordinary remainder and emits \"BA\" at the Z->AA rollover"
+    },
+    {
+      "id": "ragged-row",
+      "input": "a table with 3 headers whose body rows hold 1 and 4 cells",
+      "expect": "the short row is padded to 3 cells and the long row truncated to 3; no cell is emitted in column D",
+      "reason": "the model preserves rows exactly as authored, so the exporter must decide; a ragged sheet puts values under the wrong headers, which is worse than dropping the overflow"
+    }
+  ]
+}

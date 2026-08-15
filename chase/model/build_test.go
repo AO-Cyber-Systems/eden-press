@@ -26,9 +26,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/yuin/goldmark/ast"
 
@@ -110,16 +113,24 @@ func TestBuildOutlineHeadingsGroupedBySection(t *testing.T) {
 		t.Fatalf("len(Sections) = %d, want 1", len(d.Sections))
 	}
 
+	// Schema v4 added Span. The expected value is DERIVED from the fixture by
+	// substring lookup rather than written as a literal offset, so it cannot
+	// rot into a wrong-but-passing number when the fixture is edited.
 	want := []OutlineEntry{
-		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1"},
-		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2"},
+		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1", Span: spanOfLiteral(t, md, "H1")},
+		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2", Span: spanOfLiteral(t, md, "H2")},
 	}
 	if len(d.Outline) != len(want) {
 		t.Fatalf("len(Outline) = %d, want %d: %+v", len(d.Outline), len(want), d.Outline)
 	}
 	for i, w := range want {
-		if d.Outline[i] != w {
-			t.Errorf("Outline[%d] = %+v, want %+v", i, d.Outline[i], w)
+		// reflect.DeepEqual, not !=, because OutlineEntry now carries a *Span
+		// and != on a struct with a pointer field compares POINTER IDENTITY,
+		// which would silently never match. The comparison stays whole-struct:
+		// every pre-existing field is still pinned exactly as before.
+		if !reflect.DeepEqual(d.Outline[i], w) {
+			t.Errorf("Outline[%d] = %+v (span %s), want %+v (span %s)",
+				i, d.Outline[i], showSpan(d.Outline[i].Span), w, showSpan(w.Span))
 		}
 	}
 }
@@ -394,25 +405,27 @@ func TestBuildHeadingBlocks(t *testing.T) {
 
 	d := Build(doc, []byte(md), pc)
 
-	// Outline unchanged (mirrors TestBuildOutlineHeadingsGroupedBySection).
+	// Outline unchanged (mirrors TestBuildOutlineHeadingsGroupedBySection),
+	// plus schema v4's Span, derived from the fixture rather than hardcoded.
 	wantOutline := []OutlineEntry{
-		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1"},
-		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2"},
+		{SectionID: 1, Level: 1, Text: "H1", Slug: "h1", Span: spanOfLiteral(t, md, "H1")},
+		{SectionID: 1, Level: 2, Text: "H2", Slug: "h2", Span: spanOfLiteral(t, md, "H2")},
 	}
 	if len(d.Outline) != len(wantOutline) {
 		t.Fatalf("len(Outline) = %d, want %d", len(d.Outline), len(wantOutline))
 	}
 	for i, w := range wantOutline {
-		if d.Outline[i] != w {
-			t.Errorf("Outline[%d] = %+v, want %+v", i, d.Outline[i], w)
+		if !reflect.DeepEqual(d.Outline[i], w) {
+			t.Errorf("Outline[%d] = %+v (span %s), want %+v (span %s)",
+				i, d.Outline[i], showSpan(d.Outline[i].Span), w, showSpan(w.Span))
 		}
 	}
 
 	// Heading Blocks alongside the Outline.
 	headings := blocksOfKind(d.Sections[0].Blocks, BlockHeading)
 	wantHeadings := []Block{
-		{Kind: BlockHeading, Level: 1, Text: "H1"},
-		{Kind: BlockHeading, Level: 2, Text: "H2"},
+		{Kind: BlockHeading, Level: 1, Text: "H1", Span: spanOfLiteral(t, md, "H1")},
+		{Kind: BlockHeading, Level: 2, Text: "H2", Span: spanOfLiteral(t, md, "H2")},
 	}
 	if len(headings) != len(wantHeadings) {
 		t.Fatalf("heading blocks = %+v, want %+v", headings, wantHeadings)
@@ -441,10 +454,11 @@ func TestBuildBlocksPreserveExistingOutput(t *testing.T) {
 	if len(notes) != 1 || notes[0] != "just a presenter note" {
 		t.Fatalf("Notes = %+v, want exactly [%q]", notes, "just a presenter note")
 	}
-	// Outline unchanged: the single H1.
-	wantOutline := []OutlineEntry{{SectionID: 1, Level: 1, Text: "Slide", Slug: "slide"}}
-	if len(d.Outline) != 1 || d.Outline[0] != wantOutline[0] {
-		t.Fatalf("Outline = %+v, want %+v", d.Outline, wantOutline)
+	// Outline unchanged: the single H1, now carrying schema v4's Span.
+	wantOutline := []OutlineEntry{{SectionID: 1, Level: 1, Text: "Slide", Slug: "slide", Span: spanOfLiteral(t, md, "Slide")}}
+	if len(d.Outline) != 1 || !reflect.DeepEqual(d.Outline[0], wantOutline[0]) {
+		t.Fatalf("Outline = %+v (span %s), want %+v (span %s)",
+			d.Outline, showSpan(d.Outline[0].Span), wantOutline, showSpan(wantOutline[0].Span))
 	}
 	// New Blocks present: a heading block + a paragraph block (order preserved).
 	if paras := blocksOfKind(d.Sections[0].Blocks, BlockParagraph); len(paras) != 1 || paras[0].Text != "Body text." {
@@ -720,12 +734,413 @@ func TestBuildQuoteBlocks(t *testing.T) {
 // JSON a v2 consumer would have seen for the same input, so this is v3 and not
 // a silent v2 extension. AGENTS.md's envelope schema documents the new kinds.
 func TestSchemaVersionV3(t *testing.T) {
-	if got, want := SchemaVersion, "eden-press.model/v3"; got != want {
+	if got, want := SchemaVersion, "eden-press.model/v4"; got != want {
 		t.Errorf("SchemaVersion = %q, want %q", got, want)
 	}
 	md := "# T\n\ntext\n"
 	doc, pc := markdown.Parse(md)
-	if got := Build(doc, []byte(md), pc).SchemaVersion; got != "eden-press.model/v3" {
+	if got := Build(doc, []byte(md), pc).SchemaVersion; got != "eden-press.model/v4" {
 		t.Errorf("Document.SchemaVersion = %q, want v3", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Schema v4: source spans (AODex Objective 16, 16-E2).
+//
+// These tests are the deliverable. The whole reason spans exist in the model
+// rather than being recovered client-side is that locating a Section boundary
+// in the source requires replicating headingDivider's SYNTHETIC thematic breaks
+// and goldmark's setext-heading precedence in another language --
+// TestSyntheticBreakSectionsStillGetSpans is the case that makes the
+// client-side workaround impossible.
+// ---------------------------------------------------------------------------
+
+// resliceSpan returns source[s.Start:s.Stop], failing the test if the span is
+// nil, inverted, or out of bounds. Every span assertion below goes through
+// here, so a span that is merely plausible (in range) still has to survive the
+// content comparison that follows it.
+func resliceSpan(t *testing.T, source []byte, s *Span) string {
+	t.Helper()
+	if s == nil {
+		t.Fatal("resliceSpan called with a nil Span")
+	}
+	if s.Start < 0 || s.Stop > len(source) || s.Start > s.Stop {
+		t.Fatalf("span %+v is out of bounds for %d source bytes", *s, len(source))
+	}
+	return string(source[s.Start:s.Stop])
+}
+
+// blockTextPayloads returns every plain-text payload b carries, split to ONE
+// ENTRY PER LINE and trimmed. Line granularity is deliberate: a quote Block's
+// Text drops the "> " markers its source range carries, so the whole payload is
+// not a substring of its own source, but every line of it is. Same for a list
+// (Items lose their "- " bullets) and a table (cells lose their "|" pipes).
+func blockTextPayloads(b Block) []string {
+	raw := []string{b.Text}
+	for _, it := range b.Items {
+		raw = append(raw, it.Text)
+	}
+	raw = append(raw, b.Headers...)
+	for _, row := range b.Rows {
+		raw = append(raw, row...)
+	}
+	var out []string
+	for _, r := range raw {
+		for _, line := range strings.Split(r, "\n") {
+			if s := strings.TrimSpace(line); s != "" {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
+}
+
+// spanOfLiteral returns the span of needle's first occurrence in md. The
+// pre-v4 whole-struct assertions use it to express their expected Span without
+// writing a literal offset: a hardcoded number rots the instant someone edits
+// the fixture and can then be "corrected" to a wrong value that still passes,
+// whereas a derived one is wrong only if the fixture itself is.
+func spanOfLiteral(t *testing.T, md, needle string) *Span {
+	t.Helper()
+	i := strings.Index(md, needle)
+	if i < 0 {
+		t.Fatalf("fixture does not contain %q", needle)
+	}
+	return &Span{Start: i, Stop: i + len(needle)}
+}
+
+// showSpan renders a *Span for a failure message, since %+v on a struct with a
+// pointer field prints an address and hides the very mismatch being reported.
+func showSpan(s *Span) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("[%d,%d)", s.Start, s.Stop)
+}
+
+func readFixture(t *testing.T, name string) []byte {
+	t.Helper()
+	src, err := os.ReadFile("testdata/" + name)
+	if err != nil {
+		t.Fatalf("read fixture %s: %v", name, err)
+	}
+	return src
+}
+
+// TestSpansReSliceTheSource is the load-bearing span test: for EVERY Section,
+// Block and OutlineEntry carrying a span, source[Start:Stop] must re-slice text
+// the node actually came from.
+//
+// It asserts RE-SLICES, never numeric offsets. A numeric assertion rots the
+// moment someone edits the fixture and can then be "fixed" to a wrong value
+// that still passes; a re-slice assertion cannot be wrong and pass.
+func TestSpansReSliceTheSource(t *testing.T) {
+	src := readFixture(t, "superset_fixture.md")
+	doc, pc := markdown.Parse(string(src))
+	d := Build(doc, src, pc)
+
+	if len(d.Sections) != 2 {
+		t.Fatalf("len(Sections) = %d, want 2", len(d.Sections))
+	}
+
+	spans := 0
+	for si, sec := range d.Sections {
+		if sec.Span == nil {
+			t.Errorf("Sections[%d] has no span; a section derives one from its children", si)
+			continue
+		}
+		spans++
+		secText := resliceSpan(t, src, sec.Span)
+
+		for bi, b := range sec.Blocks {
+			if b.Span == nil {
+				continue // nil is honest; TestNodesWithoutLinesGetNilSpan pins it
+			}
+			spans++
+			got := resliceSpan(t, src, b.Span)
+
+			for _, want := range blockTextPayloads(b) {
+				if !strings.Contains(got, want) {
+					t.Errorf("Sections[%d].Blocks[%d] (%s) span %+v re-slices %q, which does not contain payload %q",
+						si, bi, b.Kind, *b.Span, got, want)
+				}
+			}
+
+			// The block's own source must lie inside its section's source.
+			if !strings.Contains(secText, got) {
+				t.Errorf("Sections[%d].Blocks[%d] (%s) re-slice %q is not within its section's re-slice",
+					si, bi, b.Kind, got)
+			}
+
+			// Where Lines() bounds the whole payload, assert EQUALITY, not
+			// containment -- a tighter proof wherever one is available.
+			switch b.Kind {
+			case BlockParagraph, BlockHeading:
+				if strings.TrimSpace(got) != strings.TrimSpace(b.Text) {
+					t.Errorf("Sections[%d].Blocks[%d] (%s) re-slice %q != Text %q",
+						si, bi, b.Kind, strings.TrimSpace(got), strings.TrimSpace(b.Text))
+				}
+			case BlockCode:
+				// A code block's Lines() covers the CONTENT, not the ``` fences,
+				// so the re-slice is the raw source byte-for-byte.
+				if got != b.Text {
+					t.Errorf("Sections[%d].Blocks[%d] (code) re-slice %q != raw Text %q", si, bi, got, b.Text)
+				}
+			}
+		}
+	}
+
+	for oi, e := range d.Outline {
+		if e.Span == nil {
+			t.Errorf("Outline[%d] (%q) has no span", oi, e.Text)
+			continue
+		}
+		spans++
+		// A heading's Lines() covers its TEXT: for an ATX heading this excludes
+		// the "## " prefix; a setext heading has no prefix to exclude.
+		if got := strings.TrimSpace(resliceSpan(t, src, e.Span)); got != e.Text {
+			t.Errorf("Outline[%d] span re-slices %q, want heading text %q", oi, got, e.Text)
+		}
+	}
+
+	// Non-vacuity floor: the fixture carries 2 sections, 11 blocks and 2
+	// outline entries. If a refactor silently stopped populating spans this
+	// test would otherwise pass by asserting nothing at all.
+	if spans < 12 {
+		t.Errorf("only %d spans populated across the fixture; expected the great majority of its 15 positionable nodes", spans)
+	}
+}
+
+// TestFirstBlockSpanSurvivesJSON pins THE zero-offset trap. `Start int
+// json:"start,omitempty"` would drop a legitimate offset 0 -- the first block of
+// every document, i.e. exactly the node a "scroll to top" targets -- making it
+// indistinguishable from an unpositioned node. The pointer-to-struct shape with
+// NON-omitempty inner fields is what avoids that, and this test is what keeps it
+// avoided.
+func TestFirstBlockSpanSurvivesJSON(t *testing.T) {
+	md := "Opening prose at byte zero.\n\n# A heading\n"
+	doc, pc := markdown.Parse(md)
+	d := Build(doc, []byte(md), pc)
+
+	first := d.Sections[0].Blocks[0]
+	if first.Span == nil {
+		t.Fatal("the first block of the document carries no span")
+	}
+	if first.Span.Start != 0 {
+		t.Fatalf("first block Span.Start = %d, want 0 (fixture starts with prose at byte 0)", first.Span.Start)
+	}
+	if d.Sections[0].Span == nil || d.Sections[0].Span.Start != 0 {
+		t.Fatalf("Sections[0].Span = %+v, want a span starting at 0", d.Sections[0].Span)
+	}
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if !strings.Contains(string(b), `"span":{"start":0,`) {
+		t.Fatalf("offset 0 did not survive serialization -- `start` was swallowed as a zero value:\n%s", b)
+	}
+
+	var got Document
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	gotFirst := got.Sections[0].Blocks[0]
+	if gotFirst.Span == nil {
+		t.Fatal("first block's span was lost in the JSON round trip")
+	}
+	if gotFirst.Span.Start != 0 || gotFirst.Span.Stop != first.Span.Stop {
+		t.Fatalf("round-tripped span = %+v, want %+v", *gotFirst.Span, *first.Span)
+	}
+
+	// The other half of the pointer shape: an UNPOSITIONED node must emit no
+	// `span` key at all, so v3 JSON stays byte-for-byte unchanged for it.
+	unpositioned, err := json.Marshal(Block{Kind: BlockImage, Src: "x.png"})
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if strings.Contains(string(unpositioned), "span") {
+		t.Fatalf("a span-less Block must omit the key entirely, got %s", unpositioned)
+	}
+}
+
+// TestSpansAreByteOffsets pins the byte-not-UTF-16 contract with a document
+// whose multi-byte characters make a byte index, a rune index and a UTF-16
+// code-unit index three DIFFERENT numbers at the same position. Whoever writes
+// the Dart side will find this test before they find the bug: Dart strings are
+// UTF-16, so a client MUST convert before indexing.
+func TestSpansAreByteOffsets(t *testing.T) {
+	// "café" is 5 bytes / 4 runes; "☕" is 3 bytes / 1 rune / 1 UTF-16 unit;
+	// "é" and "è" are 2 bytes each. Every offset after them disagrees across
+	// the three indexings.
+	md := "Un café ☕ pour Zoé.\n\n## Après\n"
+	src := []byte(md)
+	doc, pc := markdown.Parse(md)
+	d := Build(doc, src, pc)
+
+	if len(d.Outline) != 1 {
+		t.Fatalf("len(Outline) = %d, want 1", len(d.Outline))
+	}
+	e := d.Outline[0]
+	if e.Span == nil {
+		t.Fatal("the heading carries no span")
+	}
+
+	// 1. The BYTE re-slice is correct.
+	if got := strings.TrimSpace(resliceSpan(t, src, e.Span)); got != "Après" {
+		t.Fatalf("byte re-slice = %q, want %q", got, "Après")
+	}
+
+	// 2. The SAME numbers read as RUNE indices are wrong. The fixture has more
+	//    bytes than runes, so the byte Stop may not even be a legal rune index
+	//    -- which is itself the proof.
+	runes := []rune(md)
+	if utf8.RuneCountInString(md) == len(md) {
+		t.Fatal("fixture is pure ASCII; it cannot discriminate byte offsets from rune offsets")
+	}
+	if e.Span.Stop <= len(runes) {
+		if runeSliced := strings.TrimSpace(string(runes[e.Span.Start:e.Span.Stop])); runeSliced == "Après" {
+			t.Fatal("a rune-indexed slice of the same numbers produced the right text; the fixture does not discriminate")
+		}
+	}
+
+	// 3. The conversion a Dart/JS client OWES: the UTF-16 code-unit offset of
+	//    the same position is a different number from the byte offset. Proven,
+	//    not merely asserted in a doc comment.
+	utf16Offset := len(utf16.Encode([]rune(md[:e.Span.Start])))
+	if utf16Offset == e.Span.Start {
+		t.Fatalf("byte offset %d equals the UTF-16 code-unit offset; the fixture does not discriminate", e.Span.Start)
+	}
+	t.Logf("same position: byte offset %d vs UTF-16 code-unit offset %d -- a Dart client MUST convert", e.Span.Start, utf16Offset)
+}
+
+// TestBlockSpansNestWithinSectionSpans proves the derived Section span really
+// bounds its content: every Block span lies within its owning Section's span,
+// and Sections do not overlap one another.
+func TestBlockSpansNestWithinSectionSpans(t *testing.T) {
+	src := readFixture(t, "superset_fixture.md")
+	doc, pc := markdown.Parse(string(src))
+	d := Build(doc, src, pc)
+
+	var prev *Span
+	for si, sec := range d.Sections {
+		if sec.Span == nil {
+			t.Fatalf("Sections[%d] has no span", si)
+		}
+		for bi, b := range sec.Blocks {
+			if b.Span == nil {
+				continue
+			}
+			if b.Span.Start < sec.Span.Start || b.Span.Stop > sec.Span.Stop {
+				t.Errorf("Sections[%d].Blocks[%d] (%s) span %+v escapes its section's span %+v",
+					si, bi, b.Kind, *b.Span, *sec.Span)
+			}
+		}
+		if prev != nil && sec.Span.Start < prev.Stop {
+			t.Errorf("Sections[%d] span %+v overlaps the previous section's %+v", si, *sec.Span, *prev)
+		}
+		prev = sec.Span
+	}
+
+	// An Outline entry's span must lie within the span of the Section it names.
+	byID := map[int]*Span{}
+	for _, sec := range d.Sections {
+		byID[sec.ID] = sec.Span
+	}
+	for oi, e := range d.Outline {
+		s := byID[e.SectionID]
+		if s == nil || e.Span == nil {
+			continue
+		}
+		if e.Span.Start < s.Start || e.Span.Stop > s.Stop {
+			t.Errorf("Outline[%d] span %+v escapes Section %d's span %+v", oi, *e.Span, e.SectionID, *s)
+		}
+	}
+}
+
+// TestSyntheticBreakSectionsStillGetSpans is the case that justifies this whole
+// TRD. With `headingDivider: 2` the Section boundaries are SYNTHESIZED by
+// chase/markdown/headingdivider.go and appear in NO source text at all, so a
+// client scanning the Markdown for "---" would find nothing to split on. The
+// model must still report where each Section's content lives.
+func TestSyntheticBreakSectionsStillGetSpans(t *testing.T) {
+	md := "---\nheadingDivider: 2\n---\n\n# Deck\n\nIntro prose.\n\n## Slide A\n\nBody A.\n\n## Slide B\n\nBody B.\n"
+	src := []byte(md)
+
+	// The premise: outside the front matter there is not a single thematic
+	// break in the source. Every boundary below is synthetic.
+	if strings.Contains(md[strings.Index(md[4:], "---\n")+7:], "---") {
+		t.Fatal("fixture contains a literal thematic break; it would not prove synthetic splitting")
+	}
+
+	doc, pc := markdown.Parse(md)
+	d := Build(doc, src, pc)
+
+	if len(d.Sections) < 2 {
+		t.Fatalf("len(Sections) = %d, want >= 2 (headingDivider: 2 must split at each h2)", len(d.Sections))
+	}
+
+	var prev *Span
+	for si, sec := range d.Sections {
+		if sec.Span == nil {
+			t.Fatalf("Sections[%d] has no span, yet its boundary is synthetic -- this is exactly the case a client cannot recover", si)
+		}
+		got := resliceSpan(t, src, sec.Span)
+		if strings.TrimSpace(got) == "" {
+			t.Errorf("Sections[%d] span %+v re-slices empty text", si, *sec.Span)
+		}
+		for bi, b := range sec.Blocks {
+			if b.Span == nil {
+				continue
+			}
+			if b.Span.Start < sec.Span.Start || b.Span.Stop > sec.Span.Stop {
+				t.Errorf("Sections[%d].Blocks[%d] span %+v escapes its section's %+v", si, bi, *b.Span, *sec.Span)
+			}
+		}
+		if prev != nil && sec.Span.Start < prev.Stop {
+			t.Errorf("Sections[%d] span %+v overlaps the previous %+v", si, *sec.Span, *prev)
+		}
+		prev = sec.Span
+	}
+
+	// Every heading's span must re-slice that heading's own text -- the exact
+	// "outline click -> scroll the source" affordance this TRD exists to enable.
+	for oi, e := range d.Outline {
+		if e.Span == nil {
+			t.Fatalf("Outline[%d] (%q) has no span", oi, e.Text)
+		}
+		if got := strings.TrimSpace(resliceSpan(t, src, e.Span)); got != e.Text {
+			t.Errorf("Outline[%d] re-slices %q, want %q", oi, got, e.Text)
+		}
+	}
+}
+
+// TestNodesWithoutLinesGetNilSpan pins the honesty rule: a node whose position
+// cannot be determined reports NIL, never a fabricated {0,0}. A fabricated span
+// sends an editor's cursor to the top of the document, which is worse than no
+// cursor at all -- a nil span degrades cleanly to "no scroll-sync for this
+// node".
+func TestNodesWithoutLinesGetNilSpan(t *testing.T) {
+	// An image with EMPTY alt text is inline and carries no positioned
+	// descendant, so nothing real can be derived for it.
+	md := "# H\n\n![](x.png)\n"
+	doc, pc := markdown.Parse(md)
+	d := Build(doc, []byte(md), pc)
+
+	imgs := blocksOfKind(d.Sections[0].Blocks, BlockImage)
+	if len(imgs) != 1 {
+		t.Fatalf("image blocks = %d, want 1 (all: %+v)", len(imgs), d.Sections[0].Blocks)
+	}
+	if imgs[0].Span != nil {
+		t.Errorf("empty-alt image Span = %+v, want nil (a fabricated span is worse than none)", *imgs[0].Span)
+	}
+
+	// And the zero value must never be manufactured for a real node either.
+	for si, sec := range d.Sections {
+		for bi, b := range sec.Blocks {
+			if b.Span != nil && b.Span.Start == 0 && b.Span.Stop == 0 {
+				t.Errorf("Sections[%d].Blocks[%d] (%s) carries a fabricated {0,0} span", si, bi, b.Kind)
+			}
+		}
 	}
 }

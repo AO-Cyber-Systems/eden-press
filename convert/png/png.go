@@ -32,6 +32,7 @@ import (
 	"github.com/chromedp/chromedp"
 
 	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
+	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
 	"github.com/AO-Cyber-Systems/eden-press/convert"
 	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
 	"github.com/AO-Cyber-Systems/eden-press/press"
@@ -64,8 +65,11 @@ type Options struct {
 }
 
 // ToImages composes out into a self-contained HTML document (out.HTML +
-// chrome.ComposeCSS(out.CSS)), opens a new tab on sess sized to the deck's
-// resolved size-table entry, folds in the 05-02 determinism recipe
+// chrome.ComposeCSS(out.CSS)), opens a new tab on sess sized to the size-table
+// entry resolved from the profile that ACTUALLY produced out (out.Profile --
+// never profile.Default(), whose "first registered wins" rule made the
+// captured dimensions depend on the final binary's import graph), folds in the
+// 05-02 determinism recipe
 // (chrome.ApplyDeterminism + chrome.LoadHTML), then loops over
 // out.Model.Sections capturing each slide's <section> via ONE
 // chromedp.Screenshot call each -- never chromedp.ScreenshotNodes (05-RESEARCH
@@ -81,16 +85,9 @@ func ToImages(sess *chrome.Session, out press.Output, opts Options) ([][]byte, e
 		return nil, nil
 	}
 
-	p := profile.Default()
-	if p == nil {
-		return nil, fmt.Errorf("convert/png: ToImages: no chase/profile registered (import press, or a Profile package, for its init side effect)")
-	}
-
-	size := p.Sizes().Default
-	if sizeName := out.Model.Meta.Directives["size"]; sizeName != "" {
-		if sz, ok := p.Sizes().ByName[sizeName]; ok {
-			size = sz
-		}
+	p, size, err := resolveProfileSize(out)
+	if err != nil {
+		return nil, err
 	}
 
 	doc := "<!doctype html><html><head><meta charset=\"utf-8\"><style>" +
@@ -131,6 +128,49 @@ func ToImages(sess *chrome.Session, out press.Output, opts Options) ([][]byte, e
 	}
 
 	return images, nil
+}
+
+// resolveProfileSize resolves BOTH the profile that ACTUALLY produced out
+// (out.Profile, recorded by press.Render) and the size ToImages captures at:
+// out.Model.Meta's "size" front-matter directive looked up in THAT profile's
+// own size table, falling back to THAT table's Default when the directive is
+// absent or names a size the profile does not define.
+//
+// It replaces a profile.Default() call. That function's "first registered
+// wins" rule is deterministic only for a fixed registration order, and
+// registration happens in package init() -- so which profile it returned
+// depended on the final binary's import graph rather than on anything the
+// caller decided. press.Render was fixed to avoid exactly that hazard (see
+// press.go's defaultProfileName comment); this exporter had not read it.
+//
+// The profile is returned alongside the size because ToImages needs its
+// Container()/UnitElement() for the per-slide selector too -- and those must
+// come from the SAME profile the geometry did, or the selector addresses a
+// container the CSS never generated.
+//
+// An Output with no recorded profile is an ERROR, never a silent fallback.
+func resolveProfileSize(out press.Output) (profile.Profile, theme.Size, error) {
+	if out.Profile == "" {
+		return nil, theme.Size{}, fmt.Errorf(
+			"convert/png: resolveProfileSize: Output carries no Profile; re-render with a press version that records it")
+	}
+	p, ok := profile.Get(out.Profile)
+	if !ok {
+		return nil, theme.Size{}, fmt.Errorf(
+			"convert/png: resolveProfileSize: unknown profile %q (import the profiles/%s package for its init side-effect)",
+			out.Profile, out.Profile)
+	}
+
+	table := p.Sizes()
+	size := table.Default
+	if out.Model != nil {
+		if name := out.Model.Meta.Directives["size"]; name != "" {
+			if sz, ok := table.ByName[name]; ok {
+				size = sz
+			}
+		}
+	}
+	return p, size, nil
 }
 
 // slideSelector builds the k-th slide's chromedp.ByQuery (querySelector)

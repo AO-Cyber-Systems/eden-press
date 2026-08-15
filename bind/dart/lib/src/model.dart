@@ -183,7 +183,20 @@ class ModelDocument {
     required this.outline,
   });
 
-  static const expectedSchemaVersion = 'eden-press.model/v3';
+  /// The wire shape this binding understands.
+  ///
+  /// Moved v3 -> v4 with AODex Objective 16, which added an optional `span`
+  /// (a half-open `[start, stop)` BYTE range into the Markdown source) to
+  /// sections, blocks and outline entries. v4 is a STRICT SUPERSET of v3 --
+  /// no field was removed, renamed or re-classified -- so this binding parses
+  /// a v4 document correctly whether or not it reads the new key.
+  ///
+  /// The `span` offsets are BYTES. Dart strings are UTF-16, so any code that
+  /// indexes a source string with one MUST convert first; a raw byte offset
+  /// will be wrong for every position after the first multi-byte character.
+  /// This class does not yet surface spans -- reading them is deliberately
+  /// left to the consumer that needs them, along with that conversion.
+  static const expectedSchemaVersion = 'eden-press.model/v4';
 
   final String schemaVersion;
   final Meta meta;

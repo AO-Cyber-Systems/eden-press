@@ -140,6 +140,12 @@ func Render(md string, opts Options) (Output, error) {
 		Model:    m,
 		Meta:     m.Meta,
 		Comments: flattenNotes(m),
+		// Record the profile that ACTUALLY produced this Output, by its own
+		// ID rather than by opts.Profile -- the two differ in the case that
+		// matters most: opts.Profile == "" resolves to defaultProfileName
+		// ("slides"), and recording "" there would leave every default
+		// render's geometry unresolvable downstream.
+		Profile: p.ID(),
 	}, nil
 }
 

@@ -25,11 +25,15 @@ package xlsx
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus/xlsxtyping"
 )
 
 func readPart(t *testing.T, pkg []byte, name string) string {
@@ -193,30 +197,354 @@ func TestNumericCellsAreNumbers(t *testing.T) {
 	}
 }
 
-// TestNumericDetection pins the boundary cases directly: what counts as a
-// number must not swallow things that merely start with a digit.
+// TestNumericDetection asserts isNumeric against the PUBLISHED corpus rather
+// than a table restated here.
+//
+// The cases used to be listed inline, and one of them -- {"+3", true} -- pinned
+// the exact OPPOSITE of what AODex's coerceInput asserts for the same string.
+// Two suites, both green, both right by their own lights, disagreeing about one
+// string. That is the drift decision D6 closes: the two XLSX writers stay
+// separate (unifying them would turn "007" into 7, dates into text and a
+// formula into the literal "=SUM(A1:A5)"), but they share ONE rule, published
+// as data in conformance/corpus/xlsxtyping.
+//
+// So do not re-add a local table here, and in particular do not "fix" +3 back
+// to a number -- change the corpus, and both sides move together or fail.
 func TestNumericDetection(t *testing.T) {
-	for _, tc := range []struct {
-		in      string
-		numeric bool
-	}{
-		{"840", true},
-		{"0.4", true},
-		{"-12.5", true},
-		{"+3", true},
-		{"1e3", true},
-		{"", false},
-		{"1.2%", false},  // a percentage is not a bare number
-		{"550ms", false}, // a unit suffix is not a number
-		{"p95", false},
-		{"1,200", false}, // thousands separators are locale-dependent
-		{"  7  ", true},  // surrounding whitespace is not meaningful
-		{"NaN", false},   // parses as a float in Go, but is not a spreadsheet number
-		{"Inf", false},
-	} {
-		if got := isNumeric(tc.in); got != tc.numeric {
-			t.Errorf("isNumeric(%q) = %v, want %v", tc.in, got, tc.numeric)
+	if len(xlsxtyping.Cases) == 0 {
+		t.Fatal("the typing corpus is empty; an empty corpus asserts nothing while looking green")
+	}
+	for _, c := range xlsxtyping.Cases {
+		want := c.Class == xlsxtyping.ClassNumber
+		if got := isNumeric(c.Input); got != want {
+			reason := c.Reason
+			if reason == "" {
+				reason = "no reason recorded; see conformance/corpus/xlsxtyping"
+			}
+			t.Errorf("isNumeric(%q) = %v, want %v (corpus class %q)\n  reason: %s",
+				c.Input, got, want, c.Class, reason)
 		}
+	}
+}
+
+// mustPrecede asserts that needle appears before other in part. Presence alone
+// is not enough for a <sheetView>: a pane emitted AFTER <sheetData> is silently
+// ignored by every viewer, so a substring assertion would pass on a workbook
+// that does not freeze anything. Ordering is the property that matters.
+func mustPrecede(t *testing.T, part, needle, other string) {
+	t.Helper()
+	i := strings.Index(part, needle)
+	j := strings.Index(part, other)
+	if i < 0 {
+		t.Fatalf("%s is absent from the part: %s", needle, part)
+	}
+	if j < 0 {
+		t.Fatalf("%s is absent from the part: %s", other, part)
+	}
+	if i > j {
+		t.Errorf("%s appears AFTER %s (at %d vs %d); a pane after <sheetData> is silently ignored: %s",
+			needle, other, i, j, part)
+	}
+}
+
+// TestHeaderRowIsFrozen: sheetRows' docstring says header rows are "rendered
+// bold and frozen". Bold was real; frozen was not -- buildSheetXML emitted no
+// <sheetView> at all. This pins the freeze so the docstring stays true.
+func TestHeaderRowIsFrozen(t *testing.T) {
+	pkg, err := ToXLSX(tableDoc(metricsTable), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	sheet := readPart(t, pkg, "xl/worksheets/sheet1.xml")
+
+	for _, want := range []string{
+		`<sheetViews>`,
+		`<sheetView`,
+		`ySplit="1"`,
+		`topLeftCell="A2"`,
+		`activePane="bottomLeft"`,
+		`state="frozen"`,
+	} {
+		if !strings.Contains(sheet, want) {
+			t.Errorf("frozen header pane missing %s: %s", want, sheet)
+		}
+	}
+	// The failure mode that looks like "the pane element does nothing".
+	mustPrecede(t, sheet, "<sheetViews>", "<sheetData>")
+	if err := xmlWellFormed(sheet); err != nil {
+		t.Errorf("sheet is not well-formed with the pane: %v", err)
+	}
+}
+
+// TestNoHeaderRowNoPane: freezing row 1 when row 1 is a data row would pin an
+// arbitrary record to the top of the user's view, which is worse than not
+// freezing at all. A table with no header row must emit no pane.
+func TestNoHeaderRowNoPane(t *testing.T) {
+	pkg, err := ToXLSX(tableDoc(model.Block{
+		Kind: model.BlockTable,
+		Rows: [][]string{{"a", "1"}, {"b", "2"}},
+	}), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	sheet := readPart(t, pkg, "xl/worksheets/sheet1.xml")
+	if strings.Contains(sheet, "<pane") || strings.Contains(sheet, "<sheetViews>") {
+		t.Errorf("a header-less sheet froze a data row: %s", sheet)
+	}
+}
+
+// TestFreezeIsPerSheet: the flag lives on the grid, not on the workbook, so a
+// workbook mixing header-bearing and header-less tables must freeze only the
+// sheets that have a header.
+func TestFreezeIsPerSheet(t *testing.T) {
+	d := &model.Document{
+		SchemaVersion: model.SchemaVersion,
+		Sections: []model.Section{
+			{ID: 1, Blocks: []model.Block{
+				{Kind: model.BlockHeading, Level: 1, Text: "Headed"},
+				metricsTable,
+			}},
+			{ID: 2, Blocks: []model.Block{
+				{Kind: model.BlockHeading, Level: 1, Text: "Headless"},
+				{Kind: model.BlockTable, Rows: [][]string{{"a", "1"}}},
+			}},
+		},
+	}
+	pkg, err := ToXLSX(d, Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	if s := readPart(t, pkg, "xl/worksheets/sheet1.xml"); !strings.Contains(s, `state="frozen"`) {
+		t.Errorf("sheet1 has a header row but no frozen pane: %s", s)
+	}
+	if s := readPart(t, pkg, "xl/worksheets/sheet2.xml"); strings.Contains(s, "<pane") {
+		t.Errorf("sheet2 has no header row but froze anyway: %s", s)
+	}
+}
+
+// alignedTable is the fixture from openable_test.go's acceptance workbook: a
+// label column followed by three right-aligned numeric columns, which is what
+// model.Block.Aligns' docstring means by "a right-aligned numeric column must
+// survive into the export".
+var alignedTable = model.Block{
+	Kind:    model.BlockTable,
+	Headers: []string{"Metric", "Q2", "Q3", "Delta"},
+	Rows: [][]string{
+		{"p95 latency", "840", "550", "-34"},
+		{"Error rate", "1.2", "0.4", "-0.8"},
+	},
+	Aligns: []string{"left", "right", "right", "right"},
+}
+
+// cellStyle returns the s="N" attribute value of the cell at ref, or -1 when
+// the cell carries no style attribute at all (the default format).
+func cellStyle(t *testing.T, part, ref string) int {
+	t.Helper()
+	i := strings.Index(part, `<c r="`+ref+`"`)
+	if i < 0 {
+		t.Fatalf("no cell at %s in: %s", ref, part)
+	}
+	rest := part[i+len(`<c r="`+ref+`"`):]
+	end := strings.Index(rest, ">")
+	if end < 0 {
+		t.Fatalf("unterminated cell at %s", ref)
+	}
+	attrs := rest[:end]
+	j := strings.Index(attrs, ` s="`)
+	if j < 0 {
+		return -1
+	}
+	v := attrs[j+len(` s="`):]
+	k := strings.Index(v, `"`)
+	if k < 0 {
+		t.Fatalf("unterminated s attribute at %s", ref)
+	}
+	n, err := strconv.Atoi(v[:k])
+	if err != nil {
+		t.Fatalf("cell %s has non-numeric style %q", ref, v[:k])
+	}
+	return n
+}
+
+// TestRightAlignedColumnSurvives: Block.Aligns was documented as "load-bearing
+// for ... a future convert/xlsx: a right-aligned numeric column must survive
+// into the export", and for three schema versions the writer never read it --
+// its only appearance in this package was a test fixture. This is the
+// docstring becoming true.
+func TestRightAlignedColumnSurvives(t *testing.T) {
+	pkg, err := ToXLSX(tableDoc(alignedTable), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	sheet := readPart(t, pkg, "xl/worksheets/sheet1.xml")
+
+	// Header row: bold, and bold+right in the three aligned columns.
+	if got := cellStyle(t, sheet, "A1"); got != xfBold {
+		t.Errorf("header A1 style = %d, want %d (bold, no alignment)", got, xfBold)
+	}
+	for _, ref := range []string{"B1", "C1", "D1"} {
+		if got := cellStyle(t, sheet, ref); got != xfBoldRight {
+			t.Errorf("header %s style = %d, want %d (bold+right)", ref, got, xfBoldRight)
+		}
+	}
+	// Body rows: the label column keeps the default, the numeric columns
+	// carry right alignment.
+	for _, ref := range []string{"A2", "A3"} {
+		if got := cellStyle(t, sheet, ref); got != -1 {
+			t.Errorf(`body %s style = %d, want no s attribute -- a "left" column must not be restyled`, ref, got)
+		}
+	}
+	for _, ref := range []string{"B2", "C2", "D2", "B3", "C3", "D3"} {
+		if got := cellStyle(t, sheet, ref); got != xfRight {
+			t.Errorf("body %s style = %d, want %d (right)", ref, got, xfRight)
+		}
+	}
+	if err := xmlWellFormed(sheet); err != nil {
+		t.Errorf("sheet is not well-formed with alignment styles: %v", err)
+	}
+}
+
+// TestCenterAlignedColumn: the other alignment a GFM table can express.
+func TestCenterAlignedColumn(t *testing.T) {
+	pkg, err := ToXLSX(tableDoc(model.Block{
+		Kind:    model.BlockTable,
+		Headers: []string{"A", "B"},
+		Rows:    [][]string{{"x", "y"}},
+		Aligns:  []string{"", "center"},
+	}), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	sheet := readPart(t, pkg, "xl/worksheets/sheet1.xml")
+	if got := cellStyle(t, sheet, "B2"); got != xfCenter {
+		t.Errorf("centered cell B2 style = %d, want %d", got, xfCenter)
+	}
+	if got := cellStyle(t, sheet, "B1"); got != xfBoldCenter {
+		t.Errorf("centered header B1 style = %d, want %d", got, xfBoldCenter)
+	}
+	// The unspecified column proves the feature is opt-in.
+	if got := cellStyle(t, sheet, "A2"); got != -1 {
+		t.Errorf("unaligned cell A2 style = %d, want no s attribute", got)
+	}
+	if got := cellStyle(t, sheet, "A1"); got != xfBold {
+		t.Errorf("unaligned header A1 style = %d, want %d (bold only)", got, xfBold)
+	}
+}
+
+// The worksheet convert/xlsx produced for a table with NO Aligns, captured at
+// commit e88d9ae -- the commit immediately before per-column alignment landed.
+// Alignment is opt-in, so a table that asked for none must be untouched: same
+// cells, same styles, same frozen pane, same bytes.
+//
+// A hash rather than the literal 830 bytes keeps the assertion readable; the
+// failure prints the actual part, which is what a reader needs.
+const (
+	noAlignsSheetSHA256 = "d4a717083bd0a03af66a7b0bc26fd6faaf492bafb5a0a25e1435e3d43c82cbd0"
+	noAlignsSheetLen    = 830
+)
+
+// TestNoAlignsWorksheetIsByteIdentical is the no-regression case: the blast
+// radius of the alignment change must be exactly the tables that asked for it.
+func TestNoAlignsWorksheetIsByteIdentical(t *testing.T) {
+	if metricsTable.Aligns != nil {
+		t.Fatal("the fixture grew an Aligns slice; this test only means something without one")
+	}
+	pkg, err := ToXLSX(tableDoc(metricsTable), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	sheet := readPart(t, pkg, "xl/worksheets/sheet1.xml")
+	sum := sha256.Sum256([]byte(sheet))
+	got := hex.EncodeToString(sum[:])
+	if len(sheet) != noAlignsSheetLen || got != noAlignsSheetSHA256 {
+		t.Errorf("a table with no Aligns changed: %d bytes / %s, want %d bytes / %s\n%s",
+			len(sheet), got, noAlignsSheetLen, noAlignsSheetSHA256, sheet)
+	}
+}
+
+// TestAlignsRaggedRowDoesNotPanic: the docmodel preserves rows exactly as
+// authored, so a row can be shorter OR longer than its table's Aligns slice.
+// An unguarded per-column lookup panics on real input, not a hypothetical.
+func TestAlignsRaggedRowDoesNotPanic(t *testing.T) {
+	pkg, err := ToXLSX(tableDoc(model.Block{
+		Kind:    model.BlockTable,
+		Headers: []string{"A", "B", "C"},
+		Rows:    [][]string{{"1"}, {"1", "2", "3", "4"}},
+		// Fewer alignments than columns, on purpose.
+		Aligns: []string{"right"},
+	}), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	sheet := readPart(t, pkg, "xl/worksheets/sheet1.xml")
+	if got := cellStyle(t, sheet, "A2"); got != xfRight {
+		t.Errorf("A2 style = %d, want %d", got, xfRight)
+	}
+	// Columns past the end of Aligns fall back to the default.
+	if got := cellStyle(t, sheet, "C2"); got != -1 {
+		t.Errorf("C2 style = %d, want no s attribute (beyond the Aligns slice)", got)
+	}
+	if err := xmlWellFormed(sheet); err != nil {
+		t.Errorf("ragged sheet is not well-formed: %v", err)
+	}
+}
+
+// TestStylesTableIsConsistent guards the two ways this styles part breaks
+// Excel opaquely: a count attribute that disagrees with the children, and a
+// reordered <styleSheet>.
+func TestStylesTableIsConsistent(t *testing.T) {
+	pkg, err := ToXLSX(tableDoc(alignedTable), Options{})
+	if err != nil {
+		t.Fatalf("ToXLSX: %v", err)
+	}
+	styles := readPart(t, pkg, "xl/styles.xml")
+
+	i := strings.Index(styles, `<cellXfs count="`)
+	if i < 0 {
+		t.Fatalf("no cellXfs in styles.xml: %s", styles)
+	}
+	block := styles[i:]
+	if end := strings.Index(block, `</cellXfs>`); end >= 0 {
+		block = block[:end]
+	}
+	declared := block[len(`<cellXfs count="`):]
+	declared = declared[:strings.Index(declared, `"`)]
+	want, err := strconv.Atoi(declared)
+	if err != nil {
+		t.Fatalf("cellXfs count is not a number: %q", declared)
+	}
+	if got := strings.Count(block, "<xf "); got != want {
+		t.Errorf(`<cellXfs count="%d"> but %d <xf> children; Excel rejects this with no useful message`, want, got)
+	}
+	if want != xfCount {
+		t.Errorf("cellXfs count = %d, want xfCount = %d", want, xfCount)
+	}
+
+	// Child order is fixed by the schema; the part's own comment says Excel
+	// rejects the workbook if it changes.
+	order := []string{"<fonts ", "<fills ", "<borders ", "<cellStyleXfs ", "<cellXfs "}
+	last := -1
+	for _, el := range order {
+		at := strings.Index(styles, el)
+		if at < 0 {
+			t.Fatalf("styles.xml is missing %s: %s", el, styles)
+		}
+		if at < last {
+			t.Errorf("styleSheet children are out of schema order at %s: %s", el, styles)
+		}
+		last = at
+	}
+	// The two mandatory placeholder fills must survive.
+	if !strings.Contains(styles, `patternType="none"`) || !strings.Contains(styles, `patternType="gray125"`) {
+		t.Errorf("the mandatory placeholder fills were dropped: %s", styles)
+	}
+	// Indices 0 and 1 keep their meaning: every previously-emitted s="1"
+	// still means bold.
+	if !strings.Contains(styles, `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>`) {
+		t.Errorf("xf 0/1 are no longer the original default/bold pair; existing s=\"1\" cells would be restyled: %s", styles)
+	}
+	if err := xmlWellFormed(styles); err != nil {
+		t.Errorf("styles.xml is not well-formed: %v", err)
 	}
 }
 
