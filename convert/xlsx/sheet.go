@@ -64,7 +64,20 @@ func columnRef(idx int) string {
 // than text. This is the difference between a workbook you can sum, sort and
 // chart and one that merely looks like a table.
 //
+// The rule is NOT defined here. It is published as executable data in
+// conformance/corpus/xlsxtyping, because AODex's workbook exporter must
+// classify identically and a prose contract between two repositories rots. The
+// corpus drives TestNumericDetection; change the corpus, not this comment.
+//
 // Deliberately stricter than strconv.ParseFloat alone:
+//   - A value longer than one character that starts with "0" or "+" and holds
+//     no "." is an authored IDENTIFIER, not a quantity. "007" is the headline:
+//     ParseFloat accepts it, so an unguarded writer stores the number 7 and
+//     the leading zeros are gone. The "." escape hatch is load-bearing in both
+//     directions -- "0.4" and "+3.5" are quantities and stay numbers, and
+//     dropping it would turn every fractional value in every document into
+//     text, a far larger blast radius than the bug being fixed. Length > 1
+//     keeps a bare "0" a number.
 //   - "NaN" and "Inf" parse as floats in Go but are not spreadsheet numbers;
 //     writing them into a <v> element produces a cell Excel cannot evaluate.
 //   - "1.2%", "550ms" and "1,200" are rejected. A percentage needs a number
@@ -76,6 +89,12 @@ func columnRef(idx int) string {
 func isNumeric(s string) bool {
 	s = strings.TrimSpace(s)
 	if s == "" {
+		return false
+	}
+	// The identifier guard, mirroring AODex's coerceInput exactly (decision
+	// D6: the Dart rule wins for user data, because its input is a cell a
+	// person authored). Both halves of the condition matter -- see above.
+	if len(s) > 1 && (s[0] == '0' || s[0] == '+') && !strings.Contains(s, ".") {
 		return false
 	}
 	lower := strings.ToLower(s)

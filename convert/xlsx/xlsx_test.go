@@ -30,6 +30,7 @@ import (
 	"testing"
 
 	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus/xlsxtyping"
 )
 
 func readPart(t *testing.T, pkg []byte, name string) string {
@@ -193,29 +194,32 @@ func TestNumericCellsAreNumbers(t *testing.T) {
 	}
 }
 
-// TestNumericDetection pins the boundary cases directly: what counts as a
-// number must not swallow things that merely start with a digit.
+// TestNumericDetection asserts isNumeric against the PUBLISHED corpus rather
+// than a table restated here.
+//
+// The cases used to be listed inline, and one of them -- {"+3", true} -- pinned
+// the exact OPPOSITE of what AODex's coerceInput asserts for the same string.
+// Two suites, both green, both right by their own lights, disagreeing about one
+// string. That is the drift decision D6 closes: the two XLSX writers stay
+// separate (unifying them would turn "007" into 7, dates into text and a
+// formula into the literal "=SUM(A1:A5)"), but they share ONE rule, published
+// as data in conformance/corpus/xlsxtyping.
+//
+// So do not re-add a local table here, and in particular do not "fix" +3 back
+// to a number -- change the corpus, and both sides move together or fail.
 func TestNumericDetection(t *testing.T) {
-	for _, tc := range []struct {
-		in      string
-		numeric bool
-	}{
-		{"840", true},
-		{"0.4", true},
-		{"-12.5", true},
-		{"+3", true},
-		{"1e3", true},
-		{"", false},
-		{"1.2%", false},  // a percentage is not a bare number
-		{"550ms", false}, // a unit suffix is not a number
-		{"p95", false},
-		{"1,200", false}, // thousands separators are locale-dependent
-		{"  7  ", true},  // surrounding whitespace is not meaningful
-		{"NaN", false},   // parses as a float in Go, but is not a spreadsheet number
-		{"Inf", false},
-	} {
-		if got := isNumeric(tc.in); got != tc.numeric {
-			t.Errorf("isNumeric(%q) = %v, want %v", tc.in, got, tc.numeric)
+	if len(xlsxtyping.Cases) == 0 {
+		t.Fatal("the typing corpus is empty; an empty corpus asserts nothing while looking green")
+	}
+	for _, c := range xlsxtyping.Cases {
+		want := c.Class == xlsxtyping.ClassNumber
+		if got := isNumeric(c.Input); got != want {
+			reason := c.Reason
+			if reason == "" {
+				reason = "no reason recorded; see conformance/corpus/xlsxtyping"
+			}
+			t.Errorf("isNumeric(%q) = %v, want %v (corpus class %q)\n  reason: %s",
+				c.Input, got, want, c.Class, reason)
 		}
 	}
 }
