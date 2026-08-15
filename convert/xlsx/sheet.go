@@ -105,6 +105,63 @@ func isNumeric(s string) bool {
 	return err == nil
 }
 
+// Cell format indices into styles.xml's <cellXfs>. These are a CONTRACT with
+// parts_static.go: the numbers are written into every cell as s="N", so the
+// order of the <xf> children there is not cosmetic. Append, never insert.
+const (
+	xfDefault    = 0 // General alignment, regular weight
+	xfBold       = 1 // header rows
+	xfRight      = 2
+	xfCenter     = 3
+	xfBoldRight  = 4
+	xfBoldCenter = 5
+
+	// xfCount is the number of <xf> children stylesXML must emit. Excel
+	// rejects the workbook when <cellXfs count> disagrees with reality, and
+	// says nothing useful about why.
+	xfCount = 6
+)
+
+// styleIndex picks the cell format for a cell from whether its row is a header
+// and what its column's alignment is.
+//
+// "left" deliberately maps to the default (General) index rather than to an
+// explicit horizontal="left". Excel's General alignment already left-aligns
+// text, which is what a left-marked column holds; emitting an explicit left
+// would ALSO override Excel's right-alignment of numbers, which is a change no
+// one asked for and which the shared typing corpus has not agreed. This is a
+// deliberate divergence from convert/docx, which does emit w:jc for left --
+// Word has no content-dependent default alignment to preserve, so there the
+// explicit value costs nothing.
+func styleIndex(header bool, align string) int {
+	switch align {
+	case "right":
+		if header {
+			return xfBoldRight
+		}
+		return xfRight
+	case "center":
+		if header {
+			return xfBoldCenter
+		}
+		return xfCenter
+	}
+	if header {
+		return xfBold
+	}
+	return xfDefault
+}
+
+// alignAt reads the alignment for column col, tolerating a short or absent
+// slice. Rows are preserved as authored by the docmodel, so a row can be wider
+// than its table's Aligns; an unguarded index would panic on real input.
+func alignAt(aligns []string, col int) string {
+	if col < 0 || col >= len(aligns) {
+		return ""
+	}
+	return aligns[col]
+}
+
 // cellXML renders one <c> cell at ref.
 //
 // Numbers are written as a typed value; everything else as an inline string.
@@ -113,11 +170,11 @@ func isNumeric(s string) bool {
 // sheet must agree on, all to save bytes this exporter does not care about --
 // and every extra shared index is another chance to emit a workbook that opens
 // with the wrong text in the wrong cell.
-func cellXML(ref, text string, bold bool) string {
+func cellXML(ref, text string, xf int) string {
 	style := ""
-	if bold {
-		// s="1" is the bold header style defined in styles.xml.
-		style = ` s="1"`
+	if xf != xfDefault {
+		// s="N" selects a <xf> from styles.xml's <cellXfs>.
+		style = fmt.Sprintf(` s="%d"`, xf)
 	}
 	if isNumeric(text) {
 		return fmt.Sprintf(`<c r="%s"%s><v>%s</v></c>`, ref, style, strings.TrimSpace(text))
@@ -136,11 +193,20 @@ func cellXML(ref, text string, bold bool) string {
 type sheetRows struct {
 	rows      [][]string
 	headerRow []bool
+	// aligns is per ROW, not per sheet: one section can stack several tables
+	// with different column counts and different alignments, so each row
+	// carries its own table's Aligns (nil when the table specified none).
+	aligns [][]string
 }
 
 func (s *sheetRows) add(cells []string, header bool) {
+	s.addAligned(cells, header, nil)
+}
+
+func (s *sheetRows) addAligned(cells []string, header bool, aligns []string) {
 	s.rows = append(s.rows, cells)
 	s.headerRow = append(s.headerRow, header)
+	s.aligns = append(s.aligns, aligns)
 }
 
 // freezesHeader reports whether this sheet should emit a frozen pane.
@@ -174,7 +240,8 @@ func buildSheetXML(g sheetRows) []byte {
 	for r, cells := range g.rows {
 		b.WriteString(fmt.Sprintf(`<row r="%d">`, r+1))
 		for c, text := range cells {
-			b.WriteString(cellXML(columnRef(c)+strconv.Itoa(r+1), text, g.headerRow[r]))
+			xf := styleIndex(g.headerRow[r], alignAt(g.aligns[r], c))
+			b.WriteString(cellXML(columnRef(c)+strconv.Itoa(r+1), text, xf))
 		}
 		b.WriteString(`</row>`)
 	}
@@ -207,11 +274,13 @@ func sectionGrid(sec model.Section) (sheetRows, bool) {
 			g.add(nil, false) // blank separator between stacked tables
 		}
 		any = true
+		// blk.Aligns is per-column and travels with every row of ITS table,
+		// so a second table stacked below keeps its own alignments.
 		if len(blk.Headers) > 0 {
-			g.add(normalize(blk.Headers, cols), true)
+			g.addAligned(normalize(blk.Headers, cols), true, blk.Aligns)
 		}
 		for _, r := range blk.Rows {
-			g.add(normalize(r, cols), false)
+			g.addAligned(normalize(r, cols), false, blk.Aligns)
 		}
 	}
 	return g, any
