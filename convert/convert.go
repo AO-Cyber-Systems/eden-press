@@ -22,7 +22,10 @@
 
 package convert
 
-import "time"
+import (
+	"io"
+	"time"
+)
 
 // ImageFormat selects the raster image format a screenshot-based exporter
 // (convert/png, added by a later TRD) produces. The zero value is PNG.
@@ -67,14 +70,43 @@ type Options struct {
 	// Zero means DefaultStartTimeout.
 	//
 	// This exists because there was previously no bound at all: allocation ran
-	// against context.Background(), so a browser that started but never
-	// completed its handshake left the caller blocked forever with nothing
-	// logged. A hang is unobservable by construction -- no error, no exit code
-	// -- and this one took down an export sidecar in production, where the
-	// readiness endpoint that called it simply stopped answering.
+	// against context.Background(), so a browser that never became usable left
+	// the caller blocked forever with nothing logged. A hang is unobservable by
+	// construction -- no error, no exit code -- and this one took down an
+	// export sidecar in production, where the readiness endpoint that called it
+	// simply stopped answering.
+	//
+	// It covers two different failures. A browser can fail to complete its
+	// DevTools handshake at all, or it can complete the handshake and then
+	// stall before its first tab is usable. The production incident was the
+	// second kind: the websocket connection was established, and Chrome's
+	// crash-looping GPU process then starved the renderer so it never answered
+	// Runtime.enable. Set BrowserLog to tell the two apart.
 	//
 	// It bounds ONLY startup. The browser's own lifetime stays tied to an
 	// unbounded context, because a deadline there would kill a healthy
 	// long-lived Session mid-render.
 	StartTimeout time.Duration
+
+	// BrowserLog, when non-nil, receives Chrome's combined stdout+stderr for
+	// the browser's entire lifetime. When nil, that output is discarded -- but
+	// the pipe is still created and still drained.
+	//
+	// That distinction is not cosmetic, and it is the difference between
+	// diagnosing a failed launch and guessing at one. chromedp reads Chrome's
+	// output only until it finds the "DevTools listening on" line; from there
+	// it branches on whether a writer was configured, and with NO writer it
+	// CLOSES the output pipe outright. Every line Chrome emits after startup is
+	// then destroyed at the source.
+	//
+	// Two failed production deploys produced zero browser diagnostics for
+	// exactly this reason: Chrome's GPU process was crash-looping and saying so
+	// continuously, but the crash-loop begins after the websocket URL is parsed
+	// -- that is, after chromedp had already closed the pipe. Setting this
+	// writer surfaced the root cause on the first run afterwards.
+	//
+	// Leaving it nil is safe and is the default; convert/chrome substitutes
+	// io.Discard rather than passing nil through, so the pipe is never closed
+	// out from under a browser that still has something to say.
+	BrowserLog io.Writer
 }

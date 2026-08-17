@@ -25,6 +25,7 @@ package chrome
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -53,10 +54,39 @@ type Session struct {
 
 // DefaultStartTimeout bounds browser allocation when Options.StartTimeout is
 // zero. Generous on purpose: a cold Chrome in a CPU-throttled container can
-// take well over ten seconds to complete its DevTools handshake, and a bound
-// that trips on a slow-but-healthy start would trade a rare hang for a common
-// false failure. This is a backstop against never returning, not a latency SLO.
+// take well over ten seconds to complete its DevTools handshake AND bring its
+// first tab up, and a bound that trips on a slow-but-healthy start would trade
+// a rare hang for a common false failure. This is a backstop against never
+// returning, not a latency SLO.
 const DefaultStartTimeout = 90 * time.Second
+
+// browserOutput resolves the caller's optional convert.Options.BrowserLog into
+// the writer handed to chromedp.CombinedOutput. It returns w unchanged when the
+// caller set one, and io.Discard when they did not.
+//
+// Never pass a caller's nil writer straight through to chromedp -- routing it
+// through here is what keeps Chrome's output pipe alive. chromedp's
+// allocate.go readOutput scans Chrome's output for the "DevTools listening on"
+// line and then branches on the forward writer: with a nil writer it calls
+// Close on the pipe, on the reasoning that the process's output is no longer
+// needed. Everything Chrome emits after startup is destroyed at the source.
+//
+// io.Discard takes the other branch instead. allocate.go:253 then runs io.Copy
+// on the allocator's WaitGroup for the browser's whole lifetime, so the pipe
+// stays open and drained. Behaviour for callers who never set BrowserLog is
+// unchanged -- the bytes go nowhere either way -- but a caller who DOES set it
+// gets a live diagnostic rather than a pipe chromedp already closed.
+//
+// This is not hypothetical: it is why two failed production deploys produced no
+// browser output at all while Chrome's GPU process crash-looped continuously.
+// The crash messages were emitted after the websocket URL was parsed, which is
+// precisely when the pipe had already been closed.
+func browserOutput(w io.Writer) io.Writer {
+	if w == nil {
+		return io.Discard
+	}
+	return w
+}
 
 // New builds ONE chromedp ExecAllocator/browser with the CI-hardening and
 // determinism launch flags baked in as DEFAULTS (not opt-ins), resolving the
@@ -111,6 +141,43 @@ func New(opts convert.Options) (*Session, error) {
 		// Determinism: fixed timezone for the Chrome process's own clock,
 		// independent of the host machine's TZ.
 		chromedp.Env("TZ=UTC"),
+		// Survival in a GPU-less container -- NOT determinism, and NOT
+		// supplied by chromedp.DefaultExecAllocatorOptions (verified: the
+		// flag is absent from that list, so nothing sets it unless we do).
+		//
+		// Without it Chrome's GPU/viz process crash-loops wherever no GPU
+		// exists, which is every container this ships in. The page renderer
+		// then never obtains an execution context and never answers
+		// Runtime.enable -- the third command chromedp sends while attaching
+		// to the first target -- and Browser.Execute's only escape is
+		// ctx.Done(), so the Run below blocks. Reproduced live with a CDP
+		// wire trace: same image, same flags, hung past 45s; adding this one
+		// flag returned allocation in 808ms and rendered a full 5754-byte PNG.
+		//
+		// STANDING PROHIBITION: do NOT add --disable-software-rasterizer
+		// alongside this. It is a common copy-paste pairing and it disables
+		// SwiftShader, which is what actually rasterizes PDF/PNG output once
+		// the GPU is off -- trading a fixed hang for silently broken output.
+		// --disable-gpu ALONE was verified sufficient and verified to still
+		// rasterize. TestNewDoesNotDisableSoftwareRasterizer guards this.
+		//
+		// Set as a bare Flag rather than via chromedp.DisableGPU on purpose:
+		// that helper also sets --enable-unsafe-swiftshader, which was not
+		// part of what was verified in the pod.
+		chromedp.Flag("disable-gpu", true),
+		// Keep Chrome's own output reachable. chromedp reads it only until it
+		// finds the "DevTools listening on" line, then -- if no writer was
+		// configured -- CLOSES the pipe, destroying everything Chrome says
+		// afterwards. The GPU crash-loop above starts talking after that
+		// point, which is exactly why two failed production deploys produced
+		// zero browser diagnostics while Chrome complained continuously.
+		//
+		// browserOutput substitutes io.Discard when the caller set no writer,
+		// so the pipe is kept open and drained either way; with a writer set,
+		// allocate.go:253 runs io.Copy on the allocator's WaitGroup for the
+		// browser's lifetime. Never pass opts.BrowserLog straight through --
+		// a nil reaching chromedp restores the pipe-closing branch.
+		chromedp.CombinedOutput(browserOutput(opts.BrowserLog)),
 	)
 	if execPath != "" {
 		// Only pin an explicit executable when Discover resolved one, e.g.
@@ -129,11 +196,20 @@ func New(opts convert.Options) (*Session, error) {
 
 	// Bound ALLOCATION -- the process launch plus the DevTools handshake.
 	//
-	// This Run previously had no bound of any kind, so a browser that started
-	// but never completed its handshake blocked the caller forever, with no
-	// error and nothing logged. That is unobservable by construction, and it
-	// is exactly how an export sidecar died in production: the pod ran, the
-	// port listened, and its readiness endpoint simply never answered.
+	// This Run previously had no bound of any kind, so a browser that never
+	// became usable blocked the caller forever, with no error and nothing
+	// logged. That is unobservable by construction, and it is exactly how an
+	// export sidecar died in production: the pod ran, the port listened, and
+	// its readiness endpoint simply never answered.
+	//
+	// Two distinct failures land here, and the bound must cover both. A
+	// browser can fail to complete its DevTools handshake at all, or it can
+	// complete the handshake and stall afterwards -- the incident was the
+	// SECOND kind. The websocket URL was parsed and the connection
+	// established; the GPU crash-loop then starved the renderer so it never
+	// answered Runtime.enable, and this Run blocked on a browser that was, by
+	// every earlier signal, up. --disable-gpu above addresses that cause; this
+	// bound remains the backstop for whatever the next cause turns out to be.
 	//
 	// Done in a goroutine rather than context.WithTimeout(rootCtx, ...) on
 	// purpose. rootCtx carries the chromedp *Context that Run populates and
@@ -165,8 +241,11 @@ func New(opts convert.Options) (*Session, error) {
 		allocCancel()
 		_ = os.RemoveAll(userDataDir)
 		return nil, fmt.Errorf(
-			"convert/chrome: browser did not become usable within %s (launched %q; "+
-				"the process may have started without completing the DevTools handshake)",
+			"convert/chrome: browser did not become usable within %s (launched %q; the "+
+				"process may have failed to complete the DevTools handshake, or completed "+
+				"it and then stalled before its first tab became usable -- set "+
+				"convert.Options.BrowserLog to capture Chrome's own output and tell them "+
+				"apart)",
 			startTimeout, execPath)
 	}
 
