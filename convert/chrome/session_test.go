@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -182,6 +183,260 @@ func TestNewStartTimeoutBoundsHangingBrowser(t *testing.T) {
 	if !strings.Contains(msg, fake) {
 		t.Errorf("error %q does not name the executable it launched (want it to contain %q)",
 			msg, fake)
+	}
+}
+
+// browserLogSentinel is the line the recording fake prints to stderr. It is
+// deliberately unmistakable so its arrival in a caller's writer cannot be
+// confused with anything chromedp or the shell might emit on its own.
+const browserLogSentinel = "eden-press-fake-chrome-sentinel-9f3a1c"
+
+// syncWriter is a mutex-guarded sink for Chrome's combined output.
+//
+// A bare bytes.Buffer would be a data race, not a style preference: chromedp
+// writes browser output from readOutput's own goroutine while the test
+// goroutine reads it back, so `go test -race` flags the unsynchronised buffer
+// immediately.
+type syncWriter struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *syncWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *syncWriter) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.String()
+}
+
+// fakeRecordingBrowser writes an executable stand-in for Chrome that records
+// the argv it was launched with, announces itself on stderr, and then hangs
+// exactly like fakeHangingBrowser does.
+//
+// The fake is what makes these tests runnable with no Chrome installed, which
+// is the situation on any dev box where Chrome lives outside PATH: Discover's
+// tier 1 (Options.BrowserPath) short-circuits the entire fallback chain, so the
+// allocator launches this script believing it is a browser. That matters
+// because a regression test that skips is not a regression test, and the flags
+// being pinned here are exactly the ones a CI box without Chrome would
+// otherwise never check.
+//
+// Three details are load-bearing:
+//   - argv is recorded one argument per line, so an assertion can match a bare
+//     token like "--disable-gpu" exactly rather than substring-matching a
+//     flattened command line (which would also match --disable-gpu-sandbox).
+//   - the sentinel goes to stderr and ends in a newline. allocate.go sets
+//     cmd.Stderr = cmd.Stdout before taking StdoutPipe, so stderr reaches
+//     readOutput on the same pipe, and readOutput only forwards COMPLETE lines
+//     (it buffers on ReadBytes('\n')).
+//   - "exec sleep" REPLACES the shell, so cancelling the context kills the
+//     process that is actually sleeping instead of orphaning a child.
+func fakeRecordingBrowser(t *testing.T) (execPath, argvPath string) {
+	t.Helper()
+
+	dir := t.TempDir()
+	execPath = filepath.Join(dir, "fake-chrome-recording.sh")
+	argvPath = filepath.Join(dir, "argv.txt")
+
+	script := "#!/bin/sh\n" +
+		"# Record every argument one-per-line for the argv assertions.\n" +
+		": > '" + argvPath + "'\n" +
+		"for arg in \"$@\"; do\n" +
+		"\tprintf '%s\\n' \"$arg\" >> '" + argvPath + "'\n" +
+		"done\n" +
+		"# Complete line on stderr; readOutput forwards it while hunting for the\n" +
+		"# DevTools URL that this fake deliberately never prints.\n" +
+		"echo '" + browserLogSentinel + "' >&2\n" +
+		"exec sleep 120\n"
+
+	if err := os.WriteFile(execPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("writing fake recording browser: %v", err)
+	}
+	// Explicit chmod: WriteFile's perm argument is subject to the process
+	// umask, and the allocator will refuse a non-executable path.
+	if err := os.Chmod(execPath, 0o755); err != nil {
+		t.Fatalf("chmod fake recording browser: %v", err)
+	}
+	return execPath, argvPath
+}
+
+// runNewAgainstFake calls New in a goroutine and waits for it with a generous
+// deadline, mirroring TestNewStartTimeoutBoundsHangingBrowser.
+//
+// New is EXPECTED to return an error here -- the fake never completes the
+// DevTools handshake, so the StartTimeout backstop always trips. That error is
+// not the assertion; the tests that call this examine what the fake RECORDED.
+// The select exists so that a regression which reintroduces an unbounded
+// allocation surfaces as a named failure instead of a package-wide timeout.
+func runNewAgainstFake(t *testing.T, opts convert.Options) {
+	t.Helper()
+
+	const returnDeadline = 5 * time.Second
+
+	type result struct {
+		sess *Session
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		sess, err := New(opts)
+		done <- result{sess: sess, err: err}
+	}()
+
+	select {
+	case got := <-done:
+		if got.sess != nil {
+			got.sess.Close()
+		}
+	case <-time.After(returnDeadline):
+		t.Fatalf("New did not return within %s against a browser that never completes its "+
+			"DevTools handshake -- browser allocation is unbounded again", returnDeadline)
+	}
+}
+
+// recordedArgv polls argvPath until the fake has written it, then splits it
+// into one entry per argument.
+//
+// The poll is cheap insurance rather than a fix for a real ordering problem:
+// the fake records argv within milliseconds of launch and New does not return
+// until its StartTimeout expires, so the file is essentially always present
+// already. On a loaded machine, though, "essentially always" is how flaky tests
+// are written.
+func recordedArgv(t *testing.T, argvPath string) []string {
+	t.Helper()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		b, err := os.ReadFile(argvPath)
+		if err == nil && len(b) > 0 {
+			return strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("fake browser never recorded its argv at %s (read error: %v) -- it was "+
+				"probably never executed, so check that BrowserPath reached Discover "+
+				"tier 1 and that the script is executable", argvPath, err)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// argvHasToken reports whether argv contains an EXACT token. Exactness matters:
+// a substring search for "--disable-gpu" would also be satisfied by
+// "--disable-gpu-sandbox", which is a different flag with different effects.
+func argvHasToken(argv []string, token string) bool {
+	for _, arg := range argv {
+		if arg == token {
+			return true
+		}
+	}
+	return false
+}
+
+// TestNewLaunchesBrowserWithDisableGPU pins the flag that fixed a production
+// hang, and it is a real change: --disable-gpu is absent from
+// chromedp.DefaultExecAllocatorOptions, so nothing supplies it unless New does.
+//
+// Mechanism, reproduced live in a production scratch pod with a CDP wire trace
+// rather than inferred: Chrome's GPU/viz process crash-loops inside a GPU-less
+// container. The page renderer therefore never obtains an execution context and
+// never answers Runtime.enable -- the third command chromedp sends while
+// attaching to the first target, inside attachTarget. Browser.Execute's only
+// escape is ctx.Done(), so chromedp.Run blocks. New runs chromedp.Run(rootCtx)
+// with zero actions purely to populate the Browser, and that call waits for the
+// browser's initial tab, so the hang lands squarely in allocation.
+//
+// Measured in that pod, same image, everything else held constant:
+//
+//	production flags today ... hung past 45s
+//	+ --disable-gpu .......... allocation returned in 808ms, and a full raster
+//	                           render succeeded (5754-byte PNG of styled HTML)
+func TestNewLaunchesBrowserWithDisableGPU(t *testing.T) {
+	fake, argvPath := fakeRecordingBrowser(t)
+
+	runNewAgainstFake(t, convert.Options{
+		BrowserPath:  fake,
+		StartTimeout: 300 * time.Millisecond,
+	})
+
+	argv := recordedArgv(t, argvPath)
+	if !argvHasToken(argv, "--disable-gpu") {
+		t.Errorf("browser launched without --disable-gpu (argv: %v)\n\n"+
+			"Without it the GPU/viz process crash-loops in a GPU-less container, the "+
+			"renderer never answers Runtime.enable, and browser allocation hangs until "+
+			"StartTimeout -- which is how an export sidecar died in production.", argv)
+	}
+}
+
+// TestNewDoesNotDisableSoftwareRasterizer is a standing prohibition, not a
+// description of current behaviour, and it is EXPECTED to pass from the moment
+// it is written. Its job is to fail the day somebody adds the flag.
+//
+// --disable-software-rasterizer disables SwiftShader, which is the thing that
+// actually rasterizes PDF and PNG output once the GPU is off. Pairing it with
+// --disable-gpu is a common copy-paste habit, and here it would trade a fixed
+// hang for silently broken output. --disable-gpu ALONE was verified sufficient
+// in the production pod and verified to still rasterize correctly, so the
+// second flag buys nothing and costs the renderer.
+//
+// This is also why New passes chromedp.Flag("disable-gpu", true) directly
+// rather than the chromedp.DisableGPU helper: that helper additionally sets
+// --enable-unsafe-swiftshader, which was not part of what was verified.
+func TestNewDoesNotDisableSoftwareRasterizer(t *testing.T) {
+	fake, argvPath := fakeRecordingBrowser(t)
+
+	runNewAgainstFake(t, convert.Options{
+		BrowserPath:  fake,
+		StartTimeout: 300 * time.Millisecond,
+	})
+
+	argv := recordedArgv(t, argvPath)
+	if argvHasToken(argv, "--disable-software-rasterizer") {
+		t.Errorf("browser launched WITH --disable-software-rasterizer (argv: %v)\n\n"+
+			"That flag disables SwiftShader, which is what rasterizes PDF/PNG output "+
+			"once the GPU is disabled. --disable-gpu alone was verified sufficient AND "+
+			"verified to still rasterize; adding this one trades a fixed hang for "+
+			"broken output.", argv)
+	}
+}
+
+// TestNewForwardsBrowserOutputToBrowserLog pins the diagnostic that was missing
+// during two failed production deploys.
+//
+// Chrome was emitting GPU crash messages continuously throughout both, and the
+// operator saw none of them, because chromedp closes the browser's output pipe
+// outright when no writer is configured -- and it closes it right after parsing
+// the websocket URL, which is BEFORE the crash-loop starts talking. Setting
+// this writer produced the root cause in a single run.
+//
+// Note what this test proves about ordering: the fake never prints "DevTools
+// listening on", so readOutput is still inside its hunting loop when the
+// sentinel arrives, and that loop forwards every complete line it sees. The
+// sentinel therefore reaches the caller's writer even though allocation
+// ultimately fails -- which is exactly the failing-launch case the field is for.
+func TestNewForwardsBrowserOutputToBrowserLog(t *testing.T) {
+	fake, _ := fakeRecordingBrowser(t)
+
+	var log syncWriter
+	runNewAgainstFake(t, convert.Options{
+		BrowserPath:  fake,
+		StartTimeout: 300 * time.Millisecond,
+		BrowserLog:   &log,
+	})
+
+	deadline := time.Now().Add(2 * time.Second)
+	for !strings.Contains(log.String(), browserLogSentinel) {
+		if time.Now().After(deadline) {
+			t.Fatalf("Chrome's output never reached Options.BrowserLog: wanted %q, got %q\n\n"+
+				"Without this the operator gets nothing at all from a failed launch, "+
+				"because chromedp closes the output pipe when no writer is set.",
+				browserLogSentinel, log.String())
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }
 
