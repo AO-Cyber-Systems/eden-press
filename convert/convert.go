@@ -70,11 +70,18 @@ type Options struct {
 	// Zero means DefaultStartTimeout.
 	//
 	// This exists because there was previously no bound at all: allocation ran
-	// against context.Background(), so a browser that started but never
-	// completed its handshake left the caller blocked forever with nothing
-	// logged. A hang is unobservable by construction -- no error, no exit code
-	// -- and this one took down an export sidecar in production, where the
-	// readiness endpoint that called it simply stopped answering.
+	// against context.Background(), so a browser that never became usable left
+	// the caller blocked forever with nothing logged. A hang is unobservable by
+	// construction -- no error, no exit code -- and this one took down an
+	// export sidecar in production, where the readiness endpoint that called it
+	// simply stopped answering.
+	//
+	// It covers two different failures. A browser can fail to complete its
+	// DevTools handshake at all, or it can complete the handshake and then
+	// stall before its first tab is usable. The production incident was the
+	// second kind: the websocket connection was established, and Chrome's
+	// crash-looping GPU process then starved the renderer so it never answered
+	// Runtime.enable. Set BrowserLog to tell the two apart.
 	//
 	// It bounds ONLY startup. The browser's own lifetime stays tied to an
 	// unbounded context, because a deadline there would kill a healthy

@@ -191,6 +191,23 @@ func TestNewStartTimeoutBoundsHangingBrowser(t *testing.T) {
 // confused with anything chromedp or the shell might emit on its own.
 const browserLogSentinel = "eden-press-fake-chrome-sentinel-9f3a1c"
 
+// fakeBrowserLifetime is the StartTimeout the recording tests give New, and so
+// is how long the fake browser survives before New cancels its context and
+// kills it.
+//
+// It is deliberately generous, and 300ms was measurably NOT enough: under
+// `go test ./... -race` the whole repo's packages compete for cores, and the
+// fake lost the race between being exec'd and being killed -- the argv file it
+// had not yet written then never appeared, no matter how long the assertion
+// polled for it. Polling cannot rescue a process that is already dead, so the
+// margin has to live here rather than in the poll deadline.
+//
+// These tests assert on what the fake RECORDED, never on how long anything
+// took, so a large value costs a few seconds and buys determinism. The bound
+// being exercised by TestNewStartTimeoutBoundsHangingBrowser is a different
+// concern and keeps its own tight timeout.
+const fakeBrowserLifetime = 3 * time.Second
+
 // syncWriter is a mutex-guarded sink for Chrome's combined output.
 //
 // A bare bytes.Buffer would be a data race, not a style preference: chromedp
@@ -276,7 +293,10 @@ func fakeRecordingBrowser(t *testing.T) (execPath, argvPath string) {
 func runNewAgainstFake(t *testing.T, opts convert.Options) {
 	t.Helper()
 
-	const returnDeadline = 5 * time.Second
+	// Must comfortably exceed fakeBrowserLifetime, or this "did New return at
+	// all" guard would fire on a healthy run instead of on the regression it
+	// exists to catch.
+	const returnDeadline = fakeBrowserLifetime + 5*time.Second
 
 	type result struct {
 		sess *Session
@@ -360,7 +380,7 @@ func TestNewLaunchesBrowserWithDisableGPU(t *testing.T) {
 
 	runNewAgainstFake(t, convert.Options{
 		BrowserPath:  fake,
-		StartTimeout: 300 * time.Millisecond,
+		StartTimeout: fakeBrowserLifetime,
 	})
 
 	argv := recordedArgv(t, argvPath)
@@ -391,7 +411,7 @@ func TestNewDoesNotDisableSoftwareRasterizer(t *testing.T) {
 
 	runNewAgainstFake(t, convert.Options{
 		BrowserPath:  fake,
-		StartTimeout: 300 * time.Millisecond,
+		StartTimeout: fakeBrowserLifetime,
 	})
 
 	argv := recordedArgv(t, argvPath)
@@ -424,7 +444,7 @@ func TestNewForwardsBrowserOutputToBrowserLog(t *testing.T) {
 	var log syncWriter
 	runNewAgainstFake(t, convert.Options{
 		BrowserPath:  fake,
-		StartTimeout: 300 * time.Millisecond,
+		StartTimeout: fakeBrowserLifetime,
 		BrowserLog:   &log,
 	})
 
