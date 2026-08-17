@@ -23,7 +23,9 @@
 package chrome
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,6 +182,55 @@ func TestNewStartTimeoutBoundsHangingBrowser(t *testing.T) {
 	if !strings.Contains(msg, fake) {
 		t.Errorf("error %q does not name the executable it launched (want it to contain %q)",
 			msg, fake)
+	}
+}
+
+// TestBrowserOutputNilYieldsDrainingWriter pins the nil path of browserOutput,
+// which is the difference between having browser diagnostics and having none.
+//
+// The distinction is NOT cosmetic, and it is not the "a full pipe buffer blocks
+// a chatty Chrome" story it resembles. chromedp v0.16.0's allocate.go
+// readOutput reads Chrome's output line-by-line hunting for "DevTools listening
+// on", and once it finds that URL it branches on the forward writer: when that
+// writer is nil, readOutput calls Close on the pipe outright.
+//
+// So with no writer set, everything Chrome says after startup is destroyed at
+// the source -- Chrome's later writes hit a closed pipe, they do not queue.
+// That is precisely why two failed production deploys produced ZERO browser
+// diagnostics while Chrome was crash-looping its GPU process and saying so the
+// entire time: the crash-loop happens AFTER the websocket URL is parsed, i.e.
+// after the pipe was already closed.
+//
+// Handing chromedp io.Discard instead of nil takes the other branch, where
+// allocate.go:253 runs io.Copy on the allocator's WaitGroup for the browser's
+// whole lifetime. The pipe stays open and drained, with no behaviour change for
+// callers who never set BrowserLog.
+func TestBrowserOutputNilYieldsDrainingWriter(t *testing.T) {
+	got := browserOutput(nil)
+	if got == nil {
+		t.Fatal("browserOutput(nil) returned a nil io.Writer: chromedp would take its " +
+			"pipe-closing branch and destroy every post-startup line Chrome emits")
+	}
+	if got != io.Discard {
+		t.Errorf("browserOutput(nil) = %#v, want io.Discard -- the nil path must still hand "+
+			"chromedp a real writer so the output pipe is kept open and drained", got)
+	}
+}
+
+// TestBrowserOutputPassesCallerWriterThrough pins the other half of the
+// contract: a caller who opts in by setting Options.BrowserLog must reach
+// chromedp unmodified. If this helper ever wrapped, buffered, or substituted
+// the caller's writer, the diagnostic that produced the production root cause
+// in a single run would silently stop arriving.
+//
+// A bare bytes.Buffer is safe HERE specifically because this is a pure unit
+// call with no browser and no goroutine behind it. Tests that hand a writer to
+// a live allocator must use the mutex-guarded syncWriter instead, because
+// chromedp writes from readOutput's goroutine while the test reads.
+func TestBrowserOutputPassesCallerWriterThrough(t *testing.T) {
+	var buf bytes.Buffer
+	if got := browserOutput(&buf); got != io.Writer(&buf) {
+		t.Errorf("browserOutput(w) = %#v, want the caller's own writer %#v", got, &buf)
 	}
 }
 

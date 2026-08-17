@@ -25,6 +25,7 @@ package chrome
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -57,6 +58,34 @@ type Session struct {
 // that trips on a slow-but-healthy start would trade a rare hang for a common
 // false failure. This is a backstop against never returning, not a latency SLO.
 const DefaultStartTimeout = 90 * time.Second
+
+// browserOutput resolves the caller's optional convert.Options.BrowserLog into
+// the writer handed to chromedp.CombinedOutput. It returns w unchanged when the
+// caller set one, and io.Discard when they did not.
+//
+// Never pass a caller's nil writer straight through to chromedp -- routing it
+// through here is what keeps Chrome's output pipe alive. chromedp's
+// allocate.go readOutput scans Chrome's output for the "DevTools listening on"
+// line and then branches on the forward writer: with a nil writer it calls
+// Close on the pipe, on the reasoning that the process's output is no longer
+// needed. Everything Chrome emits after startup is destroyed at the source.
+//
+// io.Discard takes the other branch instead. allocate.go:253 then runs io.Copy
+// on the allocator's WaitGroup for the browser's whole lifetime, so the pipe
+// stays open and drained. Behaviour for callers who never set BrowserLog is
+// unchanged -- the bytes go nowhere either way -- but a caller who DOES set it
+// gets a live diagnostic rather than a pipe chromedp already closed.
+//
+// This is not hypothetical: it is why two failed production deploys produced no
+// browser output at all while Chrome's GPU process crash-looped continuously.
+// The crash messages were emitted after the websocket URL was parsed, which is
+// precisely when the pipe had already been closed.
+func browserOutput(w io.Writer) io.Writer {
+	if w == nil {
+		return io.Discard
+	}
+	return w
+}
 
 // New builds ONE chromedp ExecAllocator/browser with the CI-hardening and
 // determinism launch flags baked in as DEFAULTS (not opt-ins), resolving the
