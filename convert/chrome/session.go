@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/chromedp/chromedp"
 
@@ -49,6 +50,13 @@ type Session struct {
 
 	userDataDir string
 }
+
+// DefaultStartTimeout bounds browser allocation when Options.StartTimeout is
+// zero. Generous on purpose: a cold Chrome in a CPU-throttled container can
+// take well over ten seconds to complete its DevTools handshake, and a bound
+// that trips on a slow-but-healthy start would trade a rare hang for a common
+// false failure. This is a backstop against never returning, not a latency SLO.
+const DefaultStartTimeout = 90 * time.Second
 
 // New builds ONE chromedp ExecAllocator/browser with the CI-hardening and
 // determinism launch flags baked in as DEFAULTS (not opt-ins), resolving the
@@ -112,14 +120,54 @@ func New(opts convert.Options) (*Session, error) {
 		allocOpts = append(allocOpts, chromedp.ExecPath(execPath))
 	}
 
+	// context.Background(), NOT a deadline: this context owns the BROWSER'S
+	// LIFETIME, so a timeout here would kill a healthy long-lived Session
+	// mid-render. Startup is bounded separately, below.
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), allocOpts...)
 
 	rootCtx, rootCancel := chromedp.NewContext(allocCtx)
-	if err := chromedp.Run(rootCtx); err != nil {
+
+	// Bound ALLOCATION -- the process launch plus the DevTools handshake.
+	//
+	// This Run previously had no bound of any kind, so a browser that started
+	// but never completed its handshake blocked the caller forever, with no
+	// error and nothing logged. That is unobservable by construction, and it
+	// is exactly how an export sidecar died in production: the pod ran, the
+	// port listened, and its readiness endpoint simply never answered.
+	//
+	// Done in a goroutine rather than context.WithTimeout(rootCtx, ...) on
+	// purpose. rootCtx carries the chromedp *Context that Run populates and
+	// that every later NewTab inherits; wrapping it in a deadline would make
+	// the SUCCESS path's browser reachable through a context that expires,
+	// which is the bug this fixes wearing a different hat.
+	//
+	// The goroutine can outlive this function on the timeout path -- that is
+	// deliberate. It is parked on a Run that may never return, so waiting for
+	// it would reintroduce the hang. Cancelling the contexts below is what
+	// stops the browser; the goroutine then observes that and exits.
+	startTimeout := opts.StartTimeout
+	if startTimeout <= 0 {
+		startTimeout = DefaultStartTimeout
+	}
+	allocated := make(chan error, 1) // buffered: never block the sender
+	go func() { allocated <- chromedp.Run(rootCtx) }()
+
+	select {
+	case err := <-allocated:
+		if err != nil {
+			rootCancel()
+			allocCancel()
+			_ = os.RemoveAll(userDataDir)
+			return nil, fmt.Errorf("convert/chrome: allocating browser: %w", err)
+		}
+	case <-time.After(startTimeout):
 		rootCancel()
 		allocCancel()
 		_ = os.RemoveAll(userDataDir)
-		return nil, fmt.Errorf("convert/chrome: allocating browser: %w", err)
+		return nil, fmt.Errorf(
+			"convert/chrome: browser did not become usable within %s (launched %q; "+
+				"the process may have started without completing the DevTools handshake)",
+			startTimeout, execPath)
 	}
 
 	return &Session{

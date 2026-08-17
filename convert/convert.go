@@ -22,6 +22,8 @@
 
 package convert
 
+import "time"
+
 // ImageFormat selects the raster image format a screenshot-based exporter
 // (convert/png, added by a later TRD) produces. The zero value is PNG.
 type ImageFormat int
@@ -59,4 +61,20 @@ type Options struct {
 	// CHROME_PATH, then auto-detection, then the documented pinned-download
 	// tier.
 	BrowserPath string
+
+	// StartTimeout bounds how long browser ALLOCATION may take -- the launch
+	// plus the DevTools handshake -- before New gives up and returns an error.
+	// Zero means DefaultStartTimeout.
+	//
+	// This exists because there was previously no bound at all: allocation ran
+	// against context.Background(), so a browser that started but never
+	// completed its handshake left the caller blocked forever with nothing
+	// logged. A hang is unobservable by construction -- no error, no exit code
+	// -- and this one took down an export sidecar in production, where the
+	// readiness endpoint that called it simply stopped answering.
+	//
+	// It bounds ONLY startup. The browser's own lifetime stays tied to an
+	// unbounded context, because a deadline there would kill a healthy
+	// long-lived Session mid-render.
+	StartTimeout time.Duration
 }
