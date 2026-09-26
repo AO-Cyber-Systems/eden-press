@@ -1,6 +1,6 @@
 module github.com/AO-Cyber-Systems/eden-press
 
-go 1.26
+go 1.27.1
 
 require (
 	codeberg.org/go-latex/latex v0.3.0

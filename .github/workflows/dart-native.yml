@@ -51,7 +51,7 @@ permissions:
 # version was chosen in the abstract -- these are the concrete, recorded
 # choices; bump deliberately, never let them float).
 env:
-  GO_VERSION: "1.25"
+  GO_VERSION: "1.27.1"
   ANDROID_NDK_VERSION: "27.2.12479018" # NDK r27c
   XCODE_VERSION: "16.4"
 
