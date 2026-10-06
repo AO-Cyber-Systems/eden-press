@@ -1,0 +1,16 @@
+name: eden-press
+id: ari:cloud:compass:53f8835e-3a18-4994-a3e1-d88c2018a416:component/546e2675-3811-412b-8126-f0637fd7307c/d77760ad-8774-47a1-bca4-52b09fc893c9
+description: null
+configVersion: 1
+typeId: SERVICE
+fields:
+  tier: 4
+links:
+  - name: null
+    type: REPOSITORY
+    url: https://github.com/AO-Cyber-Systems/eden-press
+relationships:
+  DEPENDS_ON: []
+labels:
+  - source:github
+customFields: null
