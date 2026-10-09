@@ -40,7 +40,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: "1.27.1"
 
       - name: Build
         run: go build ./...
@@ -120,7 +120,7 @@ jobs:
           ARG CHROME_VERSION
           FROM chromedp/headless-shell:${CHROME_VERSION} AS shell
 
-          FROM golang:1.26-bookworm
+          FROM golang:1.27.1-bookworm
           COPY --from=shell /headless-shell /headless-shell
           RUN useradd --create-home --uid 10001 exporter
           USER exporter
