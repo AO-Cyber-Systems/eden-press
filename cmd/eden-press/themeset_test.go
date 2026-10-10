@@ -28,7 +28,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // writeTempCSS writes content to a uniquely-named file inside t.TempDir() and

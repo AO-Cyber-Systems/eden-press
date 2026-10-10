@@ -26,7 +26,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // cfg is the single package-level koanf instance every mode resolves its

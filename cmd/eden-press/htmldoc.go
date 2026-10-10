@@ -26,7 +26,7 @@ import (
 	"html"
 	"strings"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // htmlDocOptions configures assembleHTML's standalone document wrapper.

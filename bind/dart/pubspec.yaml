@@ -29,7 +29,7 @@ description: >-
   flutter_math_fork, code via flutter_highlighting. No JavaScript, no
   HTML/DOM parsing, anywhere in the render path.
 version: 0.1.0
-homepage: https://github.com/AO-Cyber-Systems/eden-press
+homepage: https://git.aocyber.ai/eden-press
 
 environment:
   sdk: ^3.13.4

@@ -41,9 +41,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/report"
+	"go.aocyber.ai/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/conformance/corpus"
+	"go.aocyber.ai/eden-press/conformance/report"
 )
 
 // chaseSkipMap maps a corpus case ID still blocked on an Objective-3

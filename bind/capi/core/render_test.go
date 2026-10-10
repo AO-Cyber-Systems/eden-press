@@ -27,8 +27,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // wire* mirror the EXACT on-the-wire JSON keys a downstream front door (the cgo

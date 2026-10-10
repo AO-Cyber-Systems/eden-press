@@ -22,7 +22,7 @@
 
 package press
 
-import "github.com/AO-Cyber-Systems/eden-press/chase/model"
+import "go.aocyber.ai/eden-press/chase/model"
 
 // flattenNotes aggregates every model.Section.Notes entry across d.Sections
 // into a single flat []string in document order -- the exact value

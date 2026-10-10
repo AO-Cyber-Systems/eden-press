@@ -35,7 +35,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus/xlsxtyping"
+	"go.aocyber.ai/eden-press/conformance/corpus/xlsxtyping"
 )
 
 const outFile = "cases.json"

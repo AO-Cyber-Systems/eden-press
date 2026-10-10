@@ -41,17 +41,17 @@ import (
 
 	"github.com/yuin/goldmark/parser"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
-	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/profile"
+	"go.aocyber.ai/eden-press/chase/theme"
 
 	// Blank import: registers profiles/slides (the only Profile impl) via
 	// its init() side-effect, so profile.Default() resolves even for a
 	// caller that only imports this "chase" package and never imports
 	// profiles/slides itself (error_recovery: "ensure profiles/slides is
 	// imported for its init() side-effect").
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/slides"
+	_ "go.aocyber.ai/eden-press/profiles/slides"
 )
 
 // Output is the one-parse-two-sinks result a single chase.Render call

@@ -29,8 +29,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/chase/profile"
+	"go.aocyber.ai/eden-press/chase/theme"
 )
 
 // slides_test.go covers this TRD's Test-list cases 1-4: profiles/slides

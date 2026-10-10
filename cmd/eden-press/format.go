@@ -29,8 +29,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/AO-Cyber-Systems/eden-press/convert/pptx"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/convert/pptx"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // Exit codes (04.1-01's documented, stable failure contract): 0 is cobra's

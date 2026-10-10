@@ -32,7 +32,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // resolveInput resolves arg into markdown text: "-" reads all of stdin (via

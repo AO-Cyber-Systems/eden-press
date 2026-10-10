@@ -31,10 +31,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/report"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/runner"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/conformance/corpus"
+	"go.aocyber.ai/eden-press/conformance/report"
+	"go.aocyber.ai/eden-press/conformance/runner"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // wasmBinPath is the artifact scripts/build-wasm.sh produces; bind/conformance

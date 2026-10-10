@@ -35,7 +35,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 
-	"github.com/AO-Cyber-Systems/eden-press/convert"
+	"go.aocyber.ai/eden-press/convert"
 )
 
 // TestSessionMultiTab is Test-list case 6: one Session/browser serves

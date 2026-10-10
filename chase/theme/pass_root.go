@@ -22,7 +22,7 @@
 
 package theme
 
-import "github.com/AO-Cyber-Systems/eden-press/chase/theme/selector"
+import "go.aocyber.ai/eden-press/chase/theme/selector"
 
 // pass_root.go wires chase/theme/selector's (01-01, locked) two ":root"
 // rewrite steps into this package's Pass pipeline: MarkRoot (the add-time

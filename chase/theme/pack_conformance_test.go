@@ -39,7 +39,7 @@ package theme
 import (
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/conformance/cssdiff"
+	"go.aocyber.ai/eden-press/conformance/cssdiff"
 )
 
 // TestObjective1ThemeCSSDiffGateStress is 01-08's acceptance-gate

@@ -34,7 +34,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // Default slide layout geometry, all in EMU via 06-02 conversions. These are

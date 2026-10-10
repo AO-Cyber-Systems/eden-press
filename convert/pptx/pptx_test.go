@@ -29,7 +29,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // wantSlideRuns is the expected per-slide (1-based) editable run text for the

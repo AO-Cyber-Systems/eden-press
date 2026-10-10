@@ -25,7 +25,7 @@ package press
 import (
 	"github.com/microcosm-cc/bluemonday"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // Options configures press.Render (defined in TRD 03-09). This is the frozen

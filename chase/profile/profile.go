@@ -22,7 +22,7 @@
 
 package profile
 
-import "github.com/AO-Cyber-Systems/eden-press/chase/theme"
+import "go.aocyber.ai/eden-press/chase/theme"
 
 // profile.go defines chase/profile's core abstraction: the Profile
 // interface plus its two shared value types (SizeTable,

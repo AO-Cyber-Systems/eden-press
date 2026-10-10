@@ -34,7 +34,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/AO-Cyber-Systems/eden-press/cmd/eden-press/reload"
+	"go.aocyber.ai/eden-press/cmd/eden-press/reload"
 )
 
 // TestDebounced is test-list case 1: N rapid calls within the window fire

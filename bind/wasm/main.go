@@ -45,7 +45,7 @@ package main
 import (
 	"syscall/js"
 
-	"github.com/AO-Cyber-Systems/eden-press/bind/capi/core"
+	"go.aocyber.ai/eden-press/bind/capi/core"
 )
 
 // main registers pressRender on the JS global object, then blocks forever with

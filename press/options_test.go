@@ -27,7 +27,7 @@ import (
 
 	"github.com/microcosm-cc/bluemonday"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // TestOptionsZeroValueIsMarpDefault covers TRD 03-01 Test-list case 4: every

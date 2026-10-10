@@ -29,7 +29,7 @@ import (
 
 	"github.com/yuin/goldmark-emoji/definition"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/markdown"
 )
 
 // renderEmoji builds a fresh markdown.NewEngine(emojiOption()) and converts

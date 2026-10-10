@@ -42,7 +42,7 @@
 // "library-first & server-native"): profiles/paged, profiles/article,
 // and profiles/epub (future objectives) — and any advanced external
 // consumer building a custom output profile Eden Press itself never
-// ships — must be able to `import "github.com/AO-Cyber-Systems/eden-press/chase/profile"`
+// ships — must be able to `import "go.aocyber.ai/eden-press/chase/profile"`
 // (and chase/theme, chase/model, chase/directive) directly, exactly
 // the way profiles/slides (02-03) does. An `internal/` prefix would
 // force every one of those consumers through press/, which is the

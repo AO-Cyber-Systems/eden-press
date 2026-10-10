@@ -33,18 +33,18 @@ import (
 	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/chromedp"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
-	"github.com/AO-Cyber-Systems/eden-press/convert"
-	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/convert"
+	"go.aocyber.ai/eden-press/convert/chrome"
+	"go.aocyber.ai/eden-press/press"
 
 	// Blank imports: populate the chase/profile registry resolveSize looks
 	// up out.Profile in. pdf.go itself imports NO profiles package -- that
 	// is the point of this change, and these two lines are what a real
 	// consumer's own import graph supplies (press blank-imports slides; a
 	// paged consumer imports profiles/paged).
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/slides"
+	_ "go.aocyber.ai/eden-press/profiles/paged"
+	_ "go.aocyber.ai/eden-press/profiles/slides"
 )
 
 // --- shared fixtures & helpers ------------------------------------------

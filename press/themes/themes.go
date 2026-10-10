@@ -42,8 +42,8 @@
 package themes
 
 import (
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
-	assets "github.com/AO-Cyber-Systems/eden-press/themes"
+	"go.aocyber.ai/eden-press/chase/theme"
+	assets "go.aocyber.ai/eden-press/themes"
 )
 
 // embedded is the fixed set of verbatim-bundled Marp themes, in a stable

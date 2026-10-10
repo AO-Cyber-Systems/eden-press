@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // escapeXML escapes the five XML metacharacters. Cell text is untrusted (an

@@ -31,11 +31,11 @@ import (
 
 	"github.com/chromedp/chromedp"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
-	"github.com/AO-Cyber-Systems/eden-press/convert"
-	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/chase/profile"
+	"go.aocyber.ai/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/convert"
+	"go.aocyber.ai/eden-press/convert/chrome"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // Options configures ToImages.

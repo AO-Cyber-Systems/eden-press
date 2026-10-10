@@ -25,7 +25,7 @@
 // API only, proving API-01's composition end-to-end.
 //
 // It is deliberately the EXTERNAL test package `press_test` and imports ONLY
-// `github.com/AO-Cyber-Systems/eden-press/press` (plus stdlib) -- never chase/,
+// `go.aocyber.ai/eden-press/press` (plus stdlib) -- never chase/,
 // profiles/, press/themes, press/sanitize, or press/math. That import list IS
 // the Objective-7-begin gate proof (OBJECTIVE.md criterion 4): a downstream
 // consumer -- the CLI, the exporters, Objective 7's Dart binding -- needs
@@ -37,7 +37,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // bundledThemes are the three verbatim-bundled Marp theme names press.Render

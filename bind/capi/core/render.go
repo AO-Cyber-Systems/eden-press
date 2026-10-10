@@ -38,7 +38,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 
 	// Blank import: registers profiles/paged via its init() side-effect.
 	// press blank-imports only profiles/slides (press.go), so without this a
@@ -51,7 +51,7 @@ import (
 	// GOOS=js GOARCH=wasm module, so one import serves both front doors.
 	// Putting it in the cgo main package would leave wasm broken in exactly
 	// the same way.
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
+	_ "go.aocyber.ai/eden-press/profiles/paged"
 )
 
 // EnvelopeVersion is the frozen version tag stamped on every response and

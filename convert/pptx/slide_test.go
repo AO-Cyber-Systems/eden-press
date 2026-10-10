@@ -27,7 +27,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // decodeSlideRunTexts strips the XML prolog from a full slide document and

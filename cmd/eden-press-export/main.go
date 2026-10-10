@@ -42,11 +42,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/AO-Cyber-Systems/eden-press/convert"
-	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
-	"github.com/AO-Cyber-Systems/eden-press/convert/pdf"
-	"github.com/AO-Cyber-Systems/eden-press/convert/png"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/convert"
+	"go.aocyber.ai/eden-press/convert/chrome"
+	"go.aocyber.ai/eden-press/convert/pdf"
+	"go.aocyber.ai/eden-press/convert/png"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // Exit codes -- eden-press-export's own documented, stable failure

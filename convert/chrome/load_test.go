@@ -28,8 +28,8 @@ import (
 
 	"github.com/chromedp/chromedp"
 
-	"github.com/AO-Cyber-Systems/eden-press/convert"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/convert"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // TestLoadHTMLReadsBackRealContent is Test-list case 4: LoadHTML +

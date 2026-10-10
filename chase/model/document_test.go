@@ -31,7 +31,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/markdown"
 )
 
 // TestDocumentSchemaVersionConstant covers Test-list case 5's constant half:

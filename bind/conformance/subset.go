@@ -27,9 +27,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/AO-Cyber-Systems/eden-press/bind/capi/core"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/bind/capi/core"
+	"go.aocyber.ai/eden-press/conformance/corpus"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // corpusRoot mirrors the EXACT path-resolution pattern conformance/runner's

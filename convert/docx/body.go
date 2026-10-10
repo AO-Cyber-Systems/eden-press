@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // escapeXML escapes the five XML metacharacters in user-supplied text. Every

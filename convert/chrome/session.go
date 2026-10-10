@@ -31,7 +31,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 
-	"github.com/AO-Cyber-Systems/eden-press/convert"
+	"go.aocyber.ai/eden-press/convert"
 )
 
 // Session is the one-browser-many-tabs pool primitive every convert/
