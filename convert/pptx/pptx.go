@@ -38,7 +38,7 @@ package pptx
 import (
 	"fmt"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // Options configures ToPPTX.

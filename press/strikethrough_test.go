@@ -27,7 +27,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/markdown"
 )
 
 // TestStrikethroughOverrideRendersS covers TRD 03-03 Test-list case 1:

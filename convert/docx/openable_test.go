@@ -31,7 +31,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // xmlWellFormed reports whether s parses end-to-end as XML. A hand-rolled

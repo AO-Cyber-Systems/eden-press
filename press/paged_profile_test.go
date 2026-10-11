@@ -26,12 +26,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 
 	// Blank import registers profiles/paged. press itself only blank-imports
 	// profiles/slides, so a consumer opting into a second profile opts in by
 	// importing it -- the same registry contract slides uses.
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
+	_ "go.aocyber.ai/eden-press/profiles/paged"
 )
 
 const pagedDoc = `# Q3 Report

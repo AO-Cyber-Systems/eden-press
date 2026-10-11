@@ -28,10 +28,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/cssdiff"
-	"github.com/AO-Cyber-Systems/eden-press/profiles/slides"
-	assets "github.com/AO-Cyber-Systems/eden-press/themes"
+	"go.aocyber.ai/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/conformance/cssdiff"
+	"go.aocyber.ai/eden-press/profiles/slides"
+	assets "go.aocyber.ai/eden-press/themes"
 )
 
 // slideParams pulls the profile primitives ThemeSet needs from profiles/slides

@@ -39,9 +39,9 @@
 package runner
 
 import (
-	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/htmldiff"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/report"
+	"go.aocyber.ai/eden-press/conformance/corpus"
+	"go.aocyber.ai/eden-press/conformance/htmldiff"
+	"go.aocyber.ai/eden-press/conformance/report"
 )
 
 // RenderFunc renders Markdown to HTML under the given options. It is the pluggable

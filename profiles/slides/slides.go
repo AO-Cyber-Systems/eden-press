@@ -32,8 +32,8 @@
 package slides
 
 import (
-	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/chase/profile"
+	"go.aocyber.ai/eden-press/chase/theme"
 )
 
 // slides implements profile.Profile for Marp slide decks.

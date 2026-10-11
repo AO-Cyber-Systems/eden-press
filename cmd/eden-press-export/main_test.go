@@ -32,8 +32,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/convert/chrome"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // exportTestDeck is a hand-built (no_llm_test_data), three-slide deck

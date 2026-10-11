@@ -35,7 +35,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/AO-Cyber-Systems/eden-press/cmd/eden-press/reload"
+	"go.aocyber.ai/eden-press/cmd/eden-press/reload"
 )
 
 const testServeDeck = "# Hello Serve\n\nServed content.\n"

@@ -27,7 +27,7 @@ import (
 
 	"github.com/tdewolff/parse/v2/css"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme/selector"
+	"go.aocyber.ai/eden-press/chase/theme/selector"
 )
 
 // pass_nesting.go hand-rolls a minimal CSS Nesting Level 1 down-leveler.

@@ -36,9 +36,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/conformance/htmldiff"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/report"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/spec"
+	"go.aocyber.ai/eden-press/conformance/htmldiff"
+	"go.aocyber.ai/eden-press/conformance/report"
+	"go.aocyber.ai/eden-press/conformance/spec"
 )
 
 // specExample mirrors the shape emitted by CommonMark's / cmark-gfm's official

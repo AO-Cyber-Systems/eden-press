@@ -35,8 +35,8 @@ import (
 
 	"github.com/yuin/goldmark/ast"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
-	pmath "github.com/AO-Cyber-Systems/eden-press/press/math"
+	"go.aocyber.ai/eden-press/chase/markdown"
+	pmath "go.aocyber.ai/eden-press/press/math"
 )
 
 // structuralSignature renders a deterministic, order-stable string

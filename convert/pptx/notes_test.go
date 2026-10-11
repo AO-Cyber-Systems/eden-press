@@ -28,7 +28,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // notesDoc returns a 3-section fixture where ONLY the middle section (ID 2)

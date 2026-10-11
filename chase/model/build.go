@@ -35,8 +35,8 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/directive"
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/directive"
+	"go.aocyber.ai/eden-press/chase/markdown"
 )
 
 // rawMath is the duck-typed seam by which Build recovers a math construct's RAW

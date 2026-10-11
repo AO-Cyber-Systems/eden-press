@@ -40,7 +40,7 @@ import (
 	ghtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/directive"
+	"go.aocyber.ai/eden-press/chase/directive"
 )
 
 // NewEngine returns a chase engine: GFM (tables/strikethrough/linkify/task

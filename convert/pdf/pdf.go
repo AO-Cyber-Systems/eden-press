@@ -30,10 +30,10 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
-	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/chase/profile"
+	"go.aocyber.ai/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/convert/chrome"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // Options is convert/pdf's exporter-specific knob surface. It is kept

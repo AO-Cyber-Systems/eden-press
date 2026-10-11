@@ -33,8 +33,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 
-	"github.com/AO-Cyber-Systems/eden-press/cmd/eden-press/reload"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/cmd/eden-press/reload"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // newWatchCmd registers the "watch" subcommand.

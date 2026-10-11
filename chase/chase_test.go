@@ -27,10 +27,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/htmldiff"
+	"go.aocyber.ai/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/conformance/corpus"
+	"go.aocyber.ai/eden-press/conformance/htmldiff"
 )
 
 // multiSlideMD is a hand-built, two-slide deck with front matter -- the

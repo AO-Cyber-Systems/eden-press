@@ -26,7 +26,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
+	"go.aocyber.ai/eden-press/chase/profile"
 )
 
 // TestRegisteredUnderOwnID: importing this package registers "paged" without

@@ -44,7 +44,7 @@ import (
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/chromedp"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/chase/theme"
 )
 
 // animationKillCSS is the guaranteed !important override ComposeCSS appends

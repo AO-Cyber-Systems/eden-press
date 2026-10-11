@@ -32,8 +32,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/corpus/xlsxtyping"
+	"go.aocyber.ai/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/conformance/corpus/xlsxtyping"
 )
 
 func readPart(t *testing.T, pkg []byte, name string) string {

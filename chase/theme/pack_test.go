@@ -26,8 +26,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme/selector"
-	"github.com/AO-Cyber-Systems/eden-press/conformance/cssdiff"
+	"go.aocyber.ai/eden-press/chase/theme/selector"
+	"go.aocyber.ai/eden-press/conformance/cssdiff"
 )
 
 // pack_test.go holds this TRD's full Test-list (cases 1-10), added

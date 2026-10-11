@@ -53,7 +53,7 @@ import (
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/markdown"
 )
 
 const (

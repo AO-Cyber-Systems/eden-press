@@ -55,7 +55,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 
-	"github.com/AO-Cyber-Systems/eden-press/convert"
+	"go.aocyber.ai/eden-press/convert"
 )
 
 // --- Task 1: WOFF2 table-directory parsing (MATH-table survival) ----------

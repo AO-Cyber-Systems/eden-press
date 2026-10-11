@@ -32,14 +32,14 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 
-	"github.com/AO-Cyber-Systems/eden-press/press/sanitize"
+	"go.aocyber.ai/eden-press/press/sanitize"
 
 	// Blank import: registers profiles/paged via its init() side-effect, so
 	// TestRenderRecordsProfile can exercise a SECOND profile. press.go itself
 	// blank-imports only profiles/slides, so without this line
 	// Options{Profile: "paged"} would be an unknown profile here -- the exact
 	// gap the bind/capi/core blank import closes for the C/Dart binding.
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
+	_ "go.aocyber.ai/eden-press/profiles/paged"
 )
 
 // everyBatteryDeck exercises GFM tables, strikethrough (<s>), a heading slug,

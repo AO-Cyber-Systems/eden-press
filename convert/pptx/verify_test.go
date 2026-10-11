@@ -44,7 +44,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/model"
 )
 
 // acceptanceDoc is the hand-built (no generated/property-based data) model

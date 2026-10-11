@@ -45,11 +45,11 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/convert"
-	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
-	"github.com/AO-Cyber-Systems/eden-press/convert/pdf"
-	cpng "github.com/AO-Cyber-Systems/eden-press/convert/png"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/convert"
+	"go.aocyber.ai/eden-press/convert/chrome"
+	"go.aocyber.ai/eden-press/convert/pdf"
+	cpng "go.aocyber.ai/eden-press/convert/png"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // capstoneDeck is a hand-built (no_llm_test_data), three-slide deck covering

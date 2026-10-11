@@ -28,7 +28,7 @@ import (
 
 	"github.com/tdewolff/parse/v2/css"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme/selector"
+	"go.aocyber.ai/eden-press/chase/theme/selector"
 )
 
 // pack.go implements Tier-2 of 01-RESEARCH.md's two-tier design:

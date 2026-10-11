@@ -32,17 +32,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
-	"github.com/AO-Cyber-Systems/eden-press/convert"
-	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/convert"
+	"go.aocyber.ai/eden-press/convert/chrome"
+	"go.aocyber.ai/eden-press/press"
 
 	// Blank imports: populate the chase/profile registry resolveProfileSize
 	// looks up out.Profile in. png.go itself imports NO profiles package --
 	// that is the point of this change (it used to reach profile.Default(),
 	// whose answer depended on whoever happened to register first).
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/paged"
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/slides"
+	_ "go.aocyber.ai/eden-press/profiles/paged"
+	_ "go.aocyber.ai/eden-press/profiles/slides"
 )
 
 // newTestSession is the Chrome-presence gate every test in this file shares:

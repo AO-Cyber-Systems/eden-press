@@ -33,7 +33,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // formatTestDeck carries a heading (non-empty model.outline), a fenced ```go

@@ -27,7 +27,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/markdown"
 )
 
 // renderWithAutofit is the shared TDD harness for this file: build a

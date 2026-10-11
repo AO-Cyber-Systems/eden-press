@@ -35,7 +35,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/markdown"
 )
 
 // TestGFMTableRenders covers TRD 03-03 Test-list case 4 (tables half): a

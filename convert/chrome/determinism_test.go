@@ -26,7 +26,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/chase/theme"
 )
 
 // TestComposeCSS is Test-list case 1: ComposeCSS must return CSS containing

@@ -28,7 +28,7 @@ import "C"
 import (
 	"unsafe"
 
-	"github.com/AO-Cyber-Systems/eden-press/bind/capi/core"
+	"go.aocyber.ai/eden-press/bind/capi/core"
 )
 
 // MEMORY-OWNERSHIP CONTRACT across the FFI boundary (RESEARCH §1,

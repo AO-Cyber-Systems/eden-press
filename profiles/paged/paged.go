@@ -44,8 +44,8 @@
 package paged
 
 import (
-	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
+	"go.aocyber.ai/eden-press/chase/profile"
+	"go.aocyber.ai/eden-press/chase/theme"
 )
 
 // paged implements profile.Profile for long-form paged documents.

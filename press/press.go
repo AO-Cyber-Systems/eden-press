@@ -30,20 +30,20 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/markdown"
-	"github.com/AO-Cyber-Systems/eden-press/chase/model"
-	"github.com/AO-Cyber-Systems/eden-press/chase/profile"
-	"github.com/AO-Cyber-Systems/eden-press/chase/theme"
-	pmath "github.com/AO-Cyber-Systems/eden-press/press/math"
-	"github.com/AO-Cyber-Systems/eden-press/press/sanitize"
-	"github.com/AO-Cyber-Systems/eden-press/press/themes"
+	"go.aocyber.ai/eden-press/chase/markdown"
+	"go.aocyber.ai/eden-press/chase/model"
+	"go.aocyber.ai/eden-press/chase/profile"
+	"go.aocyber.ai/eden-press/chase/theme"
+	pmath "go.aocyber.ai/eden-press/press/math"
+	"go.aocyber.ai/eden-press/press/sanitize"
+	"go.aocyber.ai/eden-press/press/themes"
 
 	// Blank import: registers profiles/slides (the only Profile impl) via its
 	// init() side-effect, so profile.Default() resolves even for a caller that
 	// only imports "press" and never imports profiles/slides itself -- the
 	// Objective-7-begin gate (a consumer imports ONLY press/). Mirrors
 	// chase/chase.go's identical blank import.
-	_ "github.com/AO-Cyber-Systems/eden-press/profiles/slides"
+	_ "go.aocyber.ai/eden-press/profiles/slides"
 )
 
 // defaultThemeName is the terminal fallback in press.Render's theme-resolution

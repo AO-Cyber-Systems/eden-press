@@ -28,10 +28,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/AO-Cyber-Systems/eden-press/chase/directive"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
+	"go.aocyber.ai/eden-press/chase/directive"
 )
 
 // commentBlockOpenRegexp mirrors goldmark's own htmlBlockType2OpenRegexp

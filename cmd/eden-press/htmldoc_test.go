@@ -26,7 +26,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AO-Cyber-Systems/eden-press/press"
+	"go.aocyber.ai/eden-press/press"
 )
 
 // fixtureOutput is a small, fixed press.Output used by every assembleHTML
