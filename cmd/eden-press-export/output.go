@@ -35,6 +35,20 @@ import (
 	"github.com/AO-Cyber-Systems/eden-press/press"
 )
 
+// inlineSVGSlideTag is the start of the per-slide wrapper chase/markdown
+// writes in inline-SVG mode (`<svg data-marpit-svg="" viewBox="0 0 W H">`).
+// Deck text can never produce it: the sanitizer escapes a literal `<`.
+const inlineSVGSlideTag = "<svg data-marpit-svg"
+
+// renderedInlineSVG reports whether out was rendered in inline-SVG container
+// mode, read from the markup itself -- the mode png.ToImages' slide selector
+// must match. press.Render decides that mode (today it always enables it,
+// whatever press.Options.InlineSVG says), so the --inline-svg flag alone is
+// not a reliable answer.
+func renderedInlineSVG(out press.Output) bool {
+	return strings.Contains(out.HTML, inlineSVGSlideTag)
+}
+
 // resolveInput resolves arg into markdown text: "-" reads all of stdin (via
 // the injected reader, so tests never touch the real process stdin); any
 // other value is a file path read from disk. It reports whether stdin was

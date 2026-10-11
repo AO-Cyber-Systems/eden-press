@@ -61,6 +61,21 @@ func TestComposeCSS(t *testing.T) {
 	}
 }
 
+// TestComposeCSS_resetsDocumentMargin: the html/body user-agent margin must be
+// zeroed AFTER the base CSS, or every exported slide is offset by 8px (an extra
+// PDF page under Chrome 154+, 1264x711 PNG slides).
+func TestComposeCSS_resetsDocumentMargin(t *testing.T) {
+	const base = "body{margin:20px}"
+	got := ComposeCSS(base)
+	resetIdx := strings.Index(got, "html,body{margin:0;padding:0;}")
+	if resetIdx < 0 {
+		t.Fatalf("ComposeCSS missing the html/body margin reset: %q", got)
+	}
+	if resetIdx < strings.Index(got, base) {
+		t.Fatalf("ComposeCSS ordering: the margin reset must come AFTER the base CSS, got reset@%d base@%d", resetIdx, strings.Index(got, base))
+	}
+}
+
 // TestComposeCSS_emptyBase confirms ComposeCSS still appends the overrides
 // even when the caller's base CSS is empty (a deck with no theme CSS at all
 // still gets the determinism kill + font injection).

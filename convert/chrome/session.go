@@ -118,6 +118,11 @@ func New(opts convert.Options) (*Session, error) {
 		return nil, fmt.Errorf("convert/chrome: creating unique user-data-dir: %w", err)
 	}
 
+	startTimeout := opts.StartTimeout
+	if startTimeout <= 0 {
+		startTimeout = DefaultStartTimeout
+	}
+
 	allocOpts := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
 	allocOpts = append(allocOpts,
 		// NoSandbox: guarded-for-container posture -- CI/container
@@ -178,6 +183,13 @@ func New(opts convert.Options) (*Session, error) {
 		// browser's lifetime. Never pass opts.BrowserLog straight through --
 		// a nil reaching chromedp restores the pipe-closing branch.
 		chromedp.CombinedOutput(browserOutput(opts.BrowserLog)),
+		// The wait for the "DevTools listening on" URL gets the SAME bound as
+		// the whole allocation below. chromedp's ExecAllocator otherwise keeps
+		// its own 20s websocket-URL timeout, which pre-empted StartTimeout: a
+		// browser merely slow to start (a contended CI runner launching several
+		// at once) failed at 20s with "websocket url timeout reached".
+		// TestNewStartTimeoutGovernsTheDevToolsHandshake guards this.
+		chromedp.WSURLReadTimeout(startTimeout),
 	)
 	if execPath != "" {
 		// Only pin an explicit executable when Discover resolved one, e.g.
@@ -221,10 +233,7 @@ func New(opts convert.Options) (*Session, error) {
 	// deliberate. It is parked on a Run that may never return, so waiting for
 	// it would reintroduce the hang. Cancelling the contexts below is what
 	// stops the browser; the goroutine then observes that and exits.
-	startTimeout := opts.StartTimeout
-	if startTimeout <= 0 {
-		startTimeout = DefaultStartTimeout
-	}
+	// startTimeout is resolved above, before the allocator options.
 	allocated := make(chan error, 1) // buffered: never block the sender
 	go func() { allocated <- chromedp.Run(rootCtx) }()
 
