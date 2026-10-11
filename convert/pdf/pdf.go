@@ -153,6 +153,24 @@ func resolveSize(out press.Output) (theme.Size, error) {
 	return table.Default, nil
 }
 
+// printLayoutCSS makes every inline-SVG slide occupy exactly one PDF page: the
+// slide container (the profile's `div.<class> > svg`, or a bare top-level
+// <svg>) becomes a block exactly one page box in size. Left inline, an <svg>
+// sits on a text line whose descender space makes the line box taller than
+// the page, and its width follows the body rather than the page.
+//
+// Older Chrome hid that overflow by shrinking the content to fit the page;
+// Chrome 154+ prints at 100% under preferCSSPageSize, so it became extra pages
+// (with only chrome.ComposeCSS's html/body margin reset, an inline-SVG deck of
+// 3 slides printed 6 pages). Appended last so it wins over any base CSS.
+func printLayoutCSS(out press.Output, size theme.Size) string {
+	containers := "body>svg"
+	if p, ok := profile.Get(out.Profile); ok && p.ContainerClass() != "" {
+		containers += ",div." + p.ContainerClass() + ">svg"
+	}
+	return fmt.Sprintf("%s{display:block;width:%dpx;height:%dpx;}", containers, size.WidthPx, size.HeightPx)
+}
+
 // composeDocument wraps out's rendered body-fragment HTML into a
 // self-contained HTML document Chrome can load directly via
 // page.SetDocumentContent: chrome.ComposeCSS(out.CSS) folds in the
@@ -160,7 +178,7 @@ func resolveSize(out press.Output) (theme.Size, error) {
 // chrome.PageCSSInches(size) appends the @page rule that drives
 // WithPreferCSSPageSize(true)'s paper sizing.
 func composeDocument(out press.Output, size theme.Size) string {
-	css := chrome.ComposeCSS(out.CSS) + chrome.PageCSSInches(size)
+	css := chrome.ComposeCSS(out.CSS) + chrome.PageCSSInches(size) + printLayoutCSS(out, size)
 
 	var b strings.Builder
 	b.WriteString(`<!doctype html><html><head><meta charset="utf-8"><style>`)

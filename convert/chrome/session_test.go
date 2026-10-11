@@ -28,6 +28,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -183,6 +184,70 @@ func TestNewStartTimeoutBoundsHangingBrowser(t *testing.T) {
 	if !strings.Contains(msg, fake) {
 		t.Errorf("error %q does not name the executable it launched (want it to contain %q)",
 			msg, fake)
+	}
+}
+
+// fakeSlowDevToolsBrowser writes a fake browser that prints its "DevTools
+// listening on" line only after delaySec seconds -- past chromedp's own 20s
+// websocket-URL default -- naming a closed port (127.0.0.1:1), then idles.
+func fakeSlowDevToolsBrowser(t *testing.T, delaySec int) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "fake-slow-chrome.sh")
+	script := "#!/bin/sh\n" +
+		"sleep " + strconv.Itoa(delaySec) + "\n" +
+		"echo 'DevTools listening on ws://127.0.0.1:1/devtools/browser/fake' >&2\n" +
+		"exec sleep 120\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatalf("writing fake browser: %v", err)
+	}
+	if err := os.Chmod(path, 0o755); err != nil {
+		t.Fatalf("chmod fake browser: %v", err)
+	}
+	return path
+}
+
+// TestNewStartTimeoutGovernsTheDevToolsHandshake: Options.StartTimeout (default
+// DefaultStartTimeout, 90s) must bound the wait for the browser's DevTools URL
+// too. chromedp's ExecAllocator has its own 20s websocket-URL timeout, and when
+// New did not pass StartTimeout through, a browser that was merely slow to
+// start (a contended CI runner launching several at once) failed at 20s with
+// "websocket url timeout reached" -- long before the documented bound.
+//
+// The fake prints its DevTools URL at 21s, naming a closed port, so New must
+// still fail, but on the connection, not on chromedp's 20s timer.
+func TestNewStartTimeoutGovernsTheDevToolsHandshake(t *testing.T) {
+	if testing.Short() {
+		t.Skip("waits past chromedp's 20s websocket-URL default")
+	}
+	fake := fakeSlowDevToolsBrowser(t, 21)
+
+	type result struct {
+		sess *Session
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		sess, err := New(convert.Options{BrowserPath: fake, StartTimeout: 40 * time.Second})
+		done <- result{sess: sess, err: err}
+	}()
+
+	var got result
+	select {
+	case got = <-done:
+	case <-time.After(60 * time.Second):
+		t.Fatal("New did not return within 60s against a browser that prints its DevTools URL at 21s")
+	}
+	if got.sess != nil {
+		got.sess.Close()
+		t.Fatal("New returned a Session for a DevTools URL that names a closed port")
+	}
+	if got.err == nil {
+		t.Fatal("New returned a nil error for a DevTools URL that names a closed port")
+	}
+	if strings.Contains(got.err.Error(), "websocket url timeout") {
+		t.Fatalf("New gave up at chromedp's built-in 20s websocket-URL timeout instead of its own "+
+			"StartTimeout (40s): %v", got.err)
 	}
 }
 

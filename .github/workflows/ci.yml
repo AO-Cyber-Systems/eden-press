@@ -49,7 +49,10 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        # -p 2: at most two packages at a time, so fewer headless Chromes start
+        # at once on the shared runner (each Chrome-backed package launches its
+        # own; all at once made startup slow enough to miss chromedp's window).
+        run: go test -p 2 ./...
 
       - name: Install addlicense
         run: go install github.com/google/addlicense@latest
@@ -91,6 +94,9 @@ jobs:
   export:
     name: export (pinned no-system-Chrome headless-shell container, EXP-04)
     runs-on: ubuntu-latest
+    # A hung export (chromedp waits on a selector forever) must fail the job,
+    # not hold a runner for the 6-hour default.
+    timeout-minutes: 30
     env:
       # The SAME pinned tag as the Makefile's CHROME_VERSION var (see
       # convert/EXPORT.md's version-pin + PDF-re-validation process) — bump
@@ -115,12 +121,25 @@ jobs:
         # path), which is exactly what proves the EXP-04 discovery fallback
         # chain resolves Chrome from a genuinely clean, no-system-Chrome
         # container.
+        #
+        # The headless-shell binary links against shared libraries that the
+        # pinned image installs in its OWN base layer (libnspr4, libnss3,
+        # libexpat1, libfontconfig1, libuuid1 -- the chromedp/headless-shell
+        # Dockerfile's apt list), so copying only the /headless-shell tree
+        # left it unable to start ("libnspr4.so: cannot open shared object
+        # file"). The final stage installs exactly those runtime libraries:
+        # no Chrome/Chromium package and no binary named google-chrome* or
+        # chromium*, so tier 2 (CHROME_PATH) is still the only way Discover
+        # can resolve Chrome here.
         run: |
           cat > Dockerfile.export-ci <<'EOF'
           ARG CHROME_VERSION
           FROM chromedp/headless-shell:${CHROME_VERSION} AS shell
 
           FROM golang:1.27.1-bookworm
+          RUN apt-get update \
+            && apt-get install -y --no-install-recommends libnspr4 libnss3 libexpat1 libfontconfig1 libuuid1 \
+            && rm -rf /var/lib/apt/lists/*
           COPY --from=shell /headless-shell /headless-shell
           RUN useradd --create-home --uid 10001 exporter
           USER exporter
@@ -149,6 +168,13 @@ jobs:
         # proving the turnkey CLI argv→file path end-to-end where CHROME_PATH
         # resolves this pinned headless-shell. No new job, no new container,
         # no new flags: reusing the 05-05 export job is the point.
+        #
+        # GOFLAGS=-buildvcs=false: the container user (10001) does not own the
+        # mounted checkout, so git refuses it ("dubious ownership") and `go
+        # build` fails stamping VCS info ("error obtaining VCS status"). The
+        # stamp is irrelevant to these test builds. For the same reason the
+        # compile check writes its binary to /tmp, not into the read-only
+        # checkout (export-binary-smoke builds its own copy in a temp dir).
         run: |
           docker run --rm \
             --user 10001:10001 \
@@ -157,8 +183,9 @@ jobs:
             -e HOME=/tmp \
             -e GOCACHE=/tmp/gocache \
             -e GOPATH=/tmp/gopath \
+            -e GOFLAGS=-buildvcs=false \
             -e CHROME_VERSION="${CHROME_VERSION}" \
             -v "${{ github.workspace }}":/workspace \
             -w /workspace \
             eden-press-export-ci:local \
-            bash -c "make export-test && go build ./cmd/eden-press-export && make export-binary-smoke"
+            bash -c "make export-test && go build -o /tmp/eden-press-export ./cmd/eden-press-export && make export-binary-smoke"

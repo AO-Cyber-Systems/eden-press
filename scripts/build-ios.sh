@@ -59,8 +59,12 @@ if ! XCODE_PATH="$(xcode-select -p 2>/dev/null)"; then
 	echo "  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer" >&2
 	exit 1
 fi
+# Any full Xcode bundle passes: Xcode.app, and the versioned or beta bundles
+# GitHub's macOS runners and xcodes install side by side (Xcode_16.4.app,
+# Xcode-beta.app). Only a Command Line Tools path
+# (/Library/Developer/CommandLineTools) is rejected.
 case "$XCODE_PATH" in
-*/Xcode.app/*) ;;
+*/Xcode*.app/*) ;;
 *)
 	echo "FAIL: xcode-select points at '$XCODE_PATH' -- this looks like" >&2
 	echo "Command Line Tools only, not a full Xcode install. Run:" >&2

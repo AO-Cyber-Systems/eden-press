@@ -55,10 +55,19 @@ import (
 // is a more reliable determinism lever than trusting the theme.
 const animationKillCSS = `*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}`
 
+// documentResetCSS zeroes the user-agent margin and padding of html and body
+// in every exported document. The default 8px body margin otherwise offsets
+// every slide: in a PDF, N one-page slides lay out 16px taller than N pages
+// (an extra page once Chrome 154+ stopped shrinking content to fit), and an
+// inline-SVG slide sized by its container screenshots at 1264x711 instead of
+// the 1280x720 viewport.
+const documentResetCSS = `html,body{margin:0;padding:0;}`
+
 // ComposeCSS returns baseCSS with the animation/transition/scroll-behavior
-// kill override and the bundled STIX Two Math @font-face data-URI appended,
-// in that order -- base first, then overrides LAST, so the overrides'
-// !important declarations and later cascade position both win.
+// kill override, the html/body margin reset and the bundled STIX Two Math
+// @font-face data-URI appended, in that order -- base first, then overrides
+// LAST, so the overrides' !important declarations and later cascade
+// position both win.
 //
 // This is a pure string transform: it performs no I/O and drives no Chrome
 // tab, which is what makes it independently unit-testable without a live
@@ -67,6 +76,7 @@ func ComposeCSS(baseCSS string) string {
 	var b strings.Builder
 	b.WriteString(baseCSS)
 	b.WriteString(animationKillCSS)
+	b.WriteString(documentResetCSS)
 	b.WriteString(FontFaceDataURI())
 	return b.String()
 }

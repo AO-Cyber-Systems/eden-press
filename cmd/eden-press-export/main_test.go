@@ -30,6 +30,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"go.aocyber.ai/eden-press/convert/chrome"
 	"go.aocyber.ai/eden-press/press"
@@ -297,4 +298,82 @@ func TestEndToEndPDFAndPNG(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestEndToEndPNGWithoutInlineSVGFlag is the regression case for the --format
+// png hang: press.Render ALWAYS emits the inline-<svg><foreignObject> slide
+// container, so the png path must find every slide even when --inline-svg is
+// not given (its default). Before the fix the flag's false reached
+// png.ToImages, whose `div.marpit > section` selector matched nothing in that
+// markup, and chromedp.Screenshot waited for it forever. The run is bounded
+// (chrome.DefaultStartTimeout plus a minute): not finishing in time is the
+// failure. Skips without Chrome, like TestEndToEndPDFAndPNG.
+func TestEndToEndPNGWithoutInlineSVGFlag(t *testing.T) {
+	if _, _, err := chrome.Discover(chrome.DiscoverOptions{}); err != nil {
+		t.Skipf("no Chrome discovered, skipping live-Chrome export test: %v", err)
+	}
+
+	dir := t.TempDir()
+	deckPath := filepath.Join(dir, "deck.md")
+	if err := os.WriteFile(deckPath, []byte(exportTestDeck), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pngDir := filepath.Join(dir, "pngs")
+
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"--format", "png", "-o", pngDir, deckPath})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	// The bound must exceed chrome.New's own start bound: a slow browser start
+	// on a busy runner is allowed up to DefaultStartTimeout, and the claim
+	// under test is "the export finishes", not "it finishes quickly". A hang
+	// (the pre-fix behaviour) never finishes at all.
+	deadline := chrome.DefaultStartTimeout + 60*time.Second
+	done := make(chan error, 1)
+	go func() { done <- cmd.Execute() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Execute (--format png, no --inline-svg): %v", err)
+		}
+	case <-time.After(deadline):
+		t.Fatalf("--format png without --inline-svg did not finish within %s: the slide selector never matched the inline-SVG markup press.Render emits (or Chrome never started)", deadline)
+	}
+
+	entries, err := os.ReadDir(pngDir)
+	if err != nil {
+		t.Fatalf("reading dir %q: %v", pngDir, err)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("wrote %d PNG files, want 3 (one per slide of exportTestDeck)", len(entries))
+	}
+	for _, e := range entries {
+		b, err := os.ReadFile(filepath.Join(pngDir, e.Name()))
+		if err != nil {
+			t.Fatalf("reading %q: %v", e.Name(), err)
+		}
+		if !bytes.HasPrefix(b, []byte("\x89PNG")) {
+			t.Errorf("%q does not start with the PNG magic header", e.Name())
+		}
+	}
+}
+
+// TestRenderedInlineSVG pins how the png path learns the container mode: from
+// the markup press.Render produced, not from the flag. A default render
+// (InlineSVG false) still carries the inline-SVG wrapper; a plain div.marpit >
+// section document does not, even when its text mentions the marker attribute.
+func TestRenderedInlineSVG(t *testing.T) {
+	out, err := press.Render(exportTestDeck, press.Options{})
+	if err != nil {
+		t.Fatalf("press.Render: %v", err)
+	}
+	if !renderedInlineSVG(out) {
+		t.Fatalf("renderedInlineSVG = false for a default press.Render output; its HTML starts %q", out.HTML[:min(120, len(out.HTML))])
+	}
+
+	plain := press.Output{HTML: `<div class="marpit"><section><p>the data-marpit-svg attribute, as text</p></section></div>`}
+	if renderedInlineSVG(plain) {
+		t.Fatalf("renderedInlineSVG = true for a document without the inline-SVG slide wrapper")
+	}
 }

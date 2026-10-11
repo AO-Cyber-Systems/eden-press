@@ -52,7 +52,9 @@ permissions:
 # choices; bump deliberately, never let them float).
 env:
   GO_VERSION: "1.27.1"
-  ANDROID_NDK_VERSION: "27.2.12479018" # NDK r27c
+  # NDK r27c (= 27.2.12479018). nttld/setup-ndk takes the release NAME: the
+  # build-number form made it request a download URL that does not exist (404).
+  ANDROID_NDK_VERSION: "r27c"
   XCODE_VERSION: "16.4"
 
 jobs:
