@@ -30,6 +30,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/AO-Cyber-Systems/eden-press/convert/chrome"
 	"github.com/AO-Cyber-Systems/eden-press/press"
@@ -297,4 +298,58 @@ func TestEndToEndPDFAndPNG(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestEndToEndPNGWithoutInlineSVGFlag is the regression case for the --format
+// png hang: press.Render ALWAYS emits the inline-<svg><foreignObject> slide
+// container, so the png path must find every slide even when --inline-svg is
+// not given (its default). Before the fix the flag's false reached
+// png.ToImages, whose `div.marpit > section` selector matched nothing in that
+// markup, and chromedp.Screenshot waited for it forever. The run is bounded:
+// not finishing in time is the failure. Skips without Chrome, like
+// TestEndToEndPDFAndPNG.
+func TestEndToEndPNGWithoutInlineSVGFlag(t *testing.T) {
+	if _, _, err := chrome.Discover(chrome.DiscoverOptions{}); err != nil {
+		t.Skipf("no Chrome discovered, skipping live-Chrome export test: %v", err)
+	}
+
+	dir := t.TempDir()
+	deckPath := filepath.Join(dir, "deck.md")
+	if err := os.WriteFile(deckPath, []byte(exportTestDeck), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pngDir := filepath.Join(dir, "pngs")
+
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"--format", "png", "-o", pngDir, deckPath})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Execute() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Execute (--format png, no --inline-svg): %v", err)
+		}
+	case <-time.After(60 * time.Second):
+		t.Fatalf("--format png without --inline-svg did not finish within 60s: the slide selector does not match the inline-SVG markup press.Render emits")
+	}
+
+	entries, err := os.ReadDir(pngDir)
+	if err != nil {
+		t.Fatalf("reading dir %q: %v", pngDir, err)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("wrote %d PNG files, want 3 (one per slide of exportTestDeck)", len(entries))
+	}
+	for _, e := range entries {
+		b, err := os.ReadFile(filepath.Join(pngDir, e.Name()))
+		if err != nil {
+			t.Fatalf("reading %q: %v", e.Name(), err)
+		}
+		if !bytes.HasPrefix(b, []byte("\x89PNG")) {
+			t.Errorf("%q does not start with the PNG magic header", e.Name())
+		}
+	}
 }
