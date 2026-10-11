@@ -353,3 +353,22 @@ func TestEndToEndPNGWithoutInlineSVGFlag(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderedInlineSVG pins how the png path learns the container mode: from
+// the markup press.Render produced, not from the flag. A default render
+// (InlineSVG false) still carries the inline-SVG wrapper; a plain div.marpit >
+// section document does not, even when its text mentions the marker attribute.
+func TestRenderedInlineSVG(t *testing.T) {
+	out, err := press.Render(exportTestDeck, press.Options{})
+	if err != nil {
+		t.Fatalf("press.Render: %v", err)
+	}
+	if !renderedInlineSVG(out) {
+		t.Fatalf("renderedInlineSVG = false for a default press.Render output; its HTML starts %q", out.HTML[:min(120, len(out.HTML))])
+	}
+
+	plain := press.Output{HTML: `<div class="marpit"><section><p>the data-marpit-svg attribute, as text</p></section></div>`}
+	if renderedInlineSVG(plain) {
+		t.Fatalf("renderedInlineSVG = true for a document without the inline-SVG slide wrapper")
+	}
+}
